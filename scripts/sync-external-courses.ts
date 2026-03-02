@@ -15,13 +15,7 @@ type SyncStatus = {
 
 const BASE_URL = process.env.COURSE_API_BASE_URL || 'https://course.oili.dev';
 const API_KEY = process.env.INTERNAL_API_KEY || '';
-const EXCLUDE_UNIVERSITY = (process.env.SYNC_EXCLUDE_UNIVERSITY || 'CAU').toUpperCase();
-const EXCLUDE_CODES = new Set(
-  String(process.env.SYNC_EXCLUDE_CODES || 'CS 149')
-    .split(',')
-    .map((x) => x.trim())
-    .filter(Boolean)
-);
+// Exclusions should be persisted in DB (syncPolicy/private tags), not env config.
 
 if (!API_KEY) {
   console.error('Missing INTERNAL_API_KEY in environment.');
@@ -54,14 +48,7 @@ async function main() {
   const list = await api<{ courses?: ExternalCourse[] }>('/api/external/courses');
   const all = Array.isArray(list.courses) ? list.courses : [];
 
-  const candidates = all.filter((c) => {
-    const code = String(c.code || '').trim();
-    const uni = String(c.university || '').toUpperCase();
-    if (!code) return false;
-    if (EXCLUDE_CODES.has(code)) return false;
-    if (EXCLUDE_UNIVERSITY && uni.includes(EXCLUDE_UNIVERSITY)) return false;
-    return true;
-  });
+  const candidates = all.filter((c) => String(c.code || '').trim().length > 0);
 
   console.log(`total=${all.length} candidates=${candidates.length}`);
 
