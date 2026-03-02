@@ -9,34 +9,64 @@ import {
   FolderKanban,
   LayoutDashboard,
   Library,
-  Settings,
   User,
   CircleHelp,
+  Sparkles,
+  ShieldCheck,
+  Settings2,
+  Map,
+  BarChart3,
+  KeyRound,
+  BookOpen,
 } from "lucide-react";
 import LogoutButton from "@/components/layout/LogoutButton";
 
 interface LeftRailProps {
   labels: {
+    command: string;
+    identity: string;
+    hub: string;
     courses: string;
     projectsSeminars: string;
     studyPlan: string;
+    studySchedule: string;
     workouts: string;
-    profile: string;
-    settingsIntelligence: string;
+    profile: string; // Keep for compat
+    settings: string;
+    settingsEngine: string;
+    settingsUsage: string;
     settingsSecurity: string;
     settingsSystem: string;
+    settingsApiControl: string;
+    settingsApiReference: string;
+    docs?: string;
+    import: string;
   };
 }
 
-const navItems = [
+const commandNavItems = [
+  { href: "/study-plan", key: "studyPlan", icon: Map },
+  { href: "/study-schedule", key: "studySchedule", icon: CalendarDays },
+  { href: "/profile", key: "identity", icon: User },
+] as const;
+
+const hubNavItems = [
   { href: "/courses", key: "courses", icon: LayoutDashboard },
   { href: "/projects-seminars", key: "projectsSeminars", icon: FolderKanban },
-  { href: "/study-plan", key: "studyPlan", icon: CalendarDays },
   { href: "/workouts", key: "workouts", icon: Dumbbell },
-  { href: "/profile", key: "profile", icon: User },
-  { href: "/settings/intelligence", key: "settingsIntelligence", icon: Settings },
-  { href: "/settings/security", key: "settingsSecurity", icon: Settings },
-  { href: "/settings/system", key: "settingsSystem", icon: Settings },
+] as const;
+
+const settingsNavItems = [
+  { href: "/settings/engine", key: "settingsEngine", icon: Sparkles },
+  { href: "/settings/usage", key: "settingsUsage", icon: BarChart3 },
+  { href: "/settings/security", key: "settingsSecurity", icon: ShieldCheck },
+  { href: "/settings/system", key: "settingsSystem", icon: Settings2 },
+  { href: "/settings/api-management", key: "settingsApiControl", icon: KeyRound },
+  { href: "/settings/import", key: "import", icon: Library },
+] as const;
+
+const docsNavItems = [
+  { href: "/settings/api-reference", key: "settingsApiReference", icon: BookOpen },
 ] as const;
 
 function RailItem({
@@ -70,7 +100,7 @@ export default function LeftRail({ labels }: LeftRailProps) {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden lg:flex lg:w-[218px] h-full shrink-0 bg-[#f5f5f5] flex-col px-3 py-4">
+    <aside className="hidden lg:flex lg:w-[218px] h-full shrink-0 bg-[#f5f5f5] flex-col px-3 py-4 overflow-y-auto">
       <Link href="/courses" className="flex items-center gap-2.5 px-2 mb-5" title="CodeCampus">
         <Image
           src="/code-campus-logo-bw.svg"
@@ -82,10 +112,16 @@ export default function LeftRail({ labels }: LeftRailProps) {
         <span className="text-[24px] tracking-tight font-semibold text-[#2b2b2b]">Codecampus</span>
       </Link>
 
+      <div className="mb-1 px-2.5">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-[#919191]">
+          {labels.command}
+        </span>
+      </div>
+
       <nav className="space-y-0.5">
-        {navItems.map((item) => {
+        {commandNavItems.map((item) => {
           const active = pathname === item.href || (item.href !== "/courses" && pathname.startsWith(item.href));
-          const title = labels[item.key] || item.key;
+          const title = labels[item.key as keyof typeof labels] || item.key;
           return (
             <RailItem
               key={item.href}
@@ -98,10 +134,71 @@ export default function LeftRail({ labels }: LeftRailProps) {
         })}
       </nav>
 
-      <div className="my-4 border-t border-[#e3e3e3]" />
+      <div className="mt-8 mb-1 px-2.5">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-[#919191]">
+          {labels.hub}
+        </span>
+      </div>
 
       <nav className="space-y-0.5">
-        <RailItem href="/import" title="Import" icon={Library} active={pathname.startsWith("/import")} />
+        {hubNavItems.map((item) => {
+          const active = pathname === item.href || (item.href === "/courses" && pathname.startsWith("/courses/"));
+          const title = labels[item.key as keyof typeof labels] || item.key;
+          return (
+            <RailItem
+              key={item.href}
+              href={item.href}
+              title={title}
+              icon={item.icon}
+              active={active}
+            />
+          );
+        })}
+      </nav>
+
+      <div className="mt-8 mb-1 px-2.5">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-[#919191]">
+          {labels.settings}
+        </span>
+      </div>
+
+      <nav className="space-y-0.5">
+        {settingsNavItems.map((item) => {
+          const active = pathname === item.href || 
+                        (item.href === "/settings/engine" && (pathname === "/settings" || pathname === "/settings/intelligence"));
+          const title = labels[item.key as keyof typeof labels] || item.key;
+          return (
+            <RailItem
+              key={item.href}
+              href={item.href}
+              title={title}
+              icon={item.icon}
+              active={active}
+            />
+          );
+        })}
+      </nav>
+
+      <div className="mt-8 mb-1 px-2.5">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-[#919191]">
+          {labels.docs || "Doc"}
+        </span>
+      </div>
+
+      <nav className="space-y-0.5">
+        {docsNavItems.map((item) => {
+          const active = pathname === item.href;
+          const title = labels[item.key as keyof typeof labels] || item.key;
+          return (
+            <RailItem
+              key={item.href}
+              href={item.href}
+              title={title}
+              icon={item.icon}
+              active={active}
+            />
+          );
+        })}
       </nav>
 
       <div className="mt-auto space-y-0.5">

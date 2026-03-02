@@ -2,11 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function proxy(request: NextRequest) {
-  let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  })
+  let response = NextResponse.next();
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -17,6 +13,8 @@ export async function proxy(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
+          // If cookies are being set, we need to clone the response to apply them
+          // but we only do this once to avoid loops.
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           response = NextResponse.next({
             request: {
@@ -31,16 +29,23 @@ export async function proxy(request: NextRequest) {
     }
   )
 
+  // This might trigger setAll if session needs refresh
   const { data: { user } } = await supabase.auth.getUser()
 
-  const isLoginPage = request.nextUrl.pathname === "/login";
-  const isAuthCallback = request.nextUrl.pathname === "/auth/callback";
-  const isPublicPage = request.nextUrl.pathname === "/" || isLoginPage || isAuthCallback;
+  const { pathname } = request.nextUrl;
+  const isLoginPage = pathname === "/login";
+  const isAuthCallback = pathname === "/auth/callback";
+  const publicPaths = ["/", "/courses", "/workouts", "/projects-seminars", "/study-plan", "/study-schedule", "/login", "/auth/callback"];
+  const isPublicPage = publicPaths.includes(pathname) || pathname.startsWith("/_next") || pathname.includes(".");
 
+  // Redirect to login if not authenticated and trying to access a private page
   if (!user && !isPublicPage) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("next", pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
+  // Redirect to dashboard if authenticated and trying to access login
   if (user && isLoginPage) {
     return NextResponse.redirect(new URL("/courses", request.url));
   }
@@ -49,5 +54,15 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|.*\.png$|.*\.jpg$|.*\.jpeg$|.*\.gif$|.*\.webp$|.*\.svg$).*)"],
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public files (svg, png, jpg, etc)
+     */
+    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.svg$|.*\\.png$|.*\\.jpg$|.*\\.jpeg$|.*\\.gif$|.*\\.webp$).*)",
+  ],
 };

@@ -55,6 +55,19 @@ export default function ActiveCourseTrack({
 
   const detailHref = `/courses/${course.id}`;
 
+  const isNonNavigableTarget = (target: EventTarget | null) => {
+    if (!(target instanceof Element)) return false;
+    return Boolean(
+      target.closest(
+        'a,button,input,select,textarea,label,[role="button"],[data-no-card-nav="true"]',
+      ),
+    );
+  };
+
+  const handleCardNavigation = () => {
+    router.push(detailHref);
+  };
+
   const handleProgressChange = async (newProgress: number) => {
     if (newProgress === 100) {
       setProgress(100);
@@ -77,7 +90,7 @@ export default function ActiveCourseTrack({
       });
       if (res.ok) {
         onUpdate?.();
-        startTransition(() => router.refresh());
+        // startTransition(() => router.refresh());
       }
     } catch (e) {
       console.error("Failed to update progress:", e);
@@ -102,7 +115,7 @@ export default function ActiveCourseTrack({
       });
       if (res.ok) {
         onUpdate?.();
-        startTransition(() => router.refresh());
+        // startTransition(() => router.refresh());
       }
     } catch (e) {
       console.error("Failed to complete course:", e);
@@ -131,7 +144,7 @@ export default function ActiveCourseTrack({
       if (res.ok) {
         setAiStatus("success");
         showToast({ type: "success", message: "AI sync completed." });
-        startTransition(() => router.refresh());
+        // startTransition(() => router.refresh());
       } else {
         setAiStatus("error");
         let message = "AI sync failed.";
@@ -159,7 +172,22 @@ export default function ActiveCourseTrack({
   const activeFocusSegments = Math.round((progress / 100) * focusSegments);
 
   return (
-    <div className="bg-white border border-[#e5e5e5] rounded-md p-3 grid grid-cols-1 md:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)_auto] gap-3 md:items-center">
+    <div
+      role="link"
+      tabIndex={0}
+      onClick={(e) => {
+        if (isNonNavigableTarget(e.target)) return;
+        handleCardNavigation();
+      }}
+      onKeyDown={(e) => {
+        if (isNonNavigableTarget(e.target)) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleCardNavigation();
+        }
+      }}
+      className="bg-white border border-[#e5e5e5] rounded-md p-3 grid grid-cols-1 md:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)_auto] gap-3 md:items-center cursor-pointer"
+    >
       {/* Modals */}
       <AddPlanModal
         isOpen={showAddPlanModal}
@@ -170,7 +198,7 @@ export default function ActiveCourseTrack({
       />
 
       {showCompleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/25 backdrop-blur-sm animate-in fade-in duration-200">
+        <div data-no-card-nav="true" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/25 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-[#fcfcfc] border border-[#e5e5e5] rounded-xl p-4 w-full max-w-xs animate-in zoom-in-95 duration-200 shadow-xl">
             <div className="flex items-center gap-2.5 mb-4">
               <div className="w-7 h-7 rounded-md bg-[#f5f5f5] border border-[#e5e5e5] flex items-center justify-center text-[#555] shrink-0">
@@ -250,14 +278,14 @@ export default function ActiveCourseTrack({
         </div>
       </div>
 
-      {/* Progress Section */}
+      {/* Logistics Section */}
       <div className="space-y-2">
         <div className="flex items-end justify-between">
           <div className="flex flex-col">
             <span className="text-[9px] font-bold text-[#c0c0c0] uppercase tracking-wider mb-0.5">
-              Focus_Intensity
+              Logistics
             </span>
-            {localPlan && (
+            {localPlan ? (
               <div className="flex items-center gap-1 text-[10px] font-medium text-[#666]">
                 <Clock className="w-2.5 h-2.5" />
                 <span>
@@ -275,6 +303,10 @@ export default function ActiveCourseTrack({
                     day: "numeric",
                   })}
                 </span>
+              </div>
+            ) : (
+              <div className="text-[10px] font-medium text-[#ababab] italic">
+                No schedule defined
               </div>
             )}
           </div>
@@ -321,7 +353,7 @@ export default function ActiveCourseTrack({
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-2 pt-2 border-t border-[#f0f0f0] md:pt-0 md:border-t-0 md:pl-2 md:border-l md:border-[#f0f0f0]">
+      <div data-no-card-nav="true" className="flex items-center gap-2 pt-2 border-t border-[#f0f0f0] md:pt-0 md:border-t-0 md:pl-2 md:border-l md:border-[#f0f0f0]">
         <div className="flex gap-1">
           {quickIncrements.map((inc) => (
             <button

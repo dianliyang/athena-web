@@ -102,7 +102,7 @@ export default function CourseList({
         type: "success",
         message: `Hidden ${result.hidden} course(s).`,
       });
-      router.refresh();
+      // router.refresh();
     } catch (error) {
       showToast({
         type: "error",
@@ -145,7 +145,7 @@ export default function CourseList({
       if (result.updated > 0) {
         trackAiUsage({ calls: result.updated, tokens: result.updated * 220 });
       }
-      router.refresh();
+      // router.refresh();
     } catch (error) {
       showToast({
         type: "error",
@@ -165,7 +165,7 @@ export default function CourseList({
         type: "success",
         message: `Cleared topics for ${result.cleared} course(s).`,
       });
-      router.refresh();
+      // router.refresh();
     } catch (error) {
       showToast({
         type: "error",
@@ -217,6 +217,8 @@ export default function CourseList({
   }, [page, totalPages, isLoading, searchParams, perPage]);
 
   useEffect(() => {
+    if (page >= totalPages) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
         const isMobile = window.innerWidth < 768;
@@ -232,7 +234,7 @@ export default function CourseList({
     }
 
     return () => observer.disconnect();
-  }, [loadMore, isLoading]);
+  }, [loadMore, isLoading, page, totalPages]);
 
   const effectiveViewMode: "list" | "grid" = viewMode;
 

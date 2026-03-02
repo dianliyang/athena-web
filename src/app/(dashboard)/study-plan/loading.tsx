@@ -1,24 +1,26 @@
 export default function StudyPlanLoading() {
   return (
     <main className="w-full animate-pulse">
-      <div className="space-y-4">
-        {/* Stats strip — mirrors StudyPlanHeader */}
-        <div className="rounded-lg border border-[#e5e5e5] bg-[#fcfcfc] grid grid-cols-2 lg:grid-cols-4">
-          <div className="px-4 py-3 border-r border-b lg:border-b-0 border-[#e5e5e5]">
-            <div className="h-3 w-20 bg-[#f0f0f0] rounded" />
-            <div className="h-7 w-12 bg-[#e8e8e8] rounded mt-2" />
-          </div>
-          <div className="px-4 py-3 border-b lg:border-b-0 lg:border-r border-[#e5e5e5]">
-            <div className="h-3 w-20 bg-[#f0f0f0] rounded" />
-            <div className="h-7 w-12 bg-[#e8e8e8] rounded mt-2" />
-          </div>
-          <div className="px-4 py-3 border-r border-[#e5e5e5]">
-            <div className="h-3 w-20 bg-[#f0f0f0] rounded" />
-            <div className="h-7 w-12 bg-[#e8e8e8] rounded mt-2" />
-          </div>
-          <div className="px-4 py-3">
-            <div className="h-3 w-20 bg-[#f0f0f0] rounded" />
-            <div className="h-7 w-12 bg-[#e8e8e8] rounded mt-2" />
+      <div className="flex flex-col gap-4">
+        {/* Sticky Stats strip — mirrors StudyPlanHeader */}
+        <div className="sticky top-[-12px] z-20 -mx-3 sm:-mx-4 px-3 sm:px-4 pb-4 bg-[#fcfcfc] border-b border-[#e5e5e5]">
+          <div className="rounded-lg border border-[#e5e5e5] bg-[#fcfcfc] grid grid-cols-2 lg:grid-cols-4 overflow-hidden">
+            <div className="px-4 py-3 border-r border-b lg:border-b-0 border-[#e5e5e5]">
+              <div className="h-3 w-20 bg-[#f0f0f0] rounded" />
+              <div className="h-7 w-12 bg-[#e8e8e8] rounded mt-2" />
+            </div>
+            <div className="px-4 py-3 border-b lg:border-b-0 lg:border-r border-[#e5e5e5]">
+              <div className="h-3 w-20 bg-[#f0f0f0] rounded" />
+              <div className="h-7 w-12 bg-[#e8e8e8] rounded mt-2" />
+            </div>
+            <div className="px-4 py-3 border-r border-[#e5e5e5]">
+              <div className="h-3 w-20 bg-[#f0f0f0] rounded" />
+              <div className="h-7 w-12 bg-[#e8e8e8] rounded mt-2" />
+            </div>
+            <div className="px-4 py-3">
+              <div className="h-3 w-20 bg-[#f0f0f0] rounded" />
+              <div className="h-7 w-12 bg-[#e8e8e8] rounded mt-2" />
+            </div>
           </div>
         </div>
 

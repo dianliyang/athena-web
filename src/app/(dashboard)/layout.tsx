@@ -23,14 +23,23 @@ export default async function DashboardLayout({
         <div className="h-full flex overflow-hidden">
           <LeftRail
             labels={{
+              hub: dict.navbar?.hub || "Hub",
               courses: dict.navbar?.courses || "Courses",
               projectsSeminars: dict.navbar?.projects_seminars || "Seminars",
               studyPlan: dict.navbar?.roadmap || "Roadmap",
+              studySchedule: dict.navbar?.schedule || "Schedule",
               workouts: dict.navbar?.workouts || "Workouts",
-              profile: dict.navbar?.profile || "Profile",
-              settingsIntelligence: "Settings · Intelligence",
-              settingsSecurity: "Settings · Security",
-              settingsSystem: "Settings · System",
+              command: dict.navbar?.command || "Command",
+              identity: dict.navbar?.identity || "Identity",
+              profile: dict.navbar?.identity || "Identity", // Keep for compat if needed
+              settings: dict.navbar?.settings || "Settings",
+              settingsEngine: dict.navbar?.settings_engine || dict.navbar?.settings_intelligence || "Engine",
+              settingsUsage: dict.navbar?.settings_usage || "Usage",
+              settingsSecurity: dict.navbar?.settings_account || dict.navbar?.settings_security || "Account",
+              settingsSystem: dict.navbar?.settings_system || "System",
+              settingsApiControl: dict.navbar?.settings_api_control || "API Control",
+              settingsApiReference: dict.navbar?.settings_api_reference || "API Reference",
+              import: dict.dashboard?.import?.label || "Import",
             }}
           />
           <section className="flex-1 min-w-0 h-full overflow-hidden p-1.5 sm:p-2">

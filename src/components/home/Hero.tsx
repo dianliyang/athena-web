@@ -2,13 +2,13 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { Search } from "lucide-react";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default function Hero({ dict }: { dict?: any }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
 
   // Initialize from URL
   const initialQuery = searchParams.get("q") || "";
@@ -18,15 +18,19 @@ export default function Hero({ dict }: { dict?: any }) {
   const lastPushedQuery = useRef(initialQuery);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // 1. Sync local state with URL (e.g. browser back button)
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Sync local state with URL (e.g. browser back button)
+  useEffect(() => {
+    if (!mounted) return;
     const urlQuery = searchParams.get("q") || "";
     if (urlQuery !== query) {
       setQuery(urlQuery);
-      lastPushedQuery.current = urlQuery;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+  }, [searchParams, mounted]);
 
   // Add Cmd+K / Ctrl+K keyboard shortcut
   useEffect(() => {
@@ -42,35 +46,35 @@ export default function Hero({ dict }: { dict?: any }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // 2. Debounced URL update
-  useEffect(() => {
-    // If the local state already matches the last thing we pushed (or the URL), skip
-    if (query === lastPushedQuery.current) return;
-
-    const timer = setTimeout(() => {
-      const params = new URLSearchParams(searchParams.toString());
-      
-      if (query) params.set("q", query);
-      else params.delete("q");
-      
-      params.set("page", "1");
-      
-      const targetPath = pathname === "/workouts" ? "/workouts" : "/courses";
-      const newUrl = `${targetPath}?${params.toString()}`;
-      lastPushedQuery.current = query;
-      // Avoid scroll jump if already on target page
-      router.push(newUrl, { scroll: pathname !== targetPath });
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [query, router, searchParams, pathname]);
+  const executeSearch = (searchQuery: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (searchQuery) params.set("q", searchQuery);
+    else params.delete("q");
+    params.set("page", "1");
+    
+    const targetPath = pathname === "/workouts" ? "/workouts" : "/courses";
+    const newUrl = `${targetPath}?${params.toString()}`;
+    
+    if (pathname === targetPath) {
+      router.replace(newUrl, { scroll: false });
+    } else {
+      router.push(newUrl);
+    }
+  };
 
   const handleSuggestion = (tag: string) => {
     setQuery(tag);
+    executeSearch(tag);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      executeSearch(query);
+    }
   };
 
   return (
-    <div className="bg-slate-50 border-b border-slate-200 py-10 relative overflow-hidden">
+    <div className="py-10 relative overflow-hidden">
       {/* Subtle Background Pattern */}
       <div className="absolute inset-0 opacity-[0.03] pointer-events-none select-none">
         <div className="absolute inset-0 bg-[radial-gradient(#000_1px,transparent_1px)] [background-size:20px_20px]"></div>
@@ -78,39 +82,6 @@ export default function Hero({ dict }: { dict?: any }) {
 
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="max-w-3xl">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-6 h-6 rounded-md bg-brand-blue/10 flex items-center justify-center text-brand-blue border border-brand-blue/20">
-              <Search className="w-3 h-3" />
-            </div>
-            <h1 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
-              {dict?.search?.label || "Course Registry Search"}
-            </h1>
-          </div>
-
-          <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-6">
-            {dict?.search?.title ? (
-              dict.search.title.includes("learn") ? (
-                <>
-                  {dict.search.title.split("learn")[0]}
-                  <span className="text-brand-blue">learn</span>
-                  {dict.search.title.split("learn")[1]}
-                </>
-              ) : dict.search.title.includes("学") ? (
-                <>
-                  {dict.search.title.split("学")[0]}
-                  <span className="text-brand-blue">学</span>
-                  {dict.search.title.split("学")[1]}
-                </>
-              ) : (
-                dict.search.title
-              )
-            ) : (
-              <>
-                What do you want to <span className="text-brand-blue">learn</span> today?
-              </>
-            )}
-          </h2>
-
           <div className="relative group">
             <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
               <span className="text-slate-400 font-mono text-sm group-focus-within:text-brand-blue transition-colors">/</span>
@@ -122,6 +93,7 @@ export default function Hero({ dict }: { dict?: any }) {
               className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-20 py-3.5 text-base font-medium text-slate-900 placeholder:text-slate-300 outline-none focus:border-brand-blue focus:ring-4 focus:ring-brand-blue/5 transition-all"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
             />
             <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
               <kbd className="hidden sm:inline-flex h-5 items-center gap-1 rounded border border-slate-200 bg-slate-50 px-1.5 font-sans text-[9px] font-bold text-slate-400">

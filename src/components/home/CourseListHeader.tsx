@@ -28,6 +28,7 @@ export default function CourseListHeader({
   const [filtersOpen, setFiltersOpen] = useState(false);
   const filtersRef = useRef<HTMLDivElement>(null);
   const lastPushedQuery = useRef(searchParams.get("q") || "");
+  const isComposing = useRef(false);
 
   const selectedUniversities = searchParams.get("universities")?.split(",").filter(Boolean) || [];
   const selectedSemesters = searchParams.get("semesters")?.split(",").filter(Boolean) || [];
@@ -71,12 +72,19 @@ export default function CourseListHeader({
   }, [searchParams]);
 
   useEffect(() => {
-    if (query === lastPushedQuery.current) return;
+    if (query === lastPushedQuery.current || isComposing.current) return;
 
     const timer = setTimeout(() => {
+      if (isComposing.current) return;
+      const currentUrlQuery = searchParams.get("q") || "";
+      if (query === currentUrlQuery) {
+        lastPushedQuery.current = query;
+        return;
+      }
+
       lastPushedQuery.current = query;
       pushWith({ q: query || null });
-    }, 300);
+    }, 500);
 
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -135,7 +143,7 @@ export default function CourseListHeader({
         <div className="w-full md:w-auto space-y-2 md:space-y-0 md:flex md:items-center md:gap-2">
           <div className="grid grid-cols-2 md:flex items-center gap-2 text-[13px] text-[#6a6a6a]">
             <Link
-              href="/import"
+              href="/settings/import"
               className="inline-flex h-9 md:h-8 items-center justify-center gap-1.5 rounded-md border border-[#d3d3d3] bg-white px-2.5 text-[13px] font-medium text-[#3b3b3b] hover:bg-[#f8f8f8] transition-colors"
             >
               <Plus className="h-3.5 w-3.5" />
@@ -234,6 +242,11 @@ export default function CourseListHeader({
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
+                onCompositionStart={() => { isComposing.current = true; }}
+                onCompositionEnd={(e) => {
+                  isComposing.current = false;
+                  setQuery(e.currentTarget.value);
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") commitSearch(query);
                 }}

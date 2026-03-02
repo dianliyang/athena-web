@@ -4,6 +4,7 @@ import {
   buildCachingHeaders,
   transformExternalCourse,
 } from '@/lib/external-api';
+import { authorizeExternalRequest } from '@/lib/external-api-auth';
 
 /**
  * External API for enrolled courses.
@@ -13,11 +14,9 @@ import {
  * Supports conditional GET via If-Modified-Since → 304 Not Modified.
  */
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get('x-api-key');
-  const internalKey = process.env.INTERNAL_API_KEY;
-
-  if (internalKey && authHeader !== internalKey) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const auth = await authorizeExternalRequest(request);
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
   try {

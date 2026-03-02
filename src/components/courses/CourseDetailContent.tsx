@@ -76,8 +76,8 @@ export default function CourseDetailContent({
   const [newUrl, setNewUrl] = useState("");
   const [isAddingUrl, setIsAddingUrl] = useState(false);
   const [removingUrlIndex, setRemovingUrlIndex] = useState<number | null>(null);
+  const [showAllResources, setShowAllResources] = useState(false);
   const router = useRouter();
-  const [scheduleView, setScheduleView] = useState<"list" | "calendar">("list");
   const dayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const hasStudyPlans = editablePlans.length > 0;
   const normalizeTime = (value: string) => (value.length === 5 ? `${value}:00` : value || "09:00:00");
@@ -122,9 +122,12 @@ export default function CourseDetailContent({
       : course.university?.toLowerCase() === "stanford"
         ? "Stanford Course Variants"
       : "CMU Course Variants";
+  const visibleResources = showAllResources ? localResources : localResources.slice(0, 5);
+  const hasMoreResources = localResources.length > 5;
 
   useEffect(() => {
     setLocalResources(course.resources || []);
+    setShowAllResources(false);
   }, [course.resources]);
 
   useEffect(() => {
@@ -359,84 +362,32 @@ export default function CourseDetailContent({
             </section>
           )}
 
-          <section className="rounded-lg border border-[#e5e5e5] bg-[#fcfcfc] p-3">
-              <div className="inline-flex items-center rounded-[7px] border border-[#dedede] bg-[#f4f4f4] p-[2px]">
-                <button
-                  type="button"
-                  onClick={() => setScheduleView("list")}
-                  className={`h-7 rounded-[5px] px-3 text-[12px] font-medium transition-colors ${
-                    scheduleView === "list"
-                      ? "bg-white text-[#111] shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
-                      : "text-[#666] hover:bg-[#ececec]"
-                  }`}
-                  aria-pressed={scheduleView === "list"}
-                >
-                  List
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setScheduleView("calendar")}
-                  className={`h-7 rounded-[5px] px-3 text-[12px] font-medium transition-colors ${
-                    scheduleView === "calendar"
-                      ? "bg-white text-[#111] shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
-                      : "text-[#666] hover:bg-[#ececec]"
-                  }`}
-                  aria-pressed={scheduleView === "calendar"}
-                >
-                  Calendar
-                </button>
-              </div>
-          </section>
-
-          {scheduleView === "calendar" && (
-            <section className="rounded-lg border border-[#e5e5e5] bg-[#fcfcfc] p-4">
-              <h2 className="text-base font-semibold text-[#1f1f1f] mb-3">Weekly Calendar</h2>
-              {editablePlans.length > 0 ? (
-                <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                  {editablePlans.map((plan, idx) => (
-                    <div key={plan.id ?? idx} className="rounded-md border border-[#e1e1e1] bg-white px-3 py-2">
-                      <p className="text-xs font-medium text-[#666]">
-                        {(plan.daysOfWeek || []).map((d) => dayLabels[d] || String(d)).join(", ") || "No days"}
-                      </p>
-                      <p className="text-sm font-medium text-[#222]">{plan.startTime.slice(0, 5)}-{plan.endTime.slice(0, 5)}</p>
-                      <p className="text-xs text-[#777]">{plan.location || "TBD"} • {plan.kind || "Session"}</p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-[#888]">No calendar events available yet.</p>
-              )}
-            </section>
-          )}
-
-          {scheduleView === "list" && (hasStudyPlans || course.details?.schedule || (course.instructors && course.instructors.length > 0)) && (
-            <section>
-              <div className="rounded-lg border border-[#e5e5e5] bg-[#fcfcfc] p-4">
+          <section>
+            <div className="rounded-lg border border-[#e5e5e5] bg-[#fcfcfc] p-4">
               <h2 className="text-base font-semibold text-[#1f1f1f] mb-3">Logistics</h2>
               <div className="grid grid-cols-1 gap-4">
-                {(hasStudyPlans || (course.details?.schedule && Object.keys(course.details.schedule).length > 0)) && (
-                  <div>
-                    <div className="flex items-center justify-between gap-3 mb-4">
-                      <h3 className="text-sm font-medium text-[#333] flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-[#777]" />
-                        Weekly Schedule
-                      </h3>
-                      <button
-                        type="button"
-                        onClick={handleGeneratePlans}
-                        disabled={isGeneratingPlans}
-                        className="inline-flex items-center justify-center w-8 h-8 rounded-md border border-[#d3d3d3] bg-white text-[#666] hover:bg-[#f8f8f8] disabled:opacity-50"
-                        title="Generate study plan preview"
-                      >
-                        {isGeneratingPlans ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <WandSparkles className="w-3.5 h-3.5" />
-                        )}
-                      </button>
-                    </div>
-                    <div className={hasStudyPlans ? "grid grid-cols-1 md:grid-cols-2 gap-2" : "space-y-4"}>
-                      {hasStudyPlans ? (
+                <div>
+                  <div className="flex items-center justify-between gap-3 mb-4">
+                    <h3 className="text-sm font-medium text-[#333] flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-[#777]" />
+                      Weekly Schedule
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={handleGeneratePlans}
+                      disabled={isGeneratingPlans}
+                      className="inline-flex items-center justify-center w-8 h-8 rounded-md border border-[#d3d3d3] bg-white text-[#666] hover:bg-[#f8f8f8] disabled:opacity-50"
+                      title="Generate study plan preview"
+                    >
+                      {isGeneratingPlans ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <WandSparkles className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+                  </div>
+                  <div className={hasStudyPlans ? "grid grid-cols-1 md:grid-cols-2 gap-2" : "space-y-4"}>
+                    {hasStudyPlans ? (
                         editablePlans.map((plan, idx) => (
                           <div key={plan.id ?? idx} className="rounded-md border border-[#e5e5e5] bg-white p-2.5">
                             <div className="flex items-start justify-between gap-2">
@@ -549,8 +500,8 @@ export default function CourseDetailContent({
                             )}
                           </div>
                         ))
-                      ) : (
-                        Object.entries(course.details?.schedule || {}).map(([type, times]) => (
+                    ) : (course.details?.schedule && Object.keys(course.details.schedule).length > 0) ? (
+                      Object.entries(course.details?.schedule || {}).map(([type, times]) => (
                           <div key={type}>
                             <div className="text-xs font-medium text-[#777] mb-1">{type}</div>
                             <ul className="space-y-2">
@@ -562,10 +513,11 @@ export default function CourseDetailContent({
                             </ul>
                           </div>
                         ))
-                      )}
-                    </div>
+                    ) : (
+                      <p className="text-sm text-[#9a9a9a]">No schedule available yet.</p>
+                    )}
                   </div>
-                )}
+                </div>
 
                 {course.instructors && course.instructors.length > 0 && (
                   <div>
@@ -676,8 +628,7 @@ export default function CourseDetailContent({
                 </div>
               )}
               </div>
-            </section>
-          )}
+          </section>
 
           {(course.prerequisites || course.corequisites) && (
             <section className="rounded-lg border border-[#e5e5e5] bg-[#fcfcfc] p-4">
@@ -803,7 +754,7 @@ export default function CourseDetailContent({
                 <div className="space-y-4">
                   {localResources.length > 0 && (
                     <ul className="space-y-3">
-                      {localResources.map((url: string, i: number) => (
+                      {visibleResources.map((url: string, i: number) => (
                         <li key={`${url}-${i}`} className="flex items-start gap-2">
                           <a href={url} target="_blank" rel="noreferrer" className="text-sm font-medium text-[#335b9a] hover:underline flex items-start gap-2 break-all flex-1 min-w-0">
                             <Globe className="w-4 h-4 flex-shrink-0 mt-0.5 text-[#778fb8]" />
@@ -826,6 +777,15 @@ export default function CourseDetailContent({
                         </li>
                       ))}
                     </ul>
+                  )}
+                  {hasMoreResources && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllResources((v) => !v)}
+                      className="h-7 rounded-md border border-[#d3d3d3] bg-white px-2.5 text-[12px] font-medium text-[#3b3b3b] hover:bg-[#f8f8f8] transition-colors"
+                    >
+                      {showAllResources ? "Less" : "More"}
+                    </button>
                   )}
                   {course.crossListedCourses && (
                     <div>

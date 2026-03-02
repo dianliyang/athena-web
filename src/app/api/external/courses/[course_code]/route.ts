@@ -4,6 +4,7 @@ import {
   buildCachingHeaders,
   transformExternalCourse,
 } from '@/lib/external-api';
+import { authorizeExternalRequest } from '@/lib/external-api-auth';
 
 /**
  * External API for a single enrolled course by course_code.
@@ -16,11 +17,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ course_code: string }> }
 ) {
-  const authHeader = request.headers.get('x-api-key');
-  const internalKey = process.env.INTERNAL_API_KEY;
-
-  if (internalKey && authHeader !== internalKey) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const auth = await authorizeExternalRequest(request);
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
   const { course_code: courseCode } = await params;
@@ -154,11 +153,9 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ course_code: string }> }
 ) {
-  const authHeader = request.headers.get('x-api-key');
-  const internalKey = process.env.INTERNAL_API_KEY;
-
-  if (internalKey && authHeader !== internalKey) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const auth = await authorizeExternalRequest(request);
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
   const { course_code: courseCode } = await params;

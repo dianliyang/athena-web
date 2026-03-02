@@ -19,7 +19,7 @@ export default function CoursesTopBar({ dict: _dict }: { dict: Dictionary["dashb
 
         <div className="flex items-center gap-2">
           <Link
-            href="/import"
+            href="/settings/import"
             className="inline-flex items-center gap-1.5 rounded-md border border-[#d3d3d3] bg-white px-2.5 py-1.5 text-[14px] font-medium text-[#3b3b3b] hover:bg-[#f8f8f8] transition-colors"
           >
             <Plus className="h-3.5 w-3.5" />

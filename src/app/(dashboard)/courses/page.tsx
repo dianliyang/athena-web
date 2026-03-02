@@ -20,10 +20,12 @@ export default async function CoursesPage({ searchParams }: PageProps) {
   const dict = await getDictionary(lang);
 
   return (
-    <div className="space-y-5">
-      <Suspense fallback={<StatsSkeleton />}>
-        <CoursesStatsStrip userId={user?.id} />
-      </Suspense>
+    <div className="flex flex-col gap-5">
+      <div className="sticky top-[-12px] z-20 -mx-3 sm:-mx-4 px-3 sm:px-4 pb-4 bg-[#fcfcfc] border-b border-[#e5e5e5]">
+        <Suspense fallback={<StatsSkeleton />}>
+          <CoursesStatsStrip userId={user?.id} />
+        </Suspense>
+      </div>
       <div>
         <Suspense fallback={<CourseListSkeleton />}>
           <CourseListData params={params} dict={dict.dashboard.courses} />

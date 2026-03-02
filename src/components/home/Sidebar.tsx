@@ -50,6 +50,12 @@ export default function Sidebar({ universities, fields, semesters, enrolledCount
     setFiltersOpen(false);
   };
 
+  if (!filtersOpen) {
+    // We still need to listen for the custom event even if not showing anything
+    // But wait, if it's not showing, how can it close?
+    // Let's keep the listeners but simplify.
+  }
+
   useEffect(() => {
     const openHandler = () => setFiltersOpen(true);
     const closeHandler = () => setFiltersOpen(false);

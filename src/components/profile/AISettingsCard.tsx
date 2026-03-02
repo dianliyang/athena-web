@@ -765,13 +765,13 @@ export default function AISettingsCard({
         </div>
       </div>
 
-      {/* 5. Topic Classification Logic */}
+      {/* 5. Domain Logic */}
       <div className={section === "topics" ? "h-full flex flex-col" : "hidden"}>
         <div className="bg-white border border-[#e5e5e5] rounded-md p-4 flex flex-col h-full">
           <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#efefef] shrink-0">
             <div className="flex items-center gap-2 text-[#222]">
               <Tag className="w-4 h-4 text-[#777]" />
-              <span className="text-sm font-semibold">Topic Classification Logic</span>
+              <span className="text-sm font-semibold">Domain Logic</span>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -780,7 +780,7 @@ export default function AISettingsCard({
                 className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[#d3d3d3] bg-white px-2.5 text-[13px] font-medium text-[#333] hover:bg-[#f8f8f8] transition-colors disabled:opacity-50"
               >
                 {isSavingTopics ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                Push Topic Logic
+                Push Domain Logic
               </button>
               <button
                 onClick={() => setTopicsPromptTemplate("")}

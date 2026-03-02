@@ -68,6 +68,7 @@ export async function renderSettingsPage(initialSection?: SectionId) {
         profile={profile}
         initialSection={initialSection}
         aiDefaults={{ modelCatalog }}
+        dict={dict}
       />
     </div>
   );

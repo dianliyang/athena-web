@@ -2,13 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { runCourseIntel } from '@/lib/ai/course-intel';
 import { getCourseIntelErrorStatus } from '@/lib/ai/course-intel-errors';
-
-function isAuthorized(request: NextRequest): boolean {
-  const authHeader = request.headers.get('x-api-key');
-  const internalKey = process.env.INTERNAL_API_KEY;
-  if (!internalKey) return true;
-  return authHeader === internalKey;
-}
+import { authorizeExternalRequest } from '@/lib/external-api-auth';
 
 function isLikelyPrivateUrl(url: string): boolean {
   const u = url.toLowerCase();
@@ -63,8 +57,9 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ course_code: string }> }
 ) {
-  if (!isAuthorized(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const auth = await authorizeExternalRequest(request);
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
   const { course_code: courseCode } = await params;
@@ -183,8 +178,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ course_code: string }> }
 ) {
-  if (!isAuthorized(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const auth = await authorizeExternalRequest(request);
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
   const { course_code: courseCode } = await params;

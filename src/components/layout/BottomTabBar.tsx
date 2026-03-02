@@ -27,8 +27,14 @@ export default function BottomTabBar({ labels }: BottomTabBarProps) {
     {
       name: labels?.studyPlan || "Roadmap",
       href: "/study-plan",
-      icon: CalendarDays,
+      icon: BookOpen,
       isActive: pathname === "/study-plan",
+    },
+    {
+      name: labels?.studySchedule || "Schedule",
+      href: "/study-schedule",
+      icon: CalendarDays,
+      isActive: pathname === "/study-schedule",
     },
     {
       name: labels?.workouts || "Workouts",
@@ -46,7 +52,7 @@ export default function BottomTabBar({ labels }: BottomTabBarProps) {
       name: labels?.settings || "Settings",
       href: "/settings",
       icon: Settings,
-      isActive: pathname === "/settings",
+      isActive: pathname.startsWith("/settings"),
     },
   ];
 

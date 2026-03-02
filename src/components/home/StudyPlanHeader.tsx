@@ -17,8 +17,8 @@ export default function StudyPlanHeader({ enrolledCount, completedCount, totalCr
     : 0;
 
   return (
-    <section className="rounded-lg border border-[#e5e5e5] bg-[#fcfcfc]">
-      <div className="grid grid-cols-2 lg:grid-cols-4">
+    <section className="sticky top-[-12px] z-20 -mx-3 sm:-mx-4 px-3 sm:px-4 pb-4 bg-[#fcfcfc] border-b border-[#e5e5e5]">
+      <div className="rounded-lg border border-[#e5e5e5] bg-[#fcfcfc] grid grid-cols-2 lg:grid-cols-4 overflow-hidden">
         <div className="px-4 py-3 border-r border-b lg:border-b-0 border-[#e5e5e5]">
           <p className="text-xs text-slate-500">{dict?.header_total || "Active Tracks"}</p>
           <p className="mt-1 text-[26px] leading-none font-semibold tracking-tight text-slate-900">{enrolledCount}</p>

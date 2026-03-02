@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Course } from "@/types";
 import { Dictionary } from "@/lib/dictionary";
 import { useRouter } from "next/navigation";
@@ -69,8 +69,13 @@ interface StudyCalendarProps {
 
 export default function StudyCalendar({ courses, plans, logs, dict, initialDate, onToggleComplete, coursesWithoutPlans = [] }: StudyCalendarProps) {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   const [currentDate, setCurrentDate] = useState(() => initialDate ?? new Date());
   const [selectedDay, setSelectedDay] = useState<number | null>(() => (initialDate ?? new Date()).getDate());
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const [isGenerating, setIsGenerating] = useState(false);
   const [optimisticByKey, setOptimisticByKey] = useState<Record<string, OptimisticEntry>>({});
   const [globalError, setGlobalError] = useState<string | null>(null);
@@ -173,7 +178,7 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate,
         body: JSON.stringify({ action: 'generate' })
       });
       if (res.ok) {
-        router.refresh();
+        // router.refresh();
       }
     } catch (e) {
       console.error('Failed to generate schedule:', e);
@@ -215,7 +220,7 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate,
         delete next[key];
         return next;
       });
-      router.refresh();
+      // router.refresh();
     } catch (e) {
       setOptimisticByKey(prev => ({
         ...prev,
@@ -285,7 +290,7 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate,
       alert(`Created ${totalCreated} study plan(s).`);
       setBulkPreview(null);
       setBulkSelectedIds({});
-      router.refresh();
+      // router.refresh();
     } catch (err) {
       console.error(err);
       alert(err instanceof Error ? err.message : "Failed to save study plans");
@@ -300,10 +305,10 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate,
   };
 
   return (
-    <div className="rounded-md border border-[#e5e5e5] bg-white p-3 sm:p-4 h-full flex flex-col">
-      <div className="flex flex-col md:flex-row gap-4 flex-1 min-h-0">
+    <div className="rounded-md border border-[#e5e5e5] bg-white p-3 sm:p-5 h-full flex flex-col">
+      <div className="flex flex-col md:flex-row gap-6 lg:gap-10 flex-1 min-h-0">
         {/* Left: Calendar */}
-        <div className="flex-shrink-0 w-full md:w-80 flex flex-col">
+        <div className="flex-shrink-0 w-full md:w-80 lg:w-[420px] flex flex-col">
           {/* Header */}
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-[#1f1f1f]">
@@ -379,11 +384,11 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate,
           </div>
 
           {/* Weekday Headers */}
-          <div className="grid grid-cols-7 gap-0.5 mb-1">
+          <div className="grid grid-cols-7 gap-1 mb-2">
             {weekdays.map((day, i) => (
               <div
                 key={i}
-                className={`text-center text-[11px] font-medium py-1 ${
+                className={`text-center text-[12px] font-bold py-1 ${
                   i === 0 || i === 6 ? 'text-[#ababab]' : 'text-[#8a8a8a]'
                 }`}
               >
@@ -393,7 +398,7 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate,
           </div>
 
           {/* Calendar Grid */}
-          <div className="grid grid-cols-7 gap-1 flex-1">
+          <div className="grid grid-cols-7 gap-1.5 flex-1">
             {calendarDays.map((day, index) => {
               if (day === null) {
                 return <div key={`empty-${index}`} className="aspect-square"></div>;
@@ -408,9 +413,9 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate,
                 <button
                   key={day}
                   onClick={() => setSelectedDay(isSelected ? null : day)}
-                  className={`flex-1 aspect-square rounded-md flex flex-col items-center justify-center relative transition-all ${
+                  className={`flex-1 aspect-square rounded-lg flex flex-col items-center justify-center relative transition-all ${
                     isSelected
-                      ? 'bg-[#1f1f1f] text-white'
+                      ? 'bg-[#1f1f1f] text-white shadow-md'
                     : isToday
                         ? 'bg-[#efefef] text-[#1f1f1f] ring-1 ring-[#d0d0d0]'
                         : hasSchedule
@@ -418,14 +423,14 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate,
                           : 'text-[#9a9a9a] hover:bg-[#f8f8f8]'
                   }`}
                 >
-                  <span className={`text-xs font-bold ${isToday && !isSelected ? 'text-violet-700' : ''}`}>
+                  <span className={`text-[13px] font-bold ${isToday && !isSelected ? 'text-violet-700' : ''}`}>
                     {day}
                   </span>
 
                   {hasSchedule && !isSelected && (
-                    <div className="absolute bottom-1.5 flex gap-0.5">
+                    <div className="absolute bottom-2 flex gap-1">
                       {dayEvents.map((_, i) => (
-                        <div key={i} className="w-1 h-1 rounded-full bg-violet-400"></div>
+                        <div key={i} className="w-1.5 h-1.5 rounded-full bg-violet-400"></div>
                       ))}
                     </div>
                   )}
@@ -436,12 +441,12 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate,
         </div>
 
         {/* Right: Selected Day Details */}
-        <div className="flex-1 border-t md:border-t-0 md:border-l border-[#e8e8e8] pt-4 md:pt-0 md:pl-4 min-w-0 flex flex-col">
+        <div className="flex-1 border-t md:border-t-0 md:border-l border-[#e8e8e8] pt-5 md:pt-0 md:pl-6 lg:pl-10 min-w-0 flex flex-col">
           {selectedDay ? (
             <div className="animate-in fade-in duration-200 h-full flex flex-col">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-xs font-medium text-[#777]">
-                  {monthNames[month]} {selectedDay}
+              <div className="flex items-center justify-between mb-6">
+                <span className="text-sm font-bold text-[#333]">
+                  {monthNames[month]} {selectedDay}, {year}
                 </span>
                 {hasEvents && (
                   <span className="text-[11px] font-medium text-[#555] bg-[#f2f2f2] px-2 py-0.5 rounded-full">
@@ -464,9 +469,9 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate,
               )}
 
               {isRestDay ? (
-                <div className="text-center py-6 flex-grow flex flex-col items-center justify-center">
-                  <Flower2 className="w-8 h-8 text-gray-200 mb-2" />
-                  <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">
+                <div className="text-center py-10 flex-grow flex flex-col items-center justify-center">
+                  <Flower2 className="w-12 h-12 text-gray-200 mb-4" />
+                  <p className="text-sm text-gray-400 font-bold uppercase tracking-[0.2em]">
                     {dict.calendar_rest_message}
                   </p>
                 </div>
@@ -485,7 +490,7 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate,
                       return (
                         <div
                           key={`${event.planId}-${idx}`}
-                          className={`rounded-lg border cursor-pointer transition-all flex flex-col px-3 py-2 group/item ${bgColor}`}
+                          className={`rounded-xl border cursor-pointer transition-all flex flex-col px-4 py-3 group/item ${bgColor}`}
                           style={shouldShake ? { animation: "studyScheduleShake 280ms ease-in-out 1" } : undefined}
                           aria-disabled={isPending}
                           onClick={() => {
@@ -493,36 +498,36 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate,
                             toggleComplete(event.planId, event.date);
                           }}
                         >
-                          <div className="flex items-start justify-between gap-2 mb-0.5">
-                            <span className={`text-xs font-semibold truncate ${effectiveCompleted ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                          <div className="flex items-start justify-between gap-4 mb-1">
+                            <span className={`text-[15px] font-bold tracking-tight leading-tight ${effectiveCompleted ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
                               {event.title}
                             </span>
-                            <div className="flex items-center gap-1 flex-shrink-0">
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
                               {isFailed && (
-                                <span className="text-[9px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full">
+                                <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full">
                                   Failed
                                 </span>
                               )}
-                              {isPending && <Loader2 className="w-3 h-3 text-gray-400 animate-spin" />}
-                              {effectiveCompleted && <Check className="w-3 h-3 text-gray-400" />}
+                              {isPending && <Loader2 className="w-3.5 h-3.5 text-gray-400 animate-spin" />}
+                              {effectiveCompleted && <Check className="w-3.5 h-3.5 text-gray-400" />}
                               {!effectiveCompleted && !isPending && (
-                                <Check className="w-3 h-3 text-gray-200 group-hover/item:text-gray-400 transition-colors" />
+                                <Check className="w-3.5 h-3.5 text-gray-200 group-hover/item:text-gray-400 transition-colors" />
                               )}
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-3 text-[10px] text-gray-400 mt-0.5">
-                            <span className="flex items-center gap-0.5 flex-shrink-0">
-                              <Clock className="w-2.5 h-2.5 inline" />
-                              {event.startTime.slice(0, 5)}-{event.endTime.slice(0, 5)}
+                          <div className="flex items-center gap-4 text-[12px] text-gray-500 mt-2">
+                            <span className="flex items-center gap-1.5 font-medium tabular-nums flex-shrink-0">
+                              <Clock className="w-3.5 h-3.5 text-gray-400" />
+                              {event.startTime.slice(0, 5)} - {event.endTime.slice(0, 5)}
                             </span>
                             {event.location && (
-                              <span className="flex items-center gap-0.5 truncate">
-                                <MapPin className="w-2.5 h-2.5 flex-shrink-0" />
+                              <span className="flex items-center gap-1.5 truncate">
+                                <MapPin className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
                                 {event.location}
                               </span>
                             )}
-                            <span className={`uppercase font-semibold flex-shrink-0 ml-auto text-[10px] ${
+                            <span className={`uppercase font-bold tracking-wider flex-shrink-0 ml-auto text-[10px] ${
                               effectiveCompleted
                                 ? 'text-gray-400'
                                 : event.kind.toLowerCase().includes('lecture')
@@ -553,9 +558,9 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate,
             </div>
           ) : (
             <div className="flex-grow min-h-0">
-              <div className="h-full flex flex-col items-center justify-center text-center py-4">
-                <CalendarCheck className="w-8 h-8 text-gray-200 mb-4" />
-                <p className="text-xs text-[#8a8a8a]">
+              <div className="h-full flex flex-col items-center justify-center text-center py-10">
+                <CalendarCheck className="w-12 h-12 text-gray-200 mb-4" />
+                <p className="text-sm font-medium text-[#8a8a8a]">
                   {dict.calendar_events}
                 </p>
               </div>

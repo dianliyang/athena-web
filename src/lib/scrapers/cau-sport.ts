@@ -338,7 +338,7 @@ export class CAUSport extends BaseScraper {
       const raw = classMatch[1].toLowerCase();
       if (raw.includes("winter")) {
         const parts = raw.match(/wintersemester_(\d{2})_(\d{2})/);
-        return parts ? `Winter 20${parts[1]}` : "Winter";
+        return parts ? `Winter 20${parts[1]}/${parts[2]}` : "Winter";
       } else {
         const parts = raw.match(/sommersemester_(\d{2})/);
         return parts ? `Summer 20${parts[1]}` : "Summer";
@@ -364,7 +364,15 @@ export class CAUSport extends BaseScraper {
       cloned.find(".dispmobile").remove();
       const specificName = cloned.text().trim();
       const fullTitle = specificName ? `${categoryPrefix} ${specificName}`.trim() : categoryPrefix;
-      const category = categoryPrefix;
+      
+      let category = categoryPrefix;
+      let categoryEn = translateDE(category);
+
+      // Group all items with "Semestergebühr" into a single category
+      if (fullTitle.toLowerCase().includes("semestergebühr") || fullTitle.toLowerCase().includes("semester fee")) {
+        category = "Semestergebühr";
+        categoryEn = "Semester Fee";
+      }
 
       const dayHtml = row.find("td.bs_stag span").html() || "";
       const timeHtml = row.find("td.bs_szeit span").html() || "";
@@ -444,7 +452,7 @@ export class CAUSport extends BaseScraper {
         source: "CAU Kiel Sportzentrum",
         courseCode,
         category,
-        categoryEn: translateDE(category),
+        categoryEn,
         title: fullTitle,
         titleEn: translateDE(fullTitle),
         dayOfWeek: scheduleEntries.map(s => s.day).join(", "),

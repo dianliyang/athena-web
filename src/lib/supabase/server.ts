@@ -509,14 +509,27 @@ export class SupabaseDatabase {
       if (!match) return null;
       const day = parseInt(match[1]);
       const month = parseInt(match[2]);
-      // Determine year from semester: WiSe 25/26 → Oct-Dec = 2025, Jan-Apr = 2026
-      const semMatch = semester.match(/(\d{2})\/(\d{2})/);
-      if (semMatch) {
-        const startYear = 2000 + parseInt(semMatch[1]);
-        const endYear = 2000 + parseInt(semMatch[2]);
+
+      const semStr = semester.toLowerCase();
+
+      // WiSe 25/26 or Winter 2025/26
+      const winterMatch = semStr.match(/(\d{2})\/(\d{2})/);
+      if (winterMatch) {
+        const startYear = 2000 + parseInt(winterMatch[1]);
+        const endYear = 2000 + parseInt(winterMatch[2]);
+        // Oct-Dec = startYear, Jan-Apr = endYear
         const year = month >= 8 ? startYear : endYear;
         return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
       }
+
+      // SuSe 25 or Summer 2025
+      const summerMatch = semStr.match(/(\d{4})|(\d{2})/);
+      if (summerMatch) {
+        let yearNum = parseInt(summerMatch[1] || summerMatch[2] || "0");
+        if (yearNum < 100) yearNum += 2000;
+        return `${yearNum}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      }
+
       return null;
     };
 
@@ -530,7 +543,7 @@ export class SupabaseDatabase {
       if (!parsed) return null;
       const [, year, month, day] = parsed.match(/^(\d{4})-(\d{2})-(\d{2})$/) || [];
       if (!year || !month || !day) return null;
-      return `${year} ${day}.${month}`;
+      return `${day}.${month}.${year}`;
     };
 
     const normalizeDurationWithSemester = (duration: string | null | undefined, semester: string): string | null => {
@@ -542,7 +555,6 @@ export class SupabaseDatabase {
       if (!start || !end) return duration;
       return `${start} - ${end}`;
     };
-
     const normalizeWorkoutDetails = (rawDetails: unknown, semester: string): Json => {
       const details = rawDetails && typeof rawDetails === "object" && !Array.isArray(rawDetails)
         ? { ...(rawDetails as Record<string, unknown>) }

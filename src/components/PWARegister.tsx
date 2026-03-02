@@ -4,21 +4,36 @@ import { useEffect } from "react";
 
 export default function PWARegister() {
   useEffect(() => {
-    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
-      navigator.serviceWorker
-        .register("/sw.js")
-        .then((registration) => {
-          console.log("[PWA] Service Worker registered:", registration.scope);
+    if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
 
-          // Check for updates periodically
-          setInterval(() => {
-            registration.update();
-          }, 60 * 60 * 1000); // Check every hour
-        })
-        .catch((error) => {
-          console.error("[PWA] Service Worker registration failed:", error);
+    if (process.env.NODE_ENV !== "production") {
+      navigator.serviceWorker.getRegistrations?.().then((registrations) => {
+        registrations.forEach((registration) => {
+          void registration.unregister();
         });
+      });
+      return;
     }
+
+    let updateTimer: ReturnType<typeof setInterval> | undefined;
+
+    navigator.serviceWorker
+      .register("/sw.js")
+      .then((registration) => {
+        console.log("[PWA] Service Worker registered:", registration.scope);
+
+        // Check for updates periodically.
+        updateTimer = setInterval(() => {
+          void registration.update();
+        }, 60 * 60 * 1000);
+      })
+      .catch((error) => {
+        console.error("[PWA] Service Worker registration failed:", error);
+      });
+
+    return () => {
+      if (updateTimer) clearInterval(updateTimer);
+    };
   }, []);
 
   return null;

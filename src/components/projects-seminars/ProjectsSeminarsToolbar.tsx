@@ -52,6 +52,12 @@ export default function ProjectsSeminarsToolbar({ categories, semesters }: Proje
   useEffect(() => {
     if (query === lastPushedQuery.current) return;
     const timer = setTimeout(() => {
+      const currentUrlQuery = searchParams.get("q") || "";
+      if (query === currentUrlQuery) {
+        lastPushedQuery.current = query;
+        return;
+      }
+
       lastPushedQuery.current = query;
       pushWith({ q: query || null });
     }, 300);

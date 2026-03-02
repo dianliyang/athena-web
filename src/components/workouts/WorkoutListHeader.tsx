@@ -21,6 +21,7 @@ export default function WorkoutListHeader({ viewMode, setViewMode, dict, lastUpd
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { showToast } = useAppToast();
   const lastPushedQuery = useRef(searchParams.get("q") || "");
+  const isComposing = useRef(false);
 
   const formattedUpdate = lastUpdated
     ? new Date(lastUpdated).toLocaleString("en-US", {
@@ -80,16 +81,23 @@ export default function WorkoutListHeader({ viewMode, setViewMode, dict, lastUpd
   }, [searchParams]);
 
   useEffect(() => {
-    if (query === lastPushedQuery.current) return;
+    if (query === lastPushedQuery.current || isComposing.current) return;
 
     const timer = setTimeout(() => {
+      if (isComposing.current) return;
+      const currentUrlQuery = searchParams.get("q") || "";
+      if (query === currentUrlQuery) {
+        lastPushedQuery.current = query;
+        return;
+      }
+
       const params = new URLSearchParams(searchParams.toString());
       if (query) params.set("q", query);
       else params.delete("q");
       params.set("page", "1");
       lastPushedQuery.current = query;
       router.push(`?${params.toString()}`, { scroll: false });
-    }, 300);
+    }, 500);
 
     return () => clearTimeout(timer);
   }, [query, router, searchParams]);
@@ -167,6 +175,11 @@ export default function WorkoutListHeader({ viewMode, setViewMode, dict, lastUpd
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
+                onCompositionStart={() => { isComposing.current = true; }}
+                onCompositionEnd={(e) => {
+                  isComposing.current = false;
+                  setQuery(e.currentTarget.value);
+                }}
                 placeholder="Search..."
                 className="h-9 md:h-8 w-full rounded-md border border-[#dddddd] bg-white pl-8 pr-8 text-[16px] md:text-[13px] text-[#333] placeholder:text-[#a3a3a3] outline-none focus:border-[#c8c8c8]"
               />

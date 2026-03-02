@@ -91,7 +91,7 @@ export default function AddPlanModal({ isOpen, onClose, onSuccess, course, exist
   const inputClass = "h-8 w-full rounded-md border border-[#d8d8d8] bg-white px-2.5 text-[13px] text-[#333] outline-none transition-colors focus:border-[#bcbcbc]";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
+    <div data-no-card-nav="true" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
       <div className="bg-white rounded-lg border border-[#e5e5e5] shadow-lg p-5 w-full max-w-sm">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold text-[#1f1f1f]">

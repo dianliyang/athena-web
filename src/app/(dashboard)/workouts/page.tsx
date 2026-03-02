@@ -19,7 +19,7 @@ export default async function WorkoutsPage({ searchParams }: PageProps) {
   const dict = await getDictionary(lang);
 
   return (
-    <div className="h-[calc(100vh-96px)] min-h-[680px] flex flex-col gap-3">
+    <div className="h-full flex flex-col gap-5">
       <Suspense fallback={null}>
         <SidebarData dict={dict.dashboard.workouts} />
       </Suspense>
@@ -52,7 +52,10 @@ async function SidebarData({ dict }: {
 
   const categoryCounts: Record<string, number> = {};
   aggregatedWorkouts.forEach((w) => {
-    const name = w.categoryEn || w.category;
+    let name = w.categoryEn || w.category;
+    if (name && (name.toLowerCase().includes("semester fee") || name.toLowerCase().includes("semestergebühr"))) {
+      name = "Semester Fee";
+    }
     if (name) categoryCounts[name] = (categoryCounts[name] || 0) + 1;
   });
   
@@ -114,9 +117,16 @@ async function fetchWorkouts(
     .select('*', { count: 'exact' });
 
   if (query) {
-    // Using 'simple' config to match the search_vector definition in schema
-    // 'plain' type is better for simple keyword matching
-    supabaseQuery = supabaseQuery.textSearch('search_vector', query, { config: 'simple', type: 'plain' });
+    // Transform query for prefix matching (e.g. "swim" -> "swim:*")
+    const formattedQuery = query
+      .trim()
+      .split(/\s+/)
+      .map(term => `${term}:*`)
+      .join(' & ');
+    
+    supabaseQuery = supabaseQuery.textSearch('search_vector', formattedQuery, { 
+      config: 'english'
+    });
   }
 
   if (categories.length > 0) {
@@ -151,7 +161,10 @@ async function fetchWorkouts(
   const allItems = aggregateWorkoutsByName((data || []).map((row: any) => mapWorkoutFromRow(row))); // eslint-disable-line @typescript-eslint/no-explicit-any
   const grouped = new Map<string, typeof allItems>();
   allItems.forEach((w) => {
-    const key = (w.categoryEn || w.category || "Other").trim();
+    let key = (w.categoryEn || w.category || "Other").trim();
+    if (key.toLowerCase().includes("semester fee") || key.toLowerCase().includes("semestergebühr")) {
+      key = "Semester Fee";
+    }
     const arr = grouped.get(key) || [];
     arr.push(w);
     grouped.set(key, arr);
@@ -169,7 +182,13 @@ async function fetchWorkouts(
         maxStudentPrice: prices.length ? Math.max(...prices) : null,
       };
     })
-    .sort((a, b) => a.category.localeCompare(b.category));
+    .sort((a, b) => {
+      const isASemesterFee = a.category.toLowerCase().includes("semester fee") || a.category.toLowerCase().includes("semestergebühr");
+      const isBSemesterFee = b.category.toLowerCase().includes("semester fee") || b.category.toLowerCase().includes("semestergebühr");
+      if (isASemesterFee && !isBSemesterFee) return -1;
+      if (!isASemesterFee && isBSemesterFee) return 1;
+      return a.category.localeCompare(b.category);
+    });
 
   const activeCategory = selectedCategory && grouped.has(selectedCategory)
     ? selectedCategory

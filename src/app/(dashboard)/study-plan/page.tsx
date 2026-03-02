@@ -2,7 +2,6 @@ import { Suspense } from "react";
 import { Course } from "@/types";
 import ActiveCourseTrack from "@/components/home/ActiveCourseTrack";
 import StudyPlanHeader from "@/components/home/StudyPlanHeader";
-import StudyCalendar from "@/components/home/StudyCalendar";
 import UniversityIcon from "@/components/common/UniversityIcon";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -250,7 +249,7 @@ async function StudyPlanContent({
   }, 0);
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-5">
       <StudyPlanHeader
         enrolledCount={enrolledCourses.length + enrolledProjectsSeminars.length}
         completedCount={completed.length}
@@ -258,19 +257,6 @@ async function StudyPlanContent({
         attendance={{ attended: totalAttended, total: totalSessions }}
         dict={dict.dashboard.roadmap}
       />
-
-      <section className="rounded-lg border border-[#e5e5e5] bg-[#fcfcfc] p-3 sm:p-4">
-        <div className="mb-3">
-          <h3 className="text-base font-semibold text-[#1f1f1f]">{dict.dashboard.roadmap.calendar_title}</h3>
-        </div>
-        <StudyCalendar
-          courses={enrolledCourses}
-          plans={plans}
-          logs={filteredLogs}
-          dict={dict.dashboard.roadmap}
-          coursesWithoutPlans={coursesWithoutPlans}
-        />
-      </section>
 
       <section className="rounded-lg border border-[#e5e5e5] bg-[#fcfcfc] p-3 sm:p-4">
         <div className="mb-3">
