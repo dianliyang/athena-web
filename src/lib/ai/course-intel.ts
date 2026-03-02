@@ -2407,12 +2407,17 @@ export async function runCourseIntel(
       },
     };
 
-    const finalResources = dedupeResourcesByDomain(
-      [...(Array.isArray(course.resources) ? course.resources : [])].filter((u) => typeof u === "string")
-    );
+    const existingCourseResources = (Array.isArray(course.resources) ? course.resources : [])
+      .filter((u): u is string => typeof u === "string" && /^https?:\/\//i.test(u.trim()))
+      .map((u) => u.trim());
+    const finalResources = dedupeUrlsExact(existingCourseResources);
     const admin = createAdminClient();
     if (finalResources.length > 0) {
-      const { error: courseUpdateError } = await admin.from("courses").update({ resources: finalResources }).eq("id", courseId);
+      const mergedResources = dedupeUrlsExact([
+        ...existingCourseResources,
+        ...finalResources,
+      ]);
+      const { error: courseUpdateError } = await admin.from("courses").update({ resources: mergedResources }).eq("id", courseId);
       if (courseUpdateError) throw new Error(courseUpdateError.message);
     }
 
@@ -2927,9 +2932,16 @@ export async function runCourseIntel(
   });
 
   if (finalResources.length > 0) {
+    const existingCourseResources = (Array.isArray(course.resources) ? course.resources : [])
+      .filter((u): u is string => typeof u === "string" && /^https?:\/\//i.test(u.trim()))
+      .map((u) => u.trim());
+    const mergedResources = dedupeUrlsExact([
+      ...existingCourseResources,
+      ...finalResources,
+    ]);
     const { error: courseUpdateError } = await admin
       .from("courses")
-      .update({ resources: finalResources })
+      .update({ resources: mergedResources })
       .eq("id", courseId);
     if (courseUpdateError) throw new Error(courseUpdateError.message);
   }
