@@ -5,7 +5,7 @@ import { Workout } from "@/types";
 import { Dictionary } from "@/lib/dictionary";
 import WorkoutCard from "./WorkoutCard";
 import WorkoutListHeader from "./WorkoutListHeader";
-import { ExternalLink } from "lucide-react";
+import { ChevronDown, ExternalLink } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 interface WorkoutListProps {
@@ -53,7 +53,12 @@ export default function WorkoutList({
     items: workouts,
   };
 
+  const [expandedGridCategory, setExpandedGridCategory] = useState<string | null>(selectedCategory || null);
+
   const formatPrice = (value: number | null) => (value == null ? "-" : Number(value).toFixed(2));
+  const selectedActionHref = selectedGroup.items.find((w) => w.bookingUrl || w.url)?.bookingUrl
+    || selectedGroup.items.find((w) => w.bookingUrl || w.url)?.url
+    || null;
 
   return (
     <main className="flex-grow space-y-3 min-w-0">
@@ -102,12 +107,16 @@ export default function WorkoutList({
               </div>
 
               <div>
-                <div className="px-4 py-2.5 bg-[#f3f3f3] text-[11px] font-semibold text-[#757575] uppercase tracking-wide">
-                  {selectedGroup ? `${selectedGroup.category} choices` : "Choices"}
+                <div className="px-4 py-2.5 bg-[#f3f3f3] text-[11px] font-semibold text-[#757575] uppercase tracking-wide flex items-center justify-between gap-2">
+                  <span>{selectedGroup ? `${selectedGroup.category} choices` : "Choices"}</span>
+                  {selectedActionHref ? (
+                    <a href={selectedActionHref} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded border border-[#d6d6d6] bg-white px-2 py-1 text-[11px] text-[#444] hover:bg-[#f4f4f4] normal-case">
+                      Open <ExternalLink className="w-3 h-3" />
+                    </a>
+                  ) : null}
                 </div>
                 <div className="max-h-[620px] overflow-y-auto divide-y divide-[#efefef]">
                   {selectedGroup?.items.map((w) => {
-                    const href = w.bookingUrl || w.url;
                     const title = w.titleEn || w.title;
                     return (
                       <div key={w.id} className="px-4 py-3">
@@ -125,11 +134,6 @@ export default function WorkoutList({
                         <div className="mt-2 flex items-center gap-3 text-[11px] text-[#666]">
                           <span>Staff: {formatPrice(w.priceStaff)}</span>
                           <span>External: {formatPrice(w.priceExternal)}</span>
-                          {href ? (
-                            <a href={href} target="_blank" rel="noopener noreferrer" className="ml-auto inline-flex items-center gap-1 rounded border border-[#d6d6d6] bg-white px-2 py-1 hover:bg-[#f4f4f4]">
-                              Open <ExternalLink className="w-3 h-3" />
-                            </a>
-                          ) : null}
                         </div>
                       </div>
                     );
@@ -151,16 +155,60 @@ export default function WorkoutList({
             </div>
           </>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-            {workouts.map((workout, idx) => (
-              <WorkoutCard
-                key={workout.id}
-                workout={workout}
-                viewMode={effectiveViewMode}
-                dict={dict}
-                rowIndex={idx}
-              />
-            ))}
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+              {categoryGroups.map((group) => {
+                const priceRange = group.minStudentPrice == null
+                  ? "-"
+                  : group.minStudentPrice === group.maxStudentPrice
+                    ? formatPrice(group.minStudentPrice)
+                    : `${formatPrice(group.minStudentPrice)} ~ ${formatPrice(group.maxStudentPrice)}`;
+                const expanded = expandedGridCategory === group.category;
+
+                return (
+                  <button
+                    key={group.category}
+                    type="button"
+                    onClick={() => {
+                      setExpandedGridCategory(group.category);
+                      if (selectedCategory !== group.category) setCategoryOnServer(group.category);
+                    }}
+                    className={`text-left rounded-xl border p-3 transition-colors ${expanded ? "border-[#cfcfcf] bg-white" : "border-[#e3e3e3] bg-[#fafafa] hover:bg-white"}`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-[#2e2e2e] truncate">{group.category}</p>
+                      <ChevronDown className={`w-4 h-4 text-[#777] transition-transform ${expanded ? "rotate-180" : ""}`} />
+                    </div>
+                    <p className="mt-1 text-xs text-[#666]">{group.count} choices</p>
+                    <p className="mt-1 text-xs text-[#666]">Student: {priceRange}</p>
+                  </button>
+                );
+              })}
+            </div>
+
+            {expandedGridCategory === selectedCategory ? (
+              <div className="rounded-xl border border-[#e3e3e3] bg-[#fcfcfc] p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-sm font-semibold text-[#2e2e2e]">{selectedCategory} choices</p>
+                  {selectedActionHref ? (
+                    <a href={selectedActionHref} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded border border-[#d6d6d6] bg-white px-2 py-1 text-xs text-[#444] hover:bg-[#f4f4f4]">
+                      Open <ExternalLink className="w-3 h-3" />
+                    </a>
+                  ) : null}
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                  {workouts.map((workout, idx) => (
+                    <WorkoutCard
+                      key={workout.id}
+                      workout={workout}
+                      viewMode={effectiveViewMode}
+                      dict={dict}
+                      rowIndex={idx}
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
         )}
 

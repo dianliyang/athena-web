@@ -248,15 +248,6 @@ export default function ActiveCourseTrack({
             </div>
           </div>
         </div>
-
-        <a
-          href={course.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="w-6 h-6 rounded-md bg-gray-50 flex items-center justify-center text-gray-300 hover:text-brand-blue hover:bg-blue-50 transition-all border border-transparent hover:border-brand-blue/20 flex-shrink-0"
-        >
-          <ExternalLink className="w-3 h-3" />
-        </a>
       </div>
 
       {/* Progress Section */}
@@ -349,6 +340,15 @@ export default function ActiveCourseTrack({
         </div>
 
         <div className="flex items-center gap-1.5 flex-1 justify-end">
+          <Link
+            href={detailHref}
+            className="w-7 h-7 rounded-md flex items-center justify-center transition-all border bg-white text-[#666] border-[#d3d3d3] hover:bg-[#f0f0f0] hover:text-[#1f1f1f]"
+            title="Open course"
+            aria-label="Open course"
+          >
+            <ExternalLink className="w-3 h-3" />
+          </Link>
+
           <button
             onClick={handleAiSync}
             disabled={isAiUpdating || isAiSyncSkipped}
