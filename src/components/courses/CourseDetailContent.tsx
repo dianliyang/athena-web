@@ -61,6 +61,7 @@ export default function CourseDetailContent({
   const [isEditing, setIsEditing] = useState(false);
   const [syllabusData, setSyllabusData] = useState(syllabus);
   const [syllabusClearSignal, setSyllabusClearSignal] = useState(0);
+  const [isClearingSyllabus, setIsClearingSyllabus] = useState(false);
   const [isGeneratingPlans, setIsGeneratingPlans] = useState(false);
   const [isConfirmingPlans, setIsConfirmingPlans] = useState(false);
   const [editablePlans, setEditablePlans] = useState<EditableStudyPlan[]>(studyPlans);
@@ -229,6 +230,44 @@ export default function CourseDetailContent({
     }
   };
 
+  const handleClearSyllabus = async () => {
+    if (!syllabusData || isClearingSyllabus) return;
+    setIsClearingSyllabus(true);
+    setSyllabusClearSignal((v) => v + 1);
+    try {
+      const res = await fetch("/api/courses/syllabus/clear", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ courseId: course.id }),
+      });
+      if (!res.ok) {
+        let message = "Failed to clear syllabus.";
+        try {
+          const payload = await res.json();
+          if (typeof payload?.error === "string" && payload.error.trim()) {
+            message = payload.error.trim();
+          }
+        } catch {
+          // Ignore parse failures and use default message.
+        }
+        throw new Error(message);
+      }
+      const payload = await res.json();
+      const nextSchedule = Array.isArray(payload?.schedule) ? payload.schedule : [];
+      setSyllabusData((prev) => (
+        prev
+          ? { ...prev, schedule: nextSchedule, retrieved_at: new Date().toISOString() }
+          : prev
+      ));
+      startTransition(() => router.refresh());
+    } catch (error) {
+      console.error(error);
+      alert(error instanceof Error ? error.message : "Failed to clear syllabus.");
+    } finally {
+      setIsClearingSyllabus(false);
+    }
+  };
+
   const handleAddUrl = async () => {
     const urls = newUrl
       .split("\n")
@@ -332,6 +371,7 @@ export default function CourseDetailContent({
         enrolled={enrolled}
         isEnrolling={isEnrolling}
         onToggleEnroll={handleEnrollToggle}
+        codeBreakdown={codeBreakdown}
       />
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         <div className="lg:col-span-8 space-y-4">
@@ -346,25 +386,6 @@ export default function CourseDetailContent({
             projectSeminarRef={projectSeminarRef}
             showHeader={false}
           />
-
-          {codeBreakdown.length > 0 && (
-            <section className="rounded-lg border border-[#e5e5e5] bg-[#fcfcfc] p-3">
-              <h2 className="text-sm font-semibold text-[#1f1f1f] mb-2">Code Breakdown</h2>
-              <dl className="space-y-2 text-xs">
-                {codeBreakdown.map((item, idx) => (
-                  <div key={`${item.label}-${idx}`} className="flex justify-between py-0.5">
-                    <dt className="text-[#666] flex-shrink-0">{item.label}</dt>
-                    <dd className="text-right pl-3">
-                      <p className="font-medium text-[#222] break-words">{item.value}</p>
-                      {item.detail && (
-                        <p className="text-[10px] text-[#666] break-words">{item.detail}</p>
-                      )}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </section>
-          )}
 
           <section>
             <div className="rounded-lg border border-[#e5e5e5] bg-[#fcfcfc] p-4">
@@ -660,10 +681,11 @@ export default function CourseDetailContent({
               {syllabusData && (
                 <button
                   type="button"
-                  onClick={() => setSyllabusClearSignal((v) => v + 1)}
-                  className="h-7 rounded-md border border-[#d3d3d3] bg-white px-2.5 text-[12px] font-medium text-[#3b3b3b] hover:bg-[#f8f8f8] transition-colors"
+                  onClick={handleClearSyllabus}
+                  disabled={isClearingSyllabus}
+                  className="h-7 rounded-md border border-[#d3d3d3] bg-white px-2.5 text-[12px] font-medium text-[#3b3b3b] hover:bg-[#f8f8f8] transition-colors disabled:opacity-50"
                 >
-                  Clear
+                  {isClearingSyllabus ? "Clearing..." : "Clear"}
                 </button>
               )}
             </div>

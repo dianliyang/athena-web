@@ -9,6 +9,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { PenSquare, Loader2, Trash2, ArrowUpRight, Sparkles, Plus, X } from "lucide-react";
 import { trackAiUsage } from "@/lib/ai/usage";
 import { useAppToast } from "@/components/common/AppToastProvider";
+import { type CodeBreakdownItem } from "@/lib/course-code-breakdown";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 interface CourseDetailHeaderProps {
   course: Course;
@@ -18,6 +19,7 @@ interface CourseDetailHeaderProps {
   enrolled?: boolean;
   isEnrolling?: boolean;
   onToggleEnroll?: () => void;
+  codeBreakdown?: CodeBreakdownItem[];
 }
 
 type ActivityItem = {
@@ -57,6 +59,7 @@ export default function CourseDetailHeader({
   enrolled = false,
   isEnrolling = false,
   onToggleEnroll,
+  codeBreakdown = [],
 }: CourseDetailHeaderProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -210,7 +213,7 @@ export default function CourseDetailHeader({
 
         {/* Info — fills remaining space, truncates */}
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 mb-0.5 overflow-hidden">
+          <div className="flex items-center gap-1.5 mb-0.5">
             <span className="text-[11px] font-medium text-[#555] bg-white px-2 py-0.5 rounded border border-[#e5e5e5] truncate shrink min-w-0 max-w-[9rem] sm:max-w-none">
               {course.university}
             </span>
@@ -219,7 +222,27 @@ export default function CourseDetailHeader({
                 Internal
               </span>
             )}
-            <span className="text-[11px] text-[#999] shrink-0">{course.courseCode}</span>
+            <div className="relative shrink-0 group">
+              <span className="text-[11px] text-[#999] cursor-help">{course.courseCode}</span>
+              {codeBreakdown.length > 0 && (
+                <div className="pointer-events-none invisible absolute left-0 top-full z-30 mt-1 w-[280px] rounded-md border border-[#e5e5e5] bg-white p-2 opacity-0 shadow-sm transition-opacity group-hover:visible group-hover:opacity-100">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-[#888] mb-1">Course Code Breakdown</p>
+                  <dl className="space-y-1.5 text-[11px]">
+                    {codeBreakdown.map((item, idx) => (
+                      <div key={`${item.label}-${idx}`} className="flex justify-between gap-3">
+                        <dt className="text-[#666]">{item.label}</dt>
+                        <dd className="text-right">
+                          <p className="font-medium text-[#222]">{item.value}</p>
+                          {item.detail && (
+                            <p className="text-[10px] text-[#777]">{item.detail}</p>
+                          )}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              )}
+            </div>
           </div>
           <h1 className="text-[17px] sm:text-[19px] font-semibold text-[#1f1f1f] tracking-tight leading-snug truncate">
             {course.title}

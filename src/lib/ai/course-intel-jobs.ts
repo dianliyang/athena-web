@@ -157,3 +157,21 @@ export async function getLatestCourseIntelJob(userId: string, courseId: number) 
 
   return match || null;
 }
+
+export async function getRecentCourseIntelJobs(userId: string, limit = 20) {
+  const supabase = createAdminClient() as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const { data, error } = await supabase
+    .from("scraper_jobs")
+    .select("id, status, error, started_at, completed_at, created_at, triggered_by_user_id, meta, job_type, university")
+    .eq("triggered_by_user_id", userId)
+    .eq("job_type", "course-intel")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("[course_intel_jobs] failed to query recent jobs:", asPlainError(error));
+    return [];
+  }
+
+  return data || [];
+}

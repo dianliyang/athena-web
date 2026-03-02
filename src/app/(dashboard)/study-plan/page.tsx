@@ -10,6 +10,7 @@ import { getLanguage } from "@/actions/language";
 import { getDictionary, Dictionary } from "@/lib/dictionary";
 import { calculateAttendance } from "@/lib/attendance";
 import { Ghost } from "lucide-react";
+import CourseIntelSyncWindow from "@/components/home/CourseIntelSyncWindow";
 
 export const dynamic = "force-dynamic";
 
@@ -256,6 +257,7 @@ async function StudyPlanContent({
 
   return (
     <div className="flex flex-col gap-5">
+      <CourseIntelSyncWindow />
       <StudyPlanHeader
         enrolledCount={enrolledCourses.length + enrolledProjectsSeminars.length}
         completedCount={completed.length}

@@ -6,6 +6,7 @@ import {
   completeCourseIntelJob,
   failCourseIntelJob,
   getLatestCourseIntelJob,
+  getRecentCourseIntelJobs,
   markCourseIntelJobRunning,
   startCourseIntelJob,
 } from "@/lib/ai/course-intel-jobs";
@@ -17,7 +18,17 @@ export async function GET(request: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const courseId = Number(request.nextUrl.searchParams.get("courseId") || 0);
-  if (!courseId) return NextResponse.json({ error: "courseId required" }, { status: 400 });
+  if (!courseId) {
+    const items = await getRecentCourseIntelJobs(user.id, 15);
+    const active = items.filter((row: Record<string, unknown>) =>
+      row.status === "queued" || row.status === "running"
+    );
+    return NextResponse.json({
+      items,
+      active,
+      hasActive: active.length > 0,
+    });
+  }
 
   const job = await getLatestCourseIntelJob(user.id, courseId);
   return NextResponse.json({ item: job });

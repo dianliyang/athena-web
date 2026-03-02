@@ -20,8 +20,10 @@ import {
   BookOpen,
   PanelLeftClose,
   PanelLeftOpen,
+  Loader2,
 } from "lucide-react";
 import LogoutButton from "@/components/layout/LogoutButton";
+import { useCourseIntelSyncJobs } from "@/hooks/useCourseIntelSyncJobs";
 
 interface LeftRailProps {
   labels: {
@@ -79,12 +81,14 @@ function RailItem({
   icon: Icon,
   active,
   collapsed,
+  trailingSpin = false,
 }: {
   href: string;
   title: string;
   icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
   active: boolean;
   collapsed: boolean;
+  trailingSpin?: boolean;
 }) {
   return (
     <Link
@@ -100,7 +104,8 @@ function RailItem({
       }`}
     >
       <Icon className="h-[15px] w-[15px]" strokeWidth={1.8} />
-      {!collapsed && <span>{title}</span>}
+      {!collapsed && <span className="flex-1">{title}</span>}
+      {!collapsed && trailingSpin && <Loader2 className="h-3.5 w-3.5 animate-spin text-[#666]" />}
     </Link>
   );
 }
@@ -118,6 +123,7 @@ function GroupLabel({ text, collapsed }: { text: string; collapsed: boolean }) {
 
 export default function LeftRail({ labels, collapsed = false, onToggle }: LeftRailProps) {
   const pathname = usePathname();
+  const { hasActive } = useCourseIntelSyncJobs();
 
   return (
     <aside
@@ -153,6 +159,7 @@ export default function LeftRail({ labels, collapsed = false, onToggle }: LeftRa
               icon={item.icon}
               active={active}
               collapsed={collapsed}
+              trailingSpin={item.href === "/study-plan" && hasActive}
             />
           );
         })}
