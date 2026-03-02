@@ -74,20 +74,15 @@ async function WorkoutListData({ params, dict }: {
   params: Record<string, string | string[] | undefined>, 
   dict: Dictionary['dashboard']['workouts'] 
 }) {
-  const page = parseInt((params.page as string) || "1");
-  const ALLOWED_PER_PAGE = [12, 24, 48];
-  const rawPerPage = parseInt((params.perPage as string) || "12");
-  const size = ALLOWED_PER_PAGE.includes(rawPerPage) ? rawPerPage : 12;
-  const offset = (page - 1) * size;
   const query = (params.q as string) || "";
   const sort = (params.sort as string) || "title";
-  
   const categories = ((params.categories as string) || "").split(",").filter(Boolean);
   const days = ((params.days as string) || "").split(",").filter(Boolean);
   const status = ((params.status as string) || "").split(",").filter(Boolean);
+  const selectedCategory = (params.category as string) || "";
 
   const [dbWorkouts, lastUpdated] = await Promise.all([
-    fetchWorkouts(page, size, offset, query, sort, categories, days, status),
+    fetchWorkouts(query, sort, categories, days, status, selectedCategory),
     getWorkoutLastUpdateTime()
   ]);
 
@@ -95,24 +90,21 @@ async function WorkoutListData({ params, dict }: {
     <WorkoutList 
       initialWorkouts={dbWorkouts.items}
       totalItems={dbWorkouts.total}
-      totalPages={dbWorkouts.pages}
-      currentPage={page}
-      perPage={size}
       dict={dict}
       lastUpdated={lastUpdated}
+      categoryGroups={dbWorkouts.categoryGroups}
+      selectedCategory={dbWorkouts.selectedCategory}
     />
   );
 }
 
 async function fetchWorkouts(
-  page: number, 
-  size: number, 
-  offset: number, 
   query: string, 
   sort: string, 
   categories: string[], 
   days: string[], 
-  status: string[]
+  status: string[],
+  selectedCategory: string,
 ) {
   const supabase = await createClient();
   
@@ -156,11 +148,34 @@ async function fetchWorkouts(
   }
 
   const allItems = aggregateWorkoutsByName((data || []).map((row: any) => mapWorkoutFromRow(row))); // eslint-disable-line @typescript-eslint/no-explicit-any
-  const total = allItems.length;
-  const pages = Math.max(1, Math.ceil(total / size));
-  const items = allItems.slice(offset, offset + size);
+  const grouped = new Map<string, typeof allItems>();
+  allItems.forEach((w) => {
+    const key = (w.categoryEn || w.category || "Other").trim();
+    const arr = grouped.get(key) || [];
+    arr.push(w);
+    grouped.set(key, arr);
+  });
 
-  return { items, total, pages };
+  const categoryGroups = Array.from(grouped.entries())
+    .map(([category, items]) => {
+      const prices = items
+        .map((i) => i.priceStudent)
+        .filter((v): v is number => typeof v === "number");
+      return {
+        category,
+        count: items.length,
+        minStudentPrice: prices.length ? Math.min(...prices) : null,
+        maxStudentPrice: prices.length ? Math.max(...prices) : null,
+      };
+    })
+    .sort((a, b) => a.category.localeCompare(b.category));
+
+  const activeCategory = selectedCategory && grouped.has(selectedCategory)
+    ? selectedCategory
+    : (categoryGroups[0]?.category || "");
+  const items = activeCategory ? (grouped.get(activeCategory) || []) : [];
+
+  return { items, total: items.length, categoryGroups, selectedCategory: activeCategory };
 }
 
 function WorkoutListSkeleton() {

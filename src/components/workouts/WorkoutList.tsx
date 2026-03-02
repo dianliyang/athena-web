@@ -1,138 +1,57 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState } from "react";
 import { Workout } from "@/types";
 import { Dictionary } from "@/lib/dictionary";
 import WorkoutCard from "./WorkoutCard";
 import WorkoutListHeader from "./WorkoutListHeader";
-import Pagination from "../home/Pagination";
-import { ExternalLink, Loader2 } from "lucide-react";
-import { fetchWorkoutsAction } from "@/actions/scrapers";
-import { useSearchParams } from "next/navigation";
+import { ExternalLink } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 interface WorkoutListProps {
   initialWorkouts: Workout[];
   totalItems: number;
-  totalPages: number;
-  currentPage: number;
-  perPage: number;
   dict: Dictionary["dashboard"]["workouts"];
   lastUpdated: string | null;
+  categoryGroups: Array<{ category: string; count: number; minStudentPrice: number | null; maxStudentPrice: number | null }>;
+  selectedCategory: string;
 }
 
 export default function WorkoutList({
   initialWorkouts,
   totalItems,
-  totalPages,
-  currentPage,
-  perPage,
   dict,
   lastUpdated,
+  categoryGroups,
+  selectedCategory,
 }: WorkoutListProps) {
   const searchParams = useSearchParams();
-  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
-  const [workouts, setWorkouts] = useState<Workout[]>(initialWorkouts);
-  const [page, setPage] = useState(currentPage);
-  const [isLoading, setIsLoading] = useState(false);
-  const observerTarget = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const savedMode = localStorage.getItem("workoutViewMode") as "list" | "grid";
-    if (savedMode) setViewMode(savedMode);
-  }, []);
-
-  useEffect(() => {
-    setWorkouts(initialWorkouts);
-    setPage(currentPage);
-  }, [initialWorkouts, currentPage]);
+  const router = useRouter();
+  const pathname = usePathname();
+  const [viewMode, setViewMode] = useState<"list" | "grid">(() => {
+    if (typeof window === "undefined") return "list";
+    const savedMode = localStorage.getItem("workoutViewMode");
+    return savedMode === "grid" || savedMode === "list" ? savedMode : "list";
+  });
+  const workouts: Workout[] = initialWorkouts;
 
   const handleViewModeChange = (mode: "list" | "grid") => {
     setViewMode(mode);
     localStorage.setItem("workoutViewMode", mode);
   };
 
-  const loadMore = useCallback(async () => {
-    if (isLoading || page >= totalPages) return;
-
-    setIsLoading(true);
-    try {
-      const query = searchParams.get("q") || "";
-      const sort = searchParams.get("sort") || "title";
-      const categories = searchParams.get("categories")?.split(",").filter(Boolean) || [];
-      const days = searchParams.get("days")?.split(",").filter(Boolean) || [];
-      const status = searchParams.get("status")?.split(",").filter(Boolean) || [];
-
-      const nextData = await fetchWorkoutsAction({
-        page: page + 1,
-        size: perPage,
-        query,
-        sort,
-        categories,
-        days,
-        status,
-      });
-
-      if (nextData.items.length > 0) {
-        setWorkouts((prev) => {
-          const existingIds = new Set(prev.map((w) => w.id));
-          const newItems = nextData.items.filter((w) => !existingIds.has(w.id));
-          return [...prev, ...newItems];
-        });
-        setPage((prev) => prev + 1);
-      }
-    } catch (error) {
-      console.error("[WorkoutList] Failed to load more:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [page, totalPages, isLoading, searchParams, perPage]);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const isMobile = window.innerWidth < 768;
-        if (entries[0].isIntersecting && isMobile && !isLoading) {
-          loadMore();
-        }
-      },
-      { threshold: 0, rootMargin: "0px 0px 320px 0px" },
-    );
-
-    if (observerTarget.current) {
-      observer.observe(observerTarget.current);
-    }
-
-    return () => observer.disconnect();
-  }, [loadMore, isLoading]);
+  const setCategoryOnServer = (category: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("category", category);
+    router.replace(`${pathname}?${params.toString()}`);
+  };
 
   const effectiveViewMode: "list" | "grid" = viewMode;
 
-  const groupedByCategory = useMemo(() => {
-    const map = new Map<string, Workout[]>();
-    workouts.forEach((w) => {
-      const key = (w.categoryEn || w.category || "Other").trim();
-      const arr = map.get(key) || [];
-      arr.push(w);
-      map.set(key, arr);
-    });
-    return Array.from(map.entries())
-      .map(([category, items]) => ({ category, items }))
-      .sort((a, b) => a.category.localeCompare(b.category));
-  }, [workouts]);
-
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (groupedByCategory.length === 0) {
-      setSelectedCategory(null);
-      return;
-    }
-    if (!selectedCategory || !groupedByCategory.some((g) => g.category === selectedCategory)) {
-      setSelectedCategory(groupedByCategory[0].category);
-    }
-  }, [groupedByCategory, selectedCategory]);
-
-  const selectedGroup = groupedByCategory.find((g) => g.category === selectedCategory) || null;
+  const selectedGroup = {
+    category: selectedCategory,
+    items: workouts,
+  };
 
   const formatPrice = (value: number | null) => (value == null ? "-" : Number(value).toFixed(2));
 
@@ -153,34 +72,28 @@ export default function WorkoutList({
               <div className="border-r border-[#e5e5e5] bg-[#fafafa]">
                 <div className="px-4 py-2.5 bg-[#f3f3f3] text-[11px] font-semibold text-[#757575] uppercase tracking-wide">Category</div>
                 <div className="max-h-[620px] overflow-y-auto">
-                  {groupedByCategory.map((group) => {
-                    const prices = group.items
-                      .map((i) => i.priceStudent)
-                      .filter((v): v is number => typeof v === "number");
-                    const min = prices.length ? Math.min(...prices) : null;
-                    const max = prices.length ? Math.max(...prices) : null;
-                    const priceRange = min == null ? "-" : min === max ? formatPrice(min) : `${formatPrice(min)} ~ ${formatPrice(max)}`;
-                    const actionHref = group.items.find((i) => i.bookingUrl || i.url);
+                  {categoryGroups.map((group) => {
+                    const priceRange = group.minStudentPrice == null
+                      ? "-"
+                      : group.minStudentPrice === group.maxStudentPrice
+                        ? formatPrice(group.minStudentPrice)
+                        : `${formatPrice(group.minStudentPrice)} ~ ${formatPrice(group.maxStudentPrice)}`;
                     const active = selectedCategory === group.category;
 
                     return (
                       <button
                         key={group.category}
                         type="button"
-                        onClick={() => setSelectedCategory(group.category)}
+                        onClick={() => setCategoryOnServer(group.category)}
                         className={`w-full text-left px-4 py-3 border-b border-[#efefef] hover:bg-white transition-colors ${active ? "bg-white" : ""}`}
                       >
                         <div className="flex items-center justify-between gap-2">
                           <p className="text-sm font-medium text-[#2f2f2f] truncate">{group.category}</p>
-                          <span className="text-[11px] text-[#777] shrink-0">{group.items.length}</span>
+                          <span className="text-[11px] text-[#777] shrink-0">{group.count}</span>
                         </div>
                         <div className="mt-1 flex items-center justify-between gap-2">
                           <span className="text-xs text-[#666]">Student: {priceRange}</span>
-                          {actionHref ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] text-[#4f4f4f]">Action <ExternalLink className="w-3 h-3" /></span>
-                          ) : (
-                            <span className="text-[11px] text-[#aaa]">No action</span>
-                          )}
+                          <span className="inline-flex items-center gap-1 text-[11px] text-[#4f4f4f]">Action <ExternalLink className="w-3 h-3" /></span>
                         </div>
                       </button>
                     );
@@ -259,16 +172,7 @@ export default function WorkoutList({
         )}
       </div>
 
-      <div ref={observerTarget} className="md:hidden py-4 flex justify-center">
-        {isLoading && <Loader2 className="w-5 h-5 text-slate-500 animate-spin" />}
-        {!isLoading && page >= totalPages && workouts.length > 0 && (
-          <span className="text-xs text-slate-400">End of catalog</span>
-        )}
-      </div>
-
-      <div className="hidden md:block sticky bottom-0 bg-[#fcfcfc]">
-        <Pagination totalPages={totalPages} currentPage={currentPage} totalItems={totalItems} perPage={perPage} />
-      </div>
+      
     </main>
   );
 }
