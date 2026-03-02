@@ -34,7 +34,6 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
   const isLoginPage = pathname === "/login";
-  const isAuthCallback = pathname === "/auth/callback";
   const publicPaths = ["/", "/courses", "/workouts", "/projects-seminars", "/study-plan", "/study-schedule", "/login", "/auth/callback"];
   const isPublicPage = publicPaths.includes(pathname) || pathname.startsWith("/_next") || pathname.includes(".");
 

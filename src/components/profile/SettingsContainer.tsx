@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import dynamic from "next/dynamic";
 import { User } from "@supabase/supabase-js";
 import { LucideIcon, Cpu, FileCode, CalendarDays, Tag, Shield, Database, Sparkles, Library, KeyRound, BookOpen } from "lucide-react";
 import AILearningPlanner from "@/components/home/AILearningPlanner";
+import { Dictionary } from "@/lib/dictionary";
 
 const AISettingsCard = dynamic(() => import("./AISettingsCard"), { ssr: false });
 const SecurityIdentitySection = dynamic(() => import("./SecurityIdentitySection"), { ssr: false });
@@ -88,42 +89,32 @@ interface SettingsContainerProps {
     modelCatalog: { perplexity: string[]; gemini: string[]; openai: string[]; vertex?: string[] };
   };
   initialSection?: SectionId;
-  dict?: any;
+  dict: Dictionary;
 }
 
 export default function SettingsContainer({ user, profile, aiDefaults, initialSection, dict }: SettingsContainerProps) {
-  const [active, setActive] = useState<SectionId>(initialSection || "engine");
-  const [mounted, setMounted] = useState(false);
-
-  // Handle first mount and local storage recovery
-  useEffect(() => {
-    setMounted(true);
-    try {
-      const saved = window.localStorage.getItem(ACTIVE_SECTION_STORAGE_KEY);
-      if (saved && !initialSection && ALL_ITEMS.some((item) => item.id === saved)) {
-        setActive(saved as SectionId);
+  const [active, setActive] = useState<SectionId>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = window.localStorage.getItem(ACTIVE_SECTION_STORAGE_KEY);
+        if (saved && ALL_ITEMS.some((item) => item.id === saved)) {
+          return saved as SectionId;
+        }
+      } catch {
+        // Ignore storage access errors.
       }
-    } catch {
-      // Ignore storage access errors.
     }
-  }, [initialSection]);
+    return initialSection || "engine";
+  });
 
-  // Sync with prop changes (navigation from outside)
-  useEffect(() => {
-    if (initialSection && ALL_ITEMS.some((item) => item.id === initialSection)) {
-      setActive(initialSection);
-    }
-  }, [initialSection]);
-
-  // Persist choice
-  useEffect(() => {
-    if (!mounted) return;
+  const setActiveSection = (next: SectionId) => {
+    setActive(next);
     try {
-      window.localStorage.setItem(ACTIVE_SECTION_STORAGE_KEY, active);
+      window.localStorage.setItem(ACTIVE_SECTION_STORAGE_KEY, next);
     } catch {
       // Ignore storage access errors.
     }
-  }, [active, mounted]);
+  };
 
   // Prevent hydration mismatch by not rendering anything that depends on 'active' 
   // until mounted if we were to change 'active' based on localStorage.
@@ -145,10 +136,6 @@ export default function SettingsContainer({ user, profile, aiDefaults, initialSe
     active !== "sync" &&
     active !== "api-management";
 
-  if (!mounted) {
-    return <div className="flex h-full animate-pulse bg-white/50" />;
-  }
-
   return (
     <div className="flex h-full gap-0">
 
@@ -160,7 +147,7 @@ export default function SettingsContainer({ user, profile, aiDefaults, initialSe
               {group.items.map(({ id, label, icon: Icon }) => (
                 <button
                   key={id}
-                  onClick={() => setActive(id)}
+                  onClick={() => setActiveSection(id)}
                   className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-[13px] font-medium transition-colors text-left ${
                     active === id
                       ? "bg-[#e7e7e7] text-[#1f1f1f]"
@@ -185,7 +172,7 @@ export default function SettingsContainer({ user, profile, aiDefaults, initialSe
             {filteredGroups.flatMap(g => g.items).map(({ id, label }) => (
               <button
                 key={id}
-                onClick={() => setActive(id)}
+                onClick={() => setActiveSection(id)}
                 className={`whitespace-nowrap px-3 py-1.5 rounded-full text-[13px] font-medium transition-colors ${
                   active === id
                     ? "bg-brand-blue text-white"
