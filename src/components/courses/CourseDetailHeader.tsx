@@ -42,7 +42,15 @@ export default function CourseDetailHeader({
   const searchQuery = `${course.university || ""} ${course.courseCode || ""} ${course.title || ""}`.trim();
   const searchHref = `https://www.google.com/search?q=${encodeURIComponent(searchQuery)}`;
 
+  const isAiSyncSkipped = course.details?.ai_sync_private === true || course.details?.ai_sync_skip === true;
+
   const handleAiUpdate = async () => {
+    if (isAiSyncSkipped) {
+      const reason = typeof course.details?.ai_sync_skip_reason === 'string' ? course.details.ai_sync_skip_reason : 'private_source';
+      showToast({ type: "error", message: `AI sync skipped for this course (${reason}).` });
+      return;
+    }
+
     setIsAiUpdating(true);
     setAiStatus('idle');
     try {
@@ -142,7 +150,7 @@ export default function CourseDetailHeader({
           {/* AI Update */}
           <button
             onClick={handleAiUpdate}
-            disabled={isAiUpdating}
+            disabled={isAiUpdating || isAiSyncSkipped}
             className={`h-7 w-7 rounded-md border bg-white inline-flex items-center justify-center transition-all disabled:opacity-50 shrink-0 ${
               aiStatus === 'success'
                 ? 'border-emerald-300 text-emerald-600'
@@ -150,7 +158,7 @@ export default function CourseDetailHeader({
                   ? 'border-rose-300 text-rose-500'
                   : 'border-[#d3d3d3] text-[#666] hover:bg-[#f8f8f8]'
             }`}
-            title="AI Sync — fetch resources, syllabus, and assignments"
+            title={isAiSyncSkipped ? "AI Sync skipped (private/non-public course source)" : "AI Sync — fetch resources, syllabus, and assignments"}
             aria-label="AI Sync"
           >
             {isAiUpdating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
