@@ -212,9 +212,14 @@ async function executeCourseIntelJob(params: {
       details: event.details,
     };
 
+    const normalizedStage = String(event.stage || "").toLowerCase();
+    const isTerminalProgress = typeof event.progress === "number" && event.progress >= 100;
+    const isTerminalStage = normalizedStage === "done" || normalizedStage === "completed" || normalizedStage === "failed";
+    const nextStatus = isTerminalProgress || isTerminalStage ? "completed" : "running";
+
     cachedJob = {
       ...cachedJob,
-      status: "running",
+      status: nextStatus,
       meta: {
         ...cachedJob.meta,
         progress: typeof event.progress === "number" ? event.progress : cachedJob.meta.progress,
@@ -225,7 +230,7 @@ async function executeCourseIntelJob(params: {
     void appendCourseIntelJobActivity(jobId, nextActivityItem).catch(() => {});
     void setCachedCourseIntelJob(userId, courseId, cachedJob).catch(() => {});
     void broadcaster.emit({
-      status: "running",
+      status: nextStatus,
       stage: event.stage,
       message: event.message,
       progress: event.progress,

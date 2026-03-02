@@ -97,7 +97,9 @@ export default function CourseDetailHeader({
   const searchQuery = `${course.university || ""} ${course.courseCode || ""} ${course.title || ""}`.trim();
   const searchHref = `https://www.google.com/search?q=${encodeURIComponent(searchQuery)}`;
 
-  const isAiUpdating = aiJob?.status === "queued" || aiJob?.status === "running";
+  const isAiUpdating =
+    (aiJob?.status === "queued" || aiJob?.status === "running") &&
+    Number(aiJob?.meta?.progress ?? 0) < 100;
   const progress = typeof aiJob?.meta?.progress === "number" ? aiJob.meta.progress : null;
   const activity = liveActivity;
 

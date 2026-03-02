@@ -120,7 +120,12 @@ export function useCourseIntelSyncJobs() {
     };
   }, [closeChannel, loadJobs]);
 
-  const activeJobs = items.filter((job) => job.status === "queued" || job.status === "running");
+  const activeJobs = items.filter((job) => {
+    const progress = Number(job.meta?.progress ?? 0);
+    const status = String(job.status || "");
+    if (progress >= 100) return false;
+    return status === "queued" || status === "running";
+  });
   const hasActive = activeJobs.length > 0;
 
   useEffect(() => {
