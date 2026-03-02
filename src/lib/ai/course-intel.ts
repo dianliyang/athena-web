@@ -1389,6 +1389,39 @@ function extractTopLevelAssignments(
   return rows;
 }
 
+function extractLegacyAssignmentsFromSyllabusContent(
+  courseId: number,
+  syllabusId: number | null,
+  content: unknown,
+  nowIso: string
+): AssignmentRow[] {
+  if (!content || typeof content !== "object" || Array.isArray(content)) return [];
+  const rec = content as Record<string, unknown>;
+  const legacy = rec.legacy_assignments;
+  if (!Array.isArray(legacy)) return [];
+  return extractTopLevelAssignments(courseId, syllabusId, legacy, nowIso);
+}
+
+function isAiPracticalPlanAssignment(row: AssignmentRow): boolean {
+  const metadata = row.metadata && typeof row.metadata === "object"
+    ? (row.metadata as Record<string, unknown>)
+    : {};
+  return String(metadata.source || "").toLowerCase() === "ai_practical_plan";
+}
+
+function toSyllabusRawAssignment(row: AssignmentRow) {
+  return {
+    kind: row.kind,
+    label: row.label,
+    due_on: row.due_on,
+    url: row.url,
+    description: row.description,
+    source_sequence: row.source_sequence,
+    source_row_date: row.source_row_date,
+    metadata: row.metadata && typeof row.metadata === "object" ? row.metadata : {},
+  };
+}
+
 function dedupeAssignments(rows: AssignmentRow[]): AssignmentRow[] {
   const canonical = new Map<string, AssignmentRow>();
   for (const row of rows) {
@@ -1400,8 +1433,18 @@ function dedupeAssignments(rows: AssignmentRow[]): AssignmentRow[] {
     }
 
     // Prefer the row with a concrete due date and URL/details richness.
-    const existingScore = (existing.due_on ? 2 : 0) + (existing.url ? 1 : 0) + (existing.description ? 1 : 0) + (existing.course_schedule_id ? 1 : 0);
-    const currentScore = (row.due_on ? 2 : 0) + (row.url ? 1 : 0) + (row.description ? 1 : 0) + (row.course_schedule_id ? 1 : 0);
+    const existingScore =
+      (existing.due_on ? 2 : 0) +
+      (existing.url ? 1 : 0) +
+      (existing.description ? 1 : 0) +
+      (existing.course_schedule_id ? 1 : 0) +
+      (isAiPracticalPlanAssignment(existing) ? 0 : 2);
+    const currentScore =
+      (row.due_on ? 2 : 0) +
+      (row.url ? 1 : 0) +
+      (row.description ? 1 : 0) +
+      (row.course_schedule_id ? 1 : 0) +
+      (isAiPracticalPlanAssignment(row) ? 0 : 2);
     if (currentScore > existingScore) {
       canonical.set(baseKey, row);
     }
@@ -1833,7 +1876,16 @@ export async function runCourseIntel(
 
   const existingScheduleRows = Array.isArray(existingSyllabus?.schedule) ? (existingSyllabus.schedule as Array<Record<string, unknown>>) : [];
   const existingAssignments = Array.isArray(existingAssignmentsRows) ? existingAssignmentsRows : [];
-  const hasExistingData = existingScheduleRows.length > 0 || existingAssignments.length > 0;
+  const existingLegacyAssignments = extractLegacyAssignmentsFromSyllabusContent(
+    courseId,
+    existingSyllabus?.id ? Number(existingSyllabus.id) : null,
+    existingSyllabus?.content,
+    new Date().toISOString()
+  );
+  const hasExistingData =
+    existingScheduleRows.length > 0 ||
+    existingAssignments.length > 0 ||
+    existingLegacyAssignments.length > 0;
   const sourceModeEffective: CourseIntelSourceMode =
     sourceModeRequested === "auto" ? (hasExistingData ? "existing" : "fresh") : sourceModeRequested;
 
@@ -1857,7 +1909,7 @@ export async function runCourseIntel(
     const existingSourceUrl = typeof existingSyllabus?.source_url === "string" ? existingSyllabus.source_url : null;
     const existingRawText = typeof existingSyllabus?.raw_text === "string" ? existingSyllabus.raw_text : "";
 
-    const assignmentRowsExisting: AssignmentRow[] = existingAssignments.map((row: Record<string, unknown>) => ({
+    const assignmentRowsExistingFromTable: AssignmentRow[] = existingAssignments.map((row: Record<string, unknown>) => ({
       course_id: courseId,
       syllabus_id: existingSyllabus?.id ? Number(existingSyllabus.id) : null,
       course_schedule_id: null,
@@ -1872,6 +1924,14 @@ export async function runCourseIntel(
       retrieved_at: nowIso,
       updated_at: nowIso,
     })).filter((row) => row.label.trim().length > 0);
+    const assignmentRowsExisting = dedupeAssignments([
+      ...assignmentRowsExistingFromTable,
+      ...existingLegacyAssignments.map((row) => ({
+        ...row,
+        retrieved_at: nowIso,
+        updated_at: nowIso,
+      })),
+    ]);
 
     const seedTasksFromSchedule = buildPlanSeedTasks(existingScheduleRows);
     const seedTasksFromAssignments: PlanSeedTask[] = assignmentRowsExisting.map((row) => ({
@@ -1936,6 +1996,9 @@ export async function runCourseIntel(
           exercises: seedTasks.filter((task) => task.kind === "exercise").length,
           quizzes: seedTasks.filter((task) => task.kind === "quiz").length,
           exams: seedTasks.filter((task) => task.kind === "exam").length,
+        },
+        raw_data: {
+          assignments: assignmentRowsExisting.map((row) => toSyllabusRawAssignment(row)),
         },
         practical_plan: practicalPlan,
       },
@@ -2367,6 +2430,13 @@ export async function runCourseIntel(
     days: practicalPlan.days.length,
   });
 
+  const nowIso = new Date().toISOString();
+  const rawExtractedAssignmentsForContent = dedupeAssignments([
+    ...extractAssignmentsFromSchedule(courseId, null, mergedScheduleArray, nowIso),
+    ...extractHeuristicAssignmentsFromSchedule(courseId, null, mergedScheduleArray, nowIso),
+    ...extractTopLevelAssignments(courseId, null, parsed.assignments, nowIso),
+  ]);
+
   content.course_intel = {
     generated_at: new Date().toISOString(),
     curated_tasks: seedTasks.slice(0, 200),
@@ -2379,6 +2449,9 @@ export async function runCourseIntel(
       exercises: seedTasks.filter((task) => task.kind === "exercise").length,
       quizzes: seedTasks.filter((task) => task.kind === "quiz").length,
       exams: seedTasks.filter((task) => task.kind === "exam").length,
+    },
+    raw_data: {
+      assignments: rawExtractedAssignmentsForContent.map((row) => toSyllabusRawAssignment(row)),
     },
     practical_plan: practicalPlan,
   };
@@ -2407,7 +2480,6 @@ export async function runCourseIntel(
   );
 
   const admin = createAdminClient();
-  const nowIso = new Date().toISOString();
   await emitProgress("persist", "Persisting resources, syllabus and assignments.", 82, {
     resources: finalResources.length,
   });
@@ -2485,6 +2557,11 @@ export async function runCourseIntel(
   const assignmentsFromSchedule = extractAssignmentsFromSchedule(courseId, syllabusId, mergedScheduleArray, nowIso);
   const heuristicAssignments = extractHeuristicAssignmentsFromSchedule(courseId, syllabusId, mergedScheduleArray, nowIso);
   const topLevelAssignments = extractTopLevelAssignments(courseId, syllabusId, parsed.assignments, nowIso);
+  const rawExtractedAssignments = dedupeAssignments([
+    ...assignmentsFromSchedule,
+    ...heuristicAssignments,
+    ...topLevelAssignments,
+  ]);
   const aiAssignments = buildAssignmentsFromDailyPlan({
     courseId,
     syllabusId,
@@ -2501,9 +2578,7 @@ export async function runCourseIntel(
   });
 
   const assignmentRows = dedupeAssignments([
-    ...assignmentsFromSchedule,
-    ...heuristicAssignments,
-    ...topLevelAssignments,
+    ...rawExtractedAssignments,
     ...aiAssignments,
   ]);
 
