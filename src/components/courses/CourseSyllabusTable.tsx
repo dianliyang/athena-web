@@ -131,8 +131,10 @@ export default function CourseSyllabusTable({
   const [showAllGrading, setShowAllGrading] = useState(false);
   const [showAllObjectives, setShowAllObjectives] = useState(false);
   const [showAllPolicies, setShowAllPolicies] = useState(false);
+  const [hasOverflowGrading, setHasOverflowGrading] = useState(false);
   const [hasOverflowObjectives, setHasOverflowObjectives] = useState(false);
   const [hasOverflowPolicies, setHasOverflowPolicies] = useState(false);
+  const gradingRef = useRef<HTMLDivElement | null>(null);
   const objectivesRef = useRef<HTMLDivElement | null>(null);
   const policiesRef = useRef<HTMLParagraphElement | null>(null);
   const clearApplied = clearSignal > 0;
@@ -175,6 +177,12 @@ export default function CourseSyllabusTable({
 
     return hasNonDateContent;
   });
+
+  useEffect(() => {
+    const el = gradingRef.current;
+    if (!el) return;
+    setHasOverflowGrading(el.scrollHeight > el.clientHeight + 1);
+  }, [content.grading, showAllGrading]);
 
   useEffect(() => {
     const el = objectivesRef.current;
@@ -311,7 +319,7 @@ export default function CourseSyllabusTable({
           {content.grading && content.grading.length > 0 && (
             <div className="rounded-lg border border-[#e5e5e5] bg-[#fcfcfc] p-4">
               <h3 className="text-sm font-semibold text-[#1f1f1f] mb-3">Grading</h3>
-              <div className={showAllGrading ? "" : "line-clamp-3"}>
+              <div ref={gradingRef} className={showAllGrading ? "" : "line-clamp-3"}>
                 <ul className="space-y-1.5">
                   {content.grading.map((g, i) => (
                     <li key={i} className="flex items-center justify-between text-sm">
@@ -321,13 +329,15 @@ export default function CourseSyllabusTable({
                   ))}
                 </ul>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowAllGrading((v) => !v)}
-                className="mt-1 text-xs font-medium text-[#335b9a] hover:underline"
-              >
-                {showAllGrading ? "Less" : "More"}
-              </button>
+              {(hasOverflowGrading || showAllGrading) && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllGrading((v) => !v)}
+                  className="mt-1 text-xs font-medium text-[#335b9a] hover:underline"
+                >
+                  {showAllGrading ? "Less" : "More"}
+                </button>
+              )}
             </div>
           )}
           {content.objectives && content.objectives.length > 0 && (
