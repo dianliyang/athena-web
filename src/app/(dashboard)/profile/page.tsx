@@ -35,6 +35,7 @@ export default async function ProfilePage() {
           `)
           .eq("user_courses.user_id", user.id)
           .eq("user_courses.status", "completed")
+          .neq("is_hidden", true)
           .order("updated_at", { foreignTable: "user_courses", ascending: false })
       : Promise.resolve({ data: null, error: null }),
   ]);
