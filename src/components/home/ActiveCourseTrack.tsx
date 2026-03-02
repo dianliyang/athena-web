@@ -136,15 +136,7 @@ export default function ActiveCourseTrack({
     }
   };
 
-  const isAiSyncSkipped = course.details?.ai_sync_private === true || course.details?.ai_sync_skip === true;
-
   const handleAiSync = async () => {
-    if (isAiSyncSkipped) {
-      const reason = typeof course.details?.ai_sync_skip_reason === "string" ? course.details.ai_sync_skip_reason : "private_source";
-      showToast({ type: "error", message: `AI sync skipped for this course (${reason}).` });
-      return;
-    }
-
     setIsAiUpdating(true);
     setAiStatus("idle");
     try {
@@ -417,7 +409,7 @@ export default function ActiveCourseTrack({
 
           <button
             onClick={handleAiSync}
-            disabled={isAiUpdating || isAiSyncSkipped}
+            disabled={isAiUpdating}
             className={`w-7 h-7 rounded-md flex items-center justify-center transition-all border disabled:opacity-50 ${
               aiStatus === "success"
                 ? "bg-white text-emerald-600 border-emerald-300"
@@ -425,7 +417,7 @@ export default function ActiveCourseTrack({
                   ? "bg-white text-rose-500 border-rose-300"
                   : "bg-white text-[#666] border-[#d3d3d3] hover:bg-[#f0f0f0] hover:text-[#1f1f1f]"
             }`}
-            title={isAiSyncSkipped ? "AI Sync skipped (private/non-public course source)" : "AI Sync"}
+            title="AI Sync"
             aria-label="AI Sync course intel"
           >
             {isAiUpdating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
