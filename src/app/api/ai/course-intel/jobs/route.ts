@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient, getUser } from "@/lib/supabase/server";
 import { runCourseIntel, type CourseIntelSourceMode } from "@/lib/ai/course-intel";
+import { upstashDelete, upstashGetJson, upstashSetJson } from "@/lib/cache/upstash";
 import {
   appendCourseIntelJobActivity,
   completeCourseIntelJob,
@@ -13,6 +14,103 @@ import {
 
 export const runtime = "nodejs";
 const COURSE_INTEL_JOB_TIMEOUT_MS = 5 * 60 * 1000;
+const COURSE_INTEL_CACHE_TTL_SECONDS = 2 * 60 * 60;
+
+type CourseIntelBroadcastEvent = {
+  status: "queued" | "running" | "completed" | "failed";
+  stage: string;
+  message: string;
+  progress?: number;
+  details?: Record<string, unknown>;
+};
+
+type ActivityItem = {
+  ts: string;
+  stage: string;
+  message: string;
+  progress?: number;
+  details?: Record<string, unknown>;
+};
+
+type CachedCourseIntelJob = {
+  id: number;
+  status: string;
+  sourceMode: CourseIntelSourceMode;
+  meta: {
+    course_id: number;
+    source_mode: CourseIntelSourceMode;
+    progress: number;
+    activity: ActivityItem[];
+    [key: string]: unknown;
+  };
+  started_at?: string;
+  completed_at?: string;
+};
+
+function courseIntelJobCacheKey(userId: string, courseId: number) {
+  return `cc:course-intel:job:${userId}:${courseId}`;
+}
+
+async function setCachedCourseIntelJob(userId: string, courseId: number, value: CachedCourseIntelJob) {
+  await upstashSetJson(courseIntelJobCacheKey(userId, courseId), value, COURSE_INTEL_CACHE_TTL_SECONDS);
+}
+
+async function clearCachedCourseIntelJob(userId: string, courseId: number) {
+  await upstashDelete(courseIntelJobCacheKey(userId, courseId));
+}
+
+async function createCourseIntelBroadcastEmitter(courseId: number, jobId: number) {
+  const supabase = createAdminClient() as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const channel = supabase.channel(`course_intel_jobs:${courseId}`, {
+    config: {
+      broadcast: { ack: false, self: false },
+      private: false,
+    },
+  });
+
+  await new Promise<void>((resolve) => {
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+    const timer = setTimeout(done, 1000);
+    channel.subscribe((status: string) => {
+      if (status === "SUBSCRIBED" || status === "TIMED_OUT" || status === "CHANNEL_ERROR" || status === "CLOSED") {
+        clearTimeout(timer);
+        done();
+      }
+    });
+  });
+
+  const emit = async (event: CourseIntelBroadcastEvent) => {
+    try {
+      await channel.send({
+        type: "broadcast",
+        event: "course_intel_progress",
+        payload: {
+          jobId,
+          courseId,
+          ts: new Date().toISOString(),
+          ...event,
+        },
+      });
+    } catch {
+      // Ignore broadcast transport errors; DB state remains source of truth.
+    }
+  };
+
+  const close = async () => {
+    try {
+      await supabase.removeChannel(channel);
+    } catch {
+      // Ignore close failures.
+    }
+  };
+
+  return { emit, close };
+}
 
 function deriveSourceMode(item: Record<string, unknown> | null | undefined): CourseIntelSourceMode | null {
   const meta = item?.meta && typeof item.meta === "object" ? (item.meta as Record<string, unknown>) : {};
@@ -27,16 +125,65 @@ async function executeCourseIntelJob(params: {
   sourceMode: CourseIntelSourceMode;
 }) {
   const { jobId, userId, courseId, sourceMode } = params;
+  const broadcaster = await createCourseIntelBroadcastEmitter(courseId, jobId);
+  let cachedJob: CachedCourseIntelJob = {
+    id: jobId,
+    status: "queued",
+    sourceMode,
+    meta: {
+      course_id: courseId,
+      source_mode: sourceMode,
+      progress: 0,
+      activity: [],
+    },
+  };
   let timedOut = false;
   let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+  const dispatchProgressEvent = (event: {
+    stage: string;
+    message: string;
+    progress?: number;
+    details?: Record<string, unknown>;
+  }) => {
+    if (timedOut) return;
+    const ts = new Date().toISOString();
+    const nextActivityItem: ActivityItem = {
+      ts,
+      stage: event.stage,
+      message: event.message,
+      progress: event.progress,
+      details: event.details,
+    };
+
+    cachedJob = {
+      ...cachedJob,
+      status: "running",
+      meta: {
+        ...cachedJob.meta,
+        progress: typeof event.progress === "number" ? event.progress : cachedJob.meta.progress,
+        activity: [...cachedJob.meta.activity, nextActivityItem].slice(-80),
+      },
+    };
+
+    void appendCourseIntelJobActivity(jobId, nextActivityItem).catch(() => {});
+    void setCachedCourseIntelJob(userId, courseId, cachedJob).catch(() => {});
+    void broadcaster.emit({
+      status: "running",
+      stage: event.stage,
+      message: event.message,
+      progress: event.progress,
+      details: event.details,
+    }).catch(() => {});
+  };
   try {
     await markCourseIntelJobRunning(jobId);
-    await appendCourseIntelJobActivity(jobId, {
+    const startedEvent = {
       ts: new Date().toISOString(),
       stage: "running",
       message: "AI sync started.",
       progress: 3,
-    });
+    };
+    dispatchProgressEvent(startedEvent);
 
     const timeoutPromise = new Promise<never>((_, reject) => {
       timeoutHandle = setTimeout(() => {
@@ -50,13 +197,7 @@ async function executeCourseIntelJob(params: {
         sourceMode,
         onProgress: async (event) => {
           if (timedOut) return;
-          await appendCourseIntelJobActivity(jobId, {
-            ts: new Date().toISOString(),
-            stage: event.stage,
-            message: event.message,
-            progress: event.progress,
-            details: event.details,
-          });
+          dispatchProgressEvent(event);
         },
       }),
       timeoutPromise,
@@ -64,6 +205,40 @@ async function executeCourseIntelJob(params: {
 
     await appendCourseIntelJobActivity(jobId, {
       ts: new Date().toISOString(),
+      stage: "done",
+      message: "AI sync completed.",
+      progress: 100,
+      details: {
+        resources: result.resources.length,
+        scheduleEntries: result.scheduleEntries,
+        scheduleRowsPersisted: result.scheduleRowsPersisted,
+        assignmentsCount: result.assignmentsCount,
+        curatedTasks: result.curatedTasks,
+        practicalPlanDays: result.practicalPlanDays,
+        sourceMode: result.sourceMode,
+      },
+    });
+    cachedJob = {
+      ...cachedJob,
+      status: "completed",
+      completed_at: new Date().toISOString(),
+      meta: {
+        ...cachedJob.meta,
+        progress: 100,
+        activity: [
+          ...cachedJob.meta.activity,
+          {
+            ts: new Date().toISOString(),
+            stage: "done",
+            message: "AI sync completed.",
+            progress: 100,
+          },
+        ].slice(-40),
+      },
+    };
+    await setCachedCourseIntelJob(userId, courseId, cachedJob);
+    await broadcaster.emit({
+      status: "completed",
       stage: "done",
       message: "AI sync completed.",
       progress: 100,
@@ -95,9 +270,35 @@ async function executeCourseIntelJob(params: {
       message: error instanceof Error ? error.message : "AI sync failed.",
       progress: 100,
     });
+    cachedJob = {
+      ...cachedJob,
+      status: "failed",
+      completed_at: new Date().toISOString(),
+      meta: {
+        ...cachedJob.meta,
+        progress: 100,
+        activity: [
+          ...cachedJob.meta.activity,
+          {
+            ts: new Date().toISOString(),
+            stage: "failed",
+            message: error instanceof Error ? error.message : "AI sync failed.",
+            progress: 100,
+          },
+        ].slice(-40),
+      },
+    };
+    await setCachedCourseIntelJob(userId, courseId, cachedJob);
+    await broadcaster.emit({
+      status: "failed",
+      stage: "failed",
+      message: error instanceof Error ? error.message : "AI sync failed.",
+      progress: 100,
+    });
     await failCourseIntelJob(jobId, error);
   } finally {
     if (timeoutHandle) clearTimeout(timeoutHandle);
+    await broadcaster.close();
   }
 }
 
@@ -118,8 +319,22 @@ export async function GET(request: NextRequest) {
     });
   }
 
+  const cached = await upstashGetJson<CachedCourseIntelJob>(courseIntelJobCacheKey(user.id, courseId));
+  if (cached && typeof cached === "object") {
+    const status = String(cached.status || "queued");
+    if (status === "queued" || status === "running") {
+      return NextResponse.json({ item: cached });
+    }
+  }
+
   const job = await getLatestCourseIntelJob(user.id, courseId);
-  return NextResponse.json({ item: job ? { ...job, sourceMode: deriveSourceMode(job) || "auto" } : null });
+  const item = job ? { ...job, sourceMode: deriveSourceMode(job) || "auto" } : null;
+  if (item && (item.status === "queued" || item.status === "running")) {
+    await setCachedCourseIntelJob(user.id, courseId, item as CachedCourseIntelJob);
+  } else if (!item) {
+    await clearCachedCourseIntelJob(user.id, courseId);
+  }
+  return NextResponse.json({ item });
 }
 
 export async function POST(request: NextRequest) {
@@ -155,19 +370,22 @@ export async function POST(request: NextRequest) {
     sourceMode: normalizedSourceMode,
   });
 
+  const queuedItem: CachedCourseIntelJob = {
+    id: jobId,
+    status: "queued",
+    sourceMode: normalizedSourceMode,
+    meta: {
+      course_id: numericCourseId,
+      progress: 0,
+      source_mode: normalizedSourceMode,
+      activity: [{ ts: new Date().toISOString(), stage: "queued", message: "AI sync queued.", progress: 0 }],
+    },
+  };
+  await setCachedCourseIntelJob(user.id, numericCourseId, queuedItem);
+
   return NextResponse.json({
     success: true,
     jobId,
-    item: {
-      id: jobId,
-      status: "queued",
-      sourceMode: normalizedSourceMode,
-      meta: {
-        course_id: numericCourseId,
-        progress: 0,
-        source_mode: normalizedSourceMode,
-        activity: [{ ts: new Date().toISOString(), stage: "queued", message: "AI sync queued.", progress: 0, details: { sourceMode: normalizedSourceMode } }],
-      },
-    },
+    item: queuedItem,
   }, { status: 202 });
 }

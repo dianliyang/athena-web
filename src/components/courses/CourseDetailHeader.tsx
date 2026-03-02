@@ -32,6 +32,17 @@ type ActivityItem = {
   progress?: number;
 };
 
+type BroadcastProgressPayload = {
+  jobId?: number;
+  courseId?: number;
+  ts?: string;
+  status?: string;
+  stage?: string;
+  message?: string;
+  progress?: number;
+  details?: Record<string, unknown>;
+};
+
 type CourseIntelJob = {
   id: number;
   status: string;
@@ -71,6 +82,7 @@ export default function CourseDetailHeader({
   const [isDeleting, setIsDeleting] = useState(false);
   const [aiStatus, setAiStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [aiJob, setAiJob] = useState<CourseIntelJob | null>(null);
+  const [liveActivity, setLiveActivity] = useState<ActivityItem[]>([]);
   const [aiSourceMode, setAiSourceMode] = useState<AiSyncSourceMode>(() => {
     if (typeof window === "undefined") return "auto";
     try {
@@ -87,7 +99,8 @@ export default function CourseDetailHeader({
 
   const isAiUpdating = aiJob?.status === "queued" || aiJob?.status === "running";
   const progress = typeof aiJob?.meta?.progress === "number" ? aiJob.meta.progress : null;
-  const activity = Array.isArray(aiJob?.meta?.activity) ? aiJob.meta.activity : [];
+  const jobActivity = Array.isArray(aiJob?.meta?.activity) ? aiJob.meta.activity : [];
+  const activity = liveActivity.length > 0 ? liveActivity : jobActivity;
 
   const loadLatestJob = async () => {
     try {
@@ -95,9 +108,13 @@ export default function CourseDetailHeader({
       if (!res.ok) return;
       const payload = await res.json();
       if (payload?.item && typeof payload.item === "object") {
-        setAiJob(payload.item as CourseIntelJob);
+        const nextJob = payload.item as CourseIntelJob;
+        setAiJob(nextJob);
+        const nextActivity = Array.isArray(nextJob.meta?.activity) ? nextJob.meta.activity : [];
+        setLiveActivity(nextActivity);
       } else {
         setAiJob(null);
+        setLiveActivity([]);
       }
     } catch {
       // Ignore background status fetch errors.
@@ -117,8 +134,89 @@ export default function CourseDetailHeader({
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "scraper_jobs" },
-        () => {
+        (payload) => {
+          const row = (payload as { new?: Record<string, unknown>; old?: Record<string, unknown> }).new
+            || (payload as { new?: Record<string, unknown>; old?: Record<string, unknown> }).old;
+          const rowId = Number(row?.id || 0);
+          const rowMeta = row?.meta && typeof row.meta === "object" ? (row.meta as Record<string, unknown>) : null;
+          const rowCourseId = Number((rowMeta?.course_id as number | string | undefined) || 0);
+          const shouldApply =
+            (aiJob?.id ? rowId === aiJob.id : false) ||
+            rowCourseId === course.id;
+
+          if (shouldApply && rowId > 0) {
+            setAiJob((prev) => ({
+              ...(prev || { id: rowId, sourceMode: aiSourceMode }),
+              ...row,
+              id: rowId,
+            }) as CourseIntelJob);
+
+            const payloadActivity = Array.isArray((rowMeta?.activity as ActivityItem[] | undefined))
+              ? (rowMeta?.activity as ActivityItem[])
+              : [];
+            if (payloadActivity.length > 0) {
+              setLiveActivity(payloadActivity.slice(-40));
+            } else {
+              const nextProgress = typeof rowMeta?.progress === "number" ? rowMeta.progress : undefined;
+              const statusText = typeof row?.status === "string" ? row.status : "running";
+              setLiveActivity((prev) => {
+                const entry: ActivityItem = {
+                  ts: new Date().toISOString(),
+                  stage: "realtime",
+                  message: `Realtime update: ${statusText}${typeof nextProgress === "number" ? ` (${nextProgress}%)` : ""}`,
+                  progress: nextProgress,
+                };
+                const last = prev[prev.length - 1];
+                if (last?.message === entry.message) return prev;
+                return [...prev, entry].slice(-40);
+              });
+            }
+          }
           void loadLatestJob();
+        }
+      )
+      .on(
+        "broadcast",
+        { event: "course_intel_progress" },
+        (payload) => {
+          const body = ((payload as { payload?: BroadcastProgressPayload }).payload || {}) as BroadcastProgressPayload;
+          const eventCourseId = Number(body.courseId || 0);
+          if (eventCourseId && eventCourseId !== course.id) return;
+
+          const message = typeof body.message === "string" ? body.message.trim() : "";
+          const stage = typeof body.stage === "string" ? body.stage : "running";
+          const progressFromEvent = typeof body.progress === "number" ? body.progress : undefined;
+
+          if (message) {
+            setLiveActivity((prev) => {
+              const entry: ActivityItem = {
+                ts: typeof body.ts === "string" ? body.ts : new Date().toISOString(),
+                stage,
+                message,
+                progress: progressFromEvent,
+              };
+              const last = prev[prev.length - 1];
+              if (last?.message === entry.message && last?.stage === entry.stage && last?.progress === entry.progress) {
+                return prev;
+              }
+              return [...prev, entry].slice(-40);
+            });
+          }
+
+          if (typeof progressFromEvent === "number") {
+            setAiJob((prev) => {
+              if (!prev) return prev;
+              const meta = prev.meta && typeof prev.meta === "object" ? prev.meta : {};
+              return {
+                ...prev,
+                status: typeof body.status === "string" ? body.status : prev.status,
+                meta: {
+                  ...meta,
+                  progress: progressFromEvent,
+                },
+              };
+            });
+          }
         }
       )
       .subscribe();
@@ -130,17 +228,9 @@ export default function CourseDetailHeader({
   }, [course.id, isAiUpdating]);
 
   useEffect(() => {
-    if (!isAiUpdating) return;
-    const timer = window.setInterval(() => {
-      void loadLatestJob();
-    }, 8000);
-    return () => window.clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAiUpdating, course.id]);
-
-  useEffect(() => {
     if (!aiJob) {
       previousJobRef.current = null;
+      setLiveActivity([]);
       return;
     }
 

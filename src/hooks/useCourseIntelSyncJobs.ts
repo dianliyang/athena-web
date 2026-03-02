@@ -44,7 +44,7 @@ export function useCourseIntelSyncJobs() {
         setItems(payload.items as CourseIntelJobItem[]);
       }
     } catch {
-      // Ignore transient polling errors.
+      // Ignore transient load errors.
     } finally {
       setLoading(false);
     }
@@ -69,8 +69,30 @@ export function useCourseIntelSyncJobs() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "scraper_jobs" },
-        () => {
-          void loadJobs();
+        (payload) => {
+          const row = (payload as { new?: Record<string, unknown>; old?: Record<string, unknown> }).new
+            || (payload as { new?: Record<string, unknown>; old?: Record<string, unknown> }).old;
+          if (!row || typeof row.id !== "number") {
+            void loadJobs();
+            return;
+          }
+
+          setItems((prev) => {
+            const next = [...prev];
+            const idx = next.findIndex((item) => item.id === row.id);
+            const merged = {
+              ...(idx >= 0 ? next[idx] : {}),
+              ...row,
+              sourceMode:
+                typeof (row as { sourceMode?: unknown }).sourceMode === "string"
+                  ? ((row as { sourceMode: "auto" | "existing" | "fresh" }).sourceMode)
+                  : (idx >= 0 ? next[idx].sourceMode : "auto"),
+            } as CourseIntelJobItem;
+
+            if (idx >= 0) next[idx] = merged;
+            else next.unshift(merged);
+            return next.slice(0, 20);
+          });
         }
       )
       .subscribe();
@@ -107,14 +129,6 @@ export function useCourseIntelSyncJobs() {
       void closeChannel();
     }
   }, [closeChannel, hasActive, hasSubscribed, openChannel]);
-
-  useEffect(() => {
-    if (!hasActive) return;
-    const timer = window.setInterval(() => {
-      void loadJobs();
-    }, 8000);
-    return () => window.clearInterval(timer);
-  }, [hasActive, loadJobs]);
 
   return {
     items,

@@ -84,20 +84,40 @@ export async function startCourseIntelJob(input: {
 
   if (!error && data?.id) return Number(data.id);
 
-  // Backward compatibility fallback.
+  // Compatibility fallback for databases that still enforce old job_type checks.
   const fallbackUniversity = fallbackUniversityMarker(input.userId, input.courseId);
+  const { data: compatData, error: compatError } = await supabase
+    .from("scraper_jobs")
+    .insert({
+      university: fallbackUniversity,
+      status: "queued",
+      started_at: now,
+      job_type: "courses",
+      triggered_by: "api",
+      triggered_by_user_id: input.userId,
+      meta,
+    })
+    .select("id")
+    .maybeSingle();
+
+  if (!compatError && compatData?.id) return Number(compatData.id);
+
+  // Legacy fallback for schemas missing newer columns.
   const { data: fallbackData, error: fallbackError } = await supabase
     .from("scraper_jobs")
     .insert({
       university: fallbackUniversity,
-      status: "running",
+      status: "queued",
       started_at: now,
     })
     .select("id")
     .maybeSingle();
 
   if (fallbackError) {
-    console.error("[course_intel_jobs] failed to start job:", asPlainError(fallbackError));
+    console.error(
+      "[course_intel_jobs] failed to start job:",
+      asPlainError(error || compatError || fallbackError)
+    );
     return null;
   }
   return fallbackData?.id ? Number(fallbackData.id) : null;
@@ -187,14 +207,31 @@ export async function getLatestCourseIntelJob(userId: string, courseId: number) 
 
   // Backward-compatible fallback for older schemas lacking job_type/triggered_by_user_id/meta columns.
   const fallbackPrefix = `ai:${userId}:%`;
-  const { data: fallbackData, error: fallbackError } = await supabase
+  let fallbackData: Record<string, unknown>[] | null = null;
+  let fallbackError: unknown = null;
+
+  const withMeta = await supabase
     .from("scraper_jobs")
-    .select("id, status, error, started_at, completed_at, created_at, university")
+    .select("id, status, error, started_at, completed_at, created_at, university, meta")
     .like("university", fallbackPrefix)
     .order("created_at", { ascending: false })
     .limit(30);
 
-  if (fallbackError) {
+  if (!withMeta.error) {
+    fallbackData = withMeta.data || [];
+  } else {
+    fallbackError = withMeta.error;
+    const legacy = await supabase
+      .from("scraper_jobs")
+      .select("id, status, error, started_at, completed_at, created_at, university")
+      .like("university", fallbackPrefix)
+      .order("created_at", { ascending: false })
+      .limit(30);
+    fallbackError = legacy.error;
+    fallbackData = legacy.data || [];
+  }
+
+  if (fallbackError && !fallbackData) {
     console.error("[course_intel_jobs] failed to query jobs:", asPlainError(error || fallbackError));
     return null;
   }
@@ -205,12 +242,25 @@ export async function getLatestCourseIntelJob(userId: string, courseId: number) 
   });
 
   if (!fallbackMatch) return null;
+
+  const rawMeta =
+    fallbackMatch.meta && typeof fallbackMatch.meta === "object"
+      ? (fallbackMatch.meta as Record<string, unknown>)
+      : {};
+  const rawProgress = Number(rawMeta.progress);
+  const progress =
+    Number.isFinite(rawProgress) && rawProgress >= 0
+      ? Math.min(100, Math.max(0, rawProgress))
+      : (fallbackMatch.status === "completed" || fallbackMatch.status === "failed" ? 100 : 5);
+  const activity = Array.isArray(rawMeta.activity) ? rawMeta.activity : [];
+
   return {
     ...fallbackMatch,
     meta: {
+      ...rawMeta,
       course_id: courseId,
-      progress: fallbackMatch.status === "completed" || fallbackMatch.status === "failed" ? 100 : 5,
-      activity: [],
+      progress,
+      activity,
     },
   };
 }
@@ -230,26 +280,53 @@ export async function getRecentCourseIntelJobs(userId: string, limit = 20) {
     return data || [];
   }
 
-  const { data: fallbackData, error: fallbackError } = await supabase
+  let fallbackData: Record<string, unknown>[] | null = null;
+  let fallbackError: unknown = null;
+
+  const withMeta = await supabase
     .from("scraper_jobs")
-    .select("id, status, error, started_at, completed_at, created_at, university")
+    .select("id, status, error, started_at, completed_at, created_at, university, meta")
     .like("university", `ai:${userId}:%`)
     .order("created_at", { ascending: false })
     .limit(limit);
 
-  if (fallbackError) {
+  if (!withMeta.error) {
+    fallbackData = withMeta.data || [];
+  } else {
+    fallbackError = withMeta.error;
+    const legacy = await supabase
+      .from("scraper_jobs")
+      .select("id, status, error, started_at, completed_at, created_at, university")
+      .like("university", `ai:${userId}:%`)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    fallbackError = legacy.error;
+    fallbackData = legacy.data || [];
+  }
+
+  if (fallbackError && !fallbackData) {
     console.error("[course_intel_jobs] failed to query recent jobs:", asPlainError(error || fallbackError));
     return [];
   }
 
   return (fallbackData || []).map((row: Record<string, unknown>) => {
     const parsedCourseId = parseCourseIdFromFallbackUniversity(row.university);
+    const rawMeta =
+      row.meta && typeof row.meta === "object"
+        ? (row.meta as Record<string, unknown>)
+        : {};
+    const rawProgress = Number(rawMeta.progress);
+    const progress =
+      Number.isFinite(rawProgress) && rawProgress >= 0
+        ? Math.min(100, Math.max(0, rawProgress))
+        : (row.status === "completed" || row.status === "failed" ? 100 : 5);
     return {
       ...row,
       meta: {
+        ...rawMeta,
         course_id: parsedCourseId || undefined,
-        progress: row.status === "completed" || row.status === "failed" ? 100 : 5,
-        activity: [],
+        progress,
+        activity: Array.isArray(rawMeta.activity) ? rawMeta.activity : [],
       },
       job_type: "course-intel",
       triggered_by_user_id: userId,

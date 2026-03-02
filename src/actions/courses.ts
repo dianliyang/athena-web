@@ -6,6 +6,8 @@ import { rateLimit } from "@/lib/rate-limit";
 import { resolveModelForProvider } from "@/lib/ai/models";
 import { logAiUsage } from "@/lib/ai/log-usage";
 import { parseLenientJson } from "@/lib/ai/parse-json";
+import { upstashSetString } from "@/lib/cache/upstash";
+import { buildResourceBlacklistKey } from "@/lib/resources/blacklist";
 import { Course } from "@/types";
 
 function applyPromptTemplate(template: string, values: Record<string, string>) {
@@ -41,7 +43,7 @@ export async function updateCourse(courseId: number, data: {
   let mergedDetails: Record<string, unknown> = {};
   const { data: existing } = await supabase
     .from("courses")
-    .select("details")
+    .select("details, resources, course_code")
     .eq("id", courseId)
     .single();
 
@@ -49,6 +51,18 @@ export async function updateCourse(courseId: number, data: {
     typeof existing?.details === "string"
       ? JSON.parse(existing.details)
       : existing?.details || {};
+  const existingResources = (Array.isArray(existing?.resources) ? existing.resources : [])
+    .map((item) => String(item || "").trim())
+    .filter(Boolean);
+  const normalizedIncomingResources = Array.from(
+    new Set(
+      (Array.isArray(data.resources) ? data.resources : [])
+        .map((item) => String(item || "").trim())
+        .filter(Boolean)
+    )
+  );
+  const incomingSet = new Set(normalizedIncomingResources);
+  const removedResources = existingResources.filter((url) => !incomingSet.has(url));
 
   mergedDetails = { ...existingDetails, ...(data.details || {}) };
   delete mergedDetails.prerequisites;
@@ -68,7 +82,7 @@ export async function updateCourse(courseId: number, data: {
       popularity: data.popularity,
       workload: data.workload,
       subdomain: data.subdomain || null,
-      resources: data.resources || [],
+      resources: normalizedIncomingResources,
       category: data.category || null,
       is_hidden: data.isHidden,
       is_internal: data.isInternal,
@@ -81,6 +95,17 @@ export async function updateCourse(courseId: number, data: {
   if (error) {
     console.error("Failed to update course:", error);
     throw new Error("Failed to update course");
+  }
+
+  const courseCode = String(existing?.course_code || "");
+  if (courseCode && removedResources.length > 0) {
+    await Promise.all(
+      removedResources.map(async (url) => {
+        const key = buildResourceBlacklistKey(courseCode, url);
+        if (!key) return;
+        await upstashSetString(key, "1");
+      })
+    );
   }
 
   revalidatePath(`/courses/${courseId}`);
@@ -121,15 +146,49 @@ export async function updateCourseResources(courseId: number, resources: string[
   }
 
   const supabase = createAdminClient();
+  const normalizedIncoming = Array.from(
+    new Set(
+      (Array.isArray(resources) ? resources : [])
+        .map((item) => String(item || "").trim())
+        .filter(Boolean)
+    )
+  );
+
+  const { data: existingCourse, error: existingError } = await supabase
+    .from("courses")
+    .select("course_code, resources")
+    .eq("id", courseId)
+    .maybeSingle();
+  if (existingError) {
+    console.error("Failed to load existing course resources:", existingError);
+    throw new Error("Failed to update course resources");
+  }
+
+  const existingResources = (Array.isArray(existingCourse?.resources) ? existingCourse.resources : [])
+    .map((item) => String(item || "").trim())
+    .filter(Boolean);
+  const incomingSet = new Set(normalizedIncoming);
+  const removedResources = existingResources.filter((url) => !incomingSet.has(url));
 
   const { error } = await supabase
     .from("courses")
-    .update({ resources: resources })
+    .update({ resources: normalizedIncoming })
     .eq("id", courseId);
 
   if (error) {
     console.error("Failed to update course resources:", error);
     throw new Error("Failed to update course resources");
+  }
+
+  const courseCode = String(existingCourse?.course_code || "");
+  if (courseCode && removedResources.length > 0) {
+    await Promise.all(
+      removedResources.map(async (url) => {
+        const key = buildResourceBlacklistKey(courseCode, url);
+        if (!key) return;
+        await upstashSetString(key, "1");
+      })
+    );
   }
 
   revalidatePath(`/courses/${courseId}`);

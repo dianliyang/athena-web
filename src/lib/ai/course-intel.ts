@@ -5,6 +5,8 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { resolveModelForProvider } from "@/lib/ai/models";
 import { parseLenientJson } from "@/lib/ai/parse-json";
 import { logAiUsage } from "@/lib/ai/log-usage";
+import { upstashMGet } from "@/lib/cache/upstash";
+import { buildResourceBlacklistKey } from "@/lib/resources/blacklist";
 import type { Json } from "@/lib/supabase/database.types";
 import {
   type DailyPlan,
@@ -1918,6 +1920,29 @@ function filterRelevantResourceUrls(
     .slice(0, 25);
 }
 
+async function filterResourcesByRedisBlacklist(urls: string[], courseCode: string) {
+  const normalizedCourseCode = String(courseCode || "").trim();
+  if (!normalizedCourseCode) return { kept: urls, dropped: [] as string[] };
+  const candidates = urls.map((url) => ({ url, key: buildResourceBlacklistKey(normalizedCourseCode, url) }));
+  const keys = candidates.map((item) => item.key).filter((item): item is string => typeof item === "string");
+  if (keys.length === 0) return { kept: urls, dropped: [] as string[] };
+  const values = await upstashMGet(keys);
+  const blockedKeys = new Set<string>();
+  keys.forEach((key, idx) => {
+    if (typeof values[idx] === "string" && values[idx] !== "") {
+      blockedKeys.add(key);
+    }
+  });
+
+  const kept: string[] = [];
+  const dropped: string[] = [];
+  for (const item of candidates) {
+    if (item.key && blockedKeys.has(item.key)) dropped.push(item.url);
+    else kept.push(item.url);
+  }
+  return { kept, dropped };
+}
+
 function isAllowedCourseLinkHost(seedHost: string, linkHost: string): boolean {
   const normalizedSeed = seedHost.replace(/^www\./i, "").toLowerCase();
   const normalizedLink = linkHost.replace(/^www\./i, "").toLowerCase();
@@ -2411,11 +2436,13 @@ export async function runCourseIntel(
       .filter((u): u is string => typeof u === "string" && /^https?:\/\//i.test(u.trim()))
       .map((u) => u.trim());
     const finalResources = dedupeUrlsExact(existingCourseResources);
+    const { kept: filteredResources, dropped: blacklistedResources } =
+      await filterResourcesByRedisBlacklist(finalResources, String(course.course_code || ""));
     const admin = createAdminClient();
-    if (finalResources.length > 0) {
+    if (filteredResources.length > 0) {
       const mergedResources = dedupeUrlsExact([
         ...existingCourseResources,
-        ...finalResources,
+        ...filteredResources,
       ]);
       const { error: courseUpdateError } = await admin.from("courses").update({ resources: mergedResources }).eq("id", courseId);
       if (courseUpdateError) throw new Error(courseUpdateError.message);
@@ -2450,11 +2477,13 @@ export async function runCourseIntel(
     let scheduleRowsPersisted = 0;
     const scheduleBinding = new Map<string, number>();
     if (scheduleRowsFromPlan.length > 0) {
+      await emitProgress("persist", "Clearing legacy schedule rows before writing regenerated schedule.", 86, {
+        generatedScheduleRows: scheduleRowsFromPlan.length,
+      });
       const { error: deleteSchedulesError } = await adminAny
         .from("course_schedules")
         .delete()
-        .eq("course_id", courseId)
-        .eq("source", "ai_course_intel");
+        .eq("course_id", courseId);
       if (deleteSchedulesError) throw new Error(deleteSchedulesError.message);
       const { data: insertedSchedules, error: insertSchedulesError } = await adminAny
         .from("course_schedules")
@@ -2463,6 +2492,9 @@ export async function runCourseIntel(
       if (insertSchedulesError) throw new Error(insertSchedulesError.message);
       const inserted = Array.isArray(insertedSchedules) ? insertedSchedules : [];
       scheduleRowsPersisted = inserted.length;
+      await emitProgress("persist", "Regenerated schedule rows written.", 90, {
+        scheduleRowsPersisted,
+      });
       for (const row of inserted) {
         const date = typeof row.schedule_date === "string" ? row.schedule_date : "";
         const title = typeof row.task_title === "string" ? row.task_title.trim().toLowerCase() : "";
@@ -2492,6 +2524,9 @@ export async function runCourseIntel(
     let assignmentsPersisted = 0;
     let assignmentsPreserved = false;
     if (assignmentRows.length > 0) {
+      await emitProgress("persist", "Replacing assignment table with regenerated assignment set.", 92, {
+        assignmentsToWrite: assignmentRows.length,
+      });
       const { error: deleteAssignmentsError } = await admin.from("course_assignments").delete().eq("course_id", courseId);
       if (deleteAssignmentsError) throw new Error(deleteAssignmentsError.message);
       const { error: insertAssignmentsError } = await admin.from("course_assignments").insert(assignmentRows);
@@ -2521,7 +2556,8 @@ export async function runCourseIntel(
       responseText: "",
       requestPayload: { courseId, courseCode: course.course_code, university: course.university, sourceMode: sourceModeEffective },
       responsePayload: {
-        resourcesCount: finalResources.length,
+        resourcesCount: filteredResources.length,
+        resourcesBlocked: blacklistedResources.length,
         scheduleEntries: existingScheduleRows.length,
         scheduleRowsPersisted,
         assignmentsCount: assignmentRows.length,
@@ -2537,7 +2573,7 @@ export async function runCourseIntel(
     });
 
     return {
-      resources: finalResources,
+      resources: filteredResources,
       scheduleEntries: existingScheduleRows.length,
       scheduleRowsPersisted,
       assignmentsCount: assignmentRows.length,
@@ -2567,8 +2603,15 @@ export async function runCourseIntel(
       String(course.title || "")
     )
     : [];
+  await emitProgress("discovery", "URL discovery pass finished.", 24, {
+    discoveredUrls: discoveredUrls.length,
+    webDiscoveryEnabled: shouldRunWebDiscovery,
+  });
   const seedContextUrls = dedupeUrlsExact([...knownUrls, ...discoveredUrls].filter((u) => /^https?:\/\//i.test(String(u))));
   const expandedUrls = shouldRunWebDiscovery ? await discoverImportantCourseLinks(seedContextUrls) : [];
+  await emitProgress("discovery", "Expanded related syllabus/resource links.", 28, {
+    expandedUrls: expandedUrls.length,
+  });
   const contextLimit = fastMode ? 5 : 8;
   const analysisLimit = fastMode ? 3 : 6;
   const fullContextUrls = dedupeUrlsExact([...expandedUrls, ...seedContextUrls]).slice(0, contextLimit);
@@ -2603,6 +2646,7 @@ export async function runCourseIntel(
   await emitProgress("discovery", "Step 2/6 Source retrieval completed.", 35, {
     contextUrls: contextUrls.length,
     analysisUrls: analysisContextUrls.length,
+    deterministicSignalPages: deterministicSignals.length,
   });
   const deterministicRows = deterministicSignals.flatMap((s) => s.scheduleRows);
   const deterministicGradings = deterministicSignals.flatMap((s) => s.gradingSignals);
@@ -2747,6 +2791,9 @@ export async function runCourseIntel(
 
   // Retry once when the model likely returned a partial syllabus.
   if (!fastMode && firstAttempt.scheduleArray.length <= 1) {
+    await emitProgress("ai", "AI output looked partial. Retrying with higher token budget.", 63, {
+      previousRows: firstAttempt.scheduleArray.length,
+    });
     const retryAttempt = await runExtraction(22000);
     if (retryAttempt.scheduleArray.length > firstAttempt.scheduleArray.length) {
       extraction = retryAttempt;
@@ -2762,6 +2809,11 @@ export async function runCourseIntel(
     firstParsedResources <= 1 &&
     firstParsedAssignments === 0;
   if (!fastMode && looksIncomplete) {
+    await emitProgress("ai", "Running strict JSON recovery pass for incomplete extraction.", 66, {
+      recoveredRows: firstRecoveredRows,
+      parsedResources: firstParsedResources,
+      parsedAssignments: firstParsedAssignments,
+    });
     const stricterPrompt = `${prompt}\n\nIMPORTANT: Return a COMPLETE result for the full course. Return ONLY one valid JSON object with all known schedule rows, resources, and assignments. No prose. No markdown.`;
     const qualityRetry = await runExtraction(24000, stricterPrompt);
     const qualityRetryRecovered = extractScheduleRowsFromRawText(qualityRetry.text).length;
@@ -2775,6 +2827,7 @@ export async function runCourseIntel(
     !/^\s*\{/.test((extraction.text || "").trim()) &&
     (/I (can't|cannot|need to clarify)|I'?m Perplexity|search results provided|I appreciate your/i.test(extraction.text || ""));
   if (looksLikeNonJsonReply) {
+    await emitProgress("ai", "Model returned non-JSON text. Forcing strict JSON retry.", 68);
     const forcedJsonPrompt = `${prompt}\n\nIMPORTANT: Return ONLY a single valid JSON object. Do not include any prose, disclaimers, citations, markdown, or code fences.`;
     const jsonRetry = await runExtraction(fastMode ? 10000 : 22000, forcedJsonPrompt);
     if (jsonRetry.scheduleArray.length >= extraction.scheduleArray.length) {
@@ -2925,19 +2978,22 @@ export async function runCourseIntel(
     String(course.course_code || ""),
     String(course.title || "")
   );
+  const { kept: filteredResources, dropped: blacklistedResources } =
+    await filterResourcesByRedisBlacklist(finalResources, String(course.course_code || ""));
 
   const admin = createAdminClient();
   await emitProgress("persist", "Persisting resources, syllabus and assignments.", 82, {
-    resources: finalResources.length,
+    resources: filteredResources.length,
+    resourcesBlocked: blacklistedResources.length,
   });
 
-  if (finalResources.length > 0) {
+  if (filteredResources.length > 0) {
     const existingCourseResources = (Array.isArray(course.resources) ? course.resources : [])
       .filter((u): u is string => typeof u === "string" && /^https?:\/\//i.test(u.trim()))
       .map((u) => u.trim());
     const mergedResources = dedupeUrlsExact([
       ...existingCourseResources,
-      ...finalResources,
+      ...filteredResources,
     ]);
     const { error: courseUpdateError } = await admin
       .from("courses")
@@ -2984,11 +3040,13 @@ export async function runCourseIntel(
   let scheduleRowsPersisted = 0;
   const scheduleBinding = new Map<string, number>();
   if (scheduleRowsFromPlan.length > 0) {
+    await emitProgress("persist", "Clearing legacy schedule rows before writing regenerated schedule.", 86, {
+      generatedScheduleRows: scheduleRowsFromPlan.length,
+    });
     const { error: deleteSchedulesError } = await adminAny
       .from("course_schedules")
       .delete()
-      .eq("course_id", courseId)
-      .eq("source", "ai_course_intel");
+      .eq("course_id", courseId);
     if (deleteSchedulesError) throw new Error(deleteSchedulesError.message);
 
     const { data: insertedSchedules, error: insertSchedulesError } = await adminAny
@@ -2998,6 +3056,9 @@ export async function runCourseIntel(
     if (insertSchedulesError) throw new Error(insertSchedulesError.message);
     const inserted = Array.isArray(insertedSchedules) ? insertedSchedules : [];
     scheduleRowsPersisted = inserted.length;
+    await emitProgress("persist", "Regenerated schedule rows written.", 90, {
+      scheduleRowsPersisted,
+    });
     for (const row of inserted) {
       const date = typeof row.schedule_date === "string" ? row.schedule_date : "";
       const title = typeof row.task_title === "string" ? row.task_title.trim().toLowerCase() : "";
@@ -3042,6 +3103,9 @@ export async function runCourseIntel(
   // Safety guard: only replace assignments when we extracted at least one row.
   // This prevents wiping existing assignments on weak/partial model output.
   if (assignmentRows.length > 0) {
+    await emitProgress("persist", "Replacing assignment table with regenerated assignment set.", 92, {
+      assignmentsToWrite: assignmentRows.length,
+    });
     const { error: deleteAssignmentsError } = await admin
       .from("course_assignments")
       .delete()
@@ -3078,6 +3142,7 @@ export async function runCourseIntel(
     requestPayload: { courseId, courseCode: course.course_code, university: course.university },
     responsePayload: {
       resourcesCount: finalResources.length,
+      resourcesBlocked: blacklistedResources.length,
       scheduleEntries: mergedScheduleArray.length,
       assignmentsCount: assignmentRows.length,
       scheduleRowsPersisted,
@@ -3097,7 +3162,7 @@ export async function runCourseIntel(
   });
 
   return {
-    resources: finalResources,
+    resources: filteredResources,
     scheduleEntries: mergedScheduleArray.length,
     scheduleRowsPersisted,
     assignmentsCount: assignmentRows.length,
