@@ -13,6 +13,62 @@ import {
 
 export const runtime = "nodejs";
 
+async function executeCourseIntelJob(params: {
+  jobId: number;
+  userId: string;
+  courseId: number;
+}) {
+  const { jobId, userId, courseId } = params;
+  try {
+    await markCourseIntelJobRunning(jobId);
+    await appendCourseIntelJobActivity(jobId, {
+      ts: new Date().toISOString(),
+      stage: "running",
+      message: "AI sync started.",
+      progress: 3,
+    });
+
+    const result = await runCourseIntel(userId, courseId, {
+      onProgress: async (event) => {
+        await appendCourseIntelJobActivity(jobId, {
+          ts: new Date().toISOString(),
+          stage: event.stage,
+          message: event.message,
+          progress: event.progress,
+          details: event.details,
+        });
+      },
+    });
+
+    await appendCourseIntelJobActivity(jobId, {
+      ts: new Date().toISOString(),
+      stage: "done",
+      message: "AI sync completed.",
+      progress: 100,
+      details: {
+        resources: result.resources.length,
+        scheduleEntries: result.scheduleEntries,
+        assignmentsCount: result.assignmentsCount,
+      },
+    });
+    await completeCourseIntelJob(jobId, {
+      course_id: courseId,
+      resources: result.resources.length,
+      scheduleEntries: result.scheduleEntries,
+      assignmentsCount: result.assignmentsCount,
+      totalMs: result.totalMs,
+    });
+  } catch (error) {
+    await appendCourseIntelJobActivity(jobId, {
+      ts: new Date().toISOString(),
+      stage: "failed",
+      message: error instanceof Error ? error.message : "AI sync failed.",
+      progress: 100,
+    });
+    await failCourseIntelJob(jobId, error);
+  }
+}
+
 export async function GET(request: NextRequest) {
   const user = await getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -57,56 +113,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Failed to create AI sync job" }, { status: 500 });
   }
 
-  setTimeout(async () => {
-    try {
-      await markCourseIntelJobRunning(jobId);
-      await appendCourseIntelJobActivity(jobId, {
-        ts: new Date().toISOString(),
-        stage: "running",
-        message: "AI sync started.",
-        progress: 3,
-      });
+  void executeCourseIntelJob({
+    jobId,
+    userId: user.id,
+    courseId: numericCourseId,
+  });
 
-      const result = await runCourseIntel(user.id, numericCourseId, {
-        onProgress: async (event) => {
-          await appendCourseIntelJobActivity(jobId, {
-            ts: new Date().toISOString(),
-            stage: event.stage,
-            message: event.message,
-            progress: event.progress,
-            details: event.details,
-          });
-        },
-      });
-
-      await appendCourseIntelJobActivity(jobId, {
-        ts: new Date().toISOString(),
-        stage: "done",
-        message: "AI sync completed.",
-        progress: 100,
-        details: {
-          resources: result.resources.length,
-          scheduleEntries: result.scheduleEntries,
-          assignmentsCount: result.assignmentsCount,
-        },
-      });
-      await completeCourseIntelJob(jobId, {
+  return NextResponse.json({
+    success: true,
+    jobId,
+    item: {
+      id: jobId,
+      status: "queued",
+      meta: {
         course_id: numericCourseId,
-        resources: result.resources.length,
-        scheduleEntries: result.scheduleEntries,
-        assignmentsCount: result.assignmentsCount,
-        totalMs: result.totalMs,
-      });
-    } catch (error) {
-      await appendCourseIntelJobActivity(jobId, {
-        ts: new Date().toISOString(),
-        stage: "failed",
-        message: error instanceof Error ? error.message : "AI sync failed.",
-        progress: 100,
-      });
-      await failCourseIntelJob(jobId, error);
-    }
-  }, 0);
-
-  return NextResponse.json({ success: true, jobId }, { status: 202 });
+        progress: 0,
+        activity: [{ ts: new Date().toISOString(), stage: "queued", message: "AI sync queued.", progress: 0 }],
+      },
+    },
+  }, { status: 202 });
 }

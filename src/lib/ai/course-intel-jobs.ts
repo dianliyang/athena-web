@@ -13,6 +13,18 @@ function asPlainError(error: unknown): string {
   return typeof error === "string" ? error : JSON.stringify(error);
 }
 
+function fallbackUniversityMarker(userId: string, courseId: number) {
+  return `ai:${userId}:${courseId}`;
+}
+
+function parseCourseIdFromFallbackUniversity(university: unknown): number | null {
+  if (typeof university !== "string") return null;
+  const match = university.match(/^ai:[^:]+:(\d+)$/);
+  if (!match) return null;
+  const parsed = Number(match[1]);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 async function updateJob(jobId: number, patch: Record<string, unknown>) {
   const supabase = createAdminClient() as any; // eslint-disable-line @typescript-eslint/no-explicit-any
   await supabase.from("scraper_jobs").update(patch).eq("id", jobId);
@@ -55,10 +67,11 @@ export async function startCourseIntelJob(input: {
   if (!error && data?.id) return Number(data.id);
 
   // Backward compatibility fallback.
+  const fallbackUniversity = fallbackUniversityMarker(input.userId, input.courseId);
   const { data: fallbackData, error: fallbackError } = await supabase
     .from("scraper_jobs")
     .insert({
-      university: input.university || "unknown",
+      university: fallbackUniversity,
       status: "running",
       started_at: now,
     })
@@ -145,17 +158,42 @@ export async function getLatestCourseIntelJob(userId: string, courseId: number) 
     .order("created_at", { ascending: false })
     .limit(20);
 
-  if (error) {
-    console.error("[course_intel_jobs] failed to query jobs:", asPlainError(error));
+  if (!error) {
+    const match = (data || []).find((row: Record<string, unknown>) => {
+      const meta = row.meta && typeof row.meta === "object" ? (row.meta as Record<string, unknown>) : {};
+      return Number(meta.course_id) === courseId;
+    });
+    if (match) return match;
+  }
+
+  // Backward-compatible fallback for older schemas lacking job_type/triggered_by_user_id/meta columns.
+  const fallbackPrefix = `ai:${userId}:%`;
+  const { data: fallbackData, error: fallbackError } = await supabase
+    .from("scraper_jobs")
+    .select("id, status, error, started_at, completed_at, created_at, university")
+    .like("university", fallbackPrefix)
+    .order("created_at", { ascending: false })
+    .limit(30);
+
+  if (fallbackError) {
+    console.error("[course_intel_jobs] failed to query jobs:", asPlainError(error || fallbackError));
     return null;
   }
 
-  const match = (data || []).find((row: Record<string, unknown>) => {
-    const meta = row.meta && typeof row.meta === "object" ? (row.meta as Record<string, unknown>) : {};
-    return Number(meta.course_id) === courseId;
+  const fallbackMatch = (fallbackData || []).find((row: Record<string, unknown>) => {
+    const parsedCourseId = parseCourseIdFromFallbackUniversity(row.university);
+    return parsedCourseId === courseId;
   });
 
-  return match || null;
+  if (!fallbackMatch) return null;
+  return {
+    ...fallbackMatch,
+    meta: {
+      course_id: courseId,
+      progress: fallbackMatch.status === "completed" || fallbackMatch.status === "failed" ? 100 : 5,
+      activity: [],
+    },
+  };
 }
 
 export async function getRecentCourseIntelJobs(userId: string, limit = 20) {
@@ -168,10 +206,33 @@ export async function getRecentCourseIntelJobs(userId: string, limit = 20) {
     .order("created_at", { ascending: false })
     .limit(limit);
 
-  if (error) {
-    console.error("[course_intel_jobs] failed to query recent jobs:", asPlainError(error));
+  if (!error) {
+    return data || [];
+  }
+
+  const { data: fallbackData, error: fallbackError } = await supabase
+    .from("scraper_jobs")
+    .select("id, status, error, started_at, completed_at, created_at, university")
+    .like("university", `ai:${userId}:%`)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (fallbackError) {
+    console.error("[course_intel_jobs] failed to query recent jobs:", asPlainError(error || fallbackError));
     return [];
   }
 
-  return data || [];
+  return (fallbackData || []).map((row: Record<string, unknown>) => {
+    const parsedCourseId = parseCourseIdFromFallbackUniversity(row.university);
+    return {
+      ...row,
+      meta: {
+        course_id: parsedCourseId || undefined,
+        progress: row.status === "completed" || row.status === "failed" ? 100 : 5,
+        activity: [],
+      },
+      job_type: "course-intel",
+      triggered_by_user_id: userId,
+    };
+  });
 }

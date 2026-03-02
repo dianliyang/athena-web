@@ -149,6 +149,14 @@ export default function CourseDetailHeader({
         body: JSON.stringify({ courseId: course.id }),
       });
       if (res.ok || res.status === 202) {
+        try {
+          const payload = await res.json();
+          if (payload?.item && typeof payload.item === "object") {
+            setAiJob(payload.item as CourseIntelJob);
+          }
+        } catch {
+          // Ignore payload parse errors and rely on realtime/polling to pick up the job.
+        }
         showToast({ type: "success", message: "AI sync started in background." });
         await loadLatestJob();
       } else {
