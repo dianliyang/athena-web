@@ -3,17 +3,20 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { User } from "@supabase/supabase-js";
-import { LucideIcon, Cpu, FileCode, CalendarDays, Tag, BarChart2, Shield, UserX, Database, Sparkles } from "lucide-react";
+import { LucideIcon, Cpu, FileCode, CalendarDays, Tag, Shield, Database, Sparkles, Library, KeyRound, BookOpen } from "lucide-react";
 import AILearningPlanner from "@/components/home/AILearningPlanner";
 
 const AISettingsCard = dynamic(() => import("./AISettingsCard"), { ssr: false });
 const SecurityIdentitySection = dynamic(() => import("./SecurityIdentitySection"), { ssr: false });
 const SystemMaintenanceCard = dynamic(() => import("./SystemMaintenanceCard"), { ssr: false });
+const ImportForm = dynamic(() => import("@/components/import/ImportForm"), { ssr: false });
+const ApiManagementCard = dynamic(() => import("./ApiManagementCard"), { ssr: false });
+const ExternalApiSwagger = dynamic(() => import("./ExternalApiSwagger"), { ssr: false });
 
 export type SectionId =
   | "engine" | "metadata" | "scheduling" | "study-planner" | "learning-planner" | "topics" | "course-intel" | "usage"
   | "identity" | "account"
-  | "sync";
+  | "sync" | "import" | "api-management" | "api-reference";
 
 type NavItem = { id: SectionId; label: string; icon: LucideIcon };
 
@@ -21,27 +24,37 @@ const NAV_GROUPS: Array<{ label: string; items: NavItem[] }> = [
   {
     label: "Intelligence",
     items: [
+      { id: "learning-planner", label: "AI Learning Planner", icon: Sparkles },
       { id: "engine",        label: "Engine Configuration", icon: Cpu },
       { id: "metadata",      label: "Metadata Logic",       icon: FileCode },
       { id: "scheduling",    label: "Scheduling Logic",     icon: CalendarDays },
-      { id: "study-planner", label: "Study Planner Logic",  icon: Sparkles },
-      { id: "learning-planner", label: "AI Learning Planner", icon: Sparkles },
-      { id: "topics",        label: "Domain Classifcation", icon: Tag },
-      { id: "course-intel",      label: "Course Intel",         icon: Sparkles },
-      { id: "usage",             label: "Usage Statistics",     icon: BarChart2 },
+      { id: "topics",        label: "Domain Logic", icon: Tag },
+      { id: "course-intel",      label: "Course Intel Logic",         icon: Sparkles },
     ],
   },
   {
-    label: "Security",
+    label: "Account",
     items: [
-      { id: "identity", label: "Identity & Security", icon: Shield },
-      { id: "account",  label: "Account",             icon: UserX },
+      { id: "identity", label: "Account", icon: Shield },
     ],
   },
   {
     label: "System",
     items: [
       { id: "sync", label: "Data Synchronization", icon: Database },
+      { id: "api-management", label: "API Control", icon: KeyRound },
+    ],
+  },
+  {
+    label: "Doc",
+    items: [
+      { id: "api-reference", label: "API Reference", icon: BookOpen },
+    ],
+  },
+  {
+    label: "Import",
+    items: [
+      { id: "import", label: "Catalog Ingestion", icon: Library },
     ],
   },
 ];
@@ -55,15 +68,18 @@ const SECTION_META: Record<SectionId, { title: string; desc: string }> = {
   "scheduling":    { title: "Scheduling Logic",       desc: "Prompt template for study plan generation." },
   "study-planner": { title: "Study Planner Logic",    desc: "Prompt template for AI planner course recommendations." },
   "learning-planner": { title: "AI Learning Planner", desc: "Generate and apply roadmap recommendations directly from Settings." },
-  "topics":        { title: "Domain Classifcation",   desc: "Prompt template for topic tagging." },
+  "topics":        { title: "Domain Logic",   desc: "Prompt template for topic tagging." },
   "course-intel":      { title: "Course Intel Logic",      desc: "Merged prompt for resources, syllabus, and assignments retrieval." },
   "usage":             { title: "Usage Statistics",       desc: "AI call history, token usage, and cost breakdown." },
-  "identity":      { title: "Identity & Security",    desc: "Authentication provider and account status." },
+  "identity":      { title: "Account",                desc: "Authentication provider, account status, and danger zone." },
   "account":       { title: "Account",                desc: "Danger zone — irreversible operations." },
   "sync":          { title: "Data Synchronization",   desc: "Synchronize course catalogs from institution scrapers." },
+  "import":        { title: "Catalog Ingestion",      desc: "Import course data packages into the registry." },
+  "api-management": { title: "API Control",           desc: "Manage API key and endpoint enable/disable state." },
+  "api-reference":  { title: "API Reference",         desc: "Reference endpoints, auth and usage examples." },
 };
 
-const AI_SECTIONS: SectionId[] = ["engine", "metadata", "scheduling", "study-planner", "topics", "course-intel", "usage"];
+const AI_SECTIONS: SectionId[] = ["engine", "metadata", "scheduling", "topics", "course-intel", "usage"];
 
 interface SettingsContainerProps {
   user: User;
@@ -72,86 +88,115 @@ interface SettingsContainerProps {
     modelCatalog: { perplexity: string[]; gemini: string[]; openai: string[]; vertex?: string[] };
   };
   initialSection?: SectionId;
+  dict?: any;
 }
 
-export default function SettingsContainer({ user, profile, aiDefaults, initialSection }: SettingsContainerProps) {
-  const [active, setActive] = useState<SectionId>(() => {
-    if (typeof window === "undefined") return "engine";
+export default function SettingsContainer({ user, profile, aiDefaults, initialSection, dict }: SettingsContainerProps) {
+  const [active, setActive] = useState<SectionId>(initialSection || "engine");
+  const [mounted, setMounted] = useState(false);
+
+  // Handle first mount and local storage recovery
+  useEffect(() => {
+    setMounted(true);
     try {
       const saved = window.localStorage.getItem(ACTIVE_SECTION_STORAGE_KEY);
-      if (saved && ALL_ITEMS.some((item) => item.id === saved)) {
-        return saved as SectionId;
+      if (saved && !initialSection && ALL_ITEMS.some((item) => item.id === saved)) {
+        setActive(saved as SectionId);
       }
     } catch {
       // Ignore storage access errors.
     }
-    if (initialSection && ALL_ITEMS.some((item) => item.id === initialSection)) {
-      return initialSection;
-    }
-    return "engine";
-  });
+  }, [initialSection]);
 
+  // Sync with prop changes (navigation from outside)
   useEffect(() => {
+    if (initialSection && ALL_ITEMS.some((item) => item.id === initialSection)) {
+      setActive(initialSection);
+    }
+  }, [initialSection]);
+
+  // Persist choice
+  useEffect(() => {
+    if (!mounted) return;
     try {
       window.localStorage.setItem(ACTIVE_SECTION_STORAGE_KEY, active);
     } catch {
       // Ignore storage access errors.
     }
-  }, [active]);
+  }, [active, mounted]);
+
+  // Prevent hydration mismatch by not rendering anything that depends on 'active' 
+  // until mounted if we were to change 'active' based on localStorage.
+  // However, since we default to 'initialSection' or 'engine', we are safe to render.
 
   const meta = SECTION_META[active];
+
+  // Determine which group the active section belongs to
+  const activeGroupLabel = NAV_GROUPS.find(group => 
+    group.items.some(item => item.id === active)
+  )?.label;
+
+  // Only show the group that contains the active item
+  const filteredGroups = NAV_GROUPS.filter(group => group.label === activeGroupLabel);
+  const totalItems = filteredGroups.reduce((acc, g) => acc + g.items.length, 0);
+  const showSubSidebar =
+    totalItems > 1 &&
+    active !== "usage" &&
+    active !== "sync" &&
+    active !== "api-management";
+
+  if (!mounted) {
+    return <div className="flex h-full animate-pulse bg-white/50" />;
+  }
 
   return (
     <div className="flex h-full gap-0">
 
       {/* ── Desktop sidebar ── */}
-      <aside className="hidden sm:flex flex-col w-[220px] shrink-0 h-full overflow-y-auto border-r border-[#f0f0f0] pr-2 py-0.5">
-        <div className="px-3 py-2 mb-2 border-b border-[#efefef]">
-          <p className="text-[11px] font-semibold text-[#6d6d6d] uppercase tracking-wider">Settings</p>
-        </div>
-        {NAV_GROUPS.map((group) => (
-          <div key={group.label} className="mb-3">
-            <p className="px-3 mb-1 text-[10px] font-bold text-[#9f9f9f] uppercase tracking-widest">
-              {group.label}
-            </p>
-            {group.items.map(({ id, label, icon: Icon }) => (
+      {showSubSidebar && (
+        <aside className="hidden sm:flex flex-col w-[220px] shrink-0 h-full overflow-y-auto border-r border-[#f0f0f0] pr-2 py-0.5">
+          {filteredGroups.map((group) => (
+            <div key={group.label} className="mb-3">
+              {group.items.map(({ id, label, icon: Icon }) => (
+                <button
+                  key={id}
+                  onClick={() => setActive(id)}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-[13px] font-medium transition-colors text-left ${
+                    active === id
+                      ? "bg-[#e7e7e7] text-[#1f1f1f]"
+                      : "text-[#767676] hover:text-[#2a2a2a] hover:bg-[#ededed]"
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">{label}</span>
+                </button>
+              ))}
+            </div>
+          ))}
+        </aside>
+      )}
+
+      {/* ── Content panel ── */}
+      <div className={`flex-1 min-w-0 h-full flex flex-col ${showSubSidebar ? "sm:pl-5" : ""}`}>
+
+        {/* Mobile nav — horizontal scrollable pills */}
+        {showSubSidebar && (
+          <div className="sm:hidden flex gap-1.5 overflow-x-auto pb-2 mb-3 no-scrollbar shrink-0">
+            {filteredGroups.flatMap(g => g.items).map(({ id, label }) => (
               <button
                 key={id}
                 onClick={() => setActive(id)}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-[13px] font-medium transition-colors text-left ${
+                className={`whitespace-nowrap px-3 py-1.5 rounded-full text-[13px] font-medium transition-colors ${
                   active === id
-                    ? "bg-[#e7e7e7] text-[#1f1f1f]"
-                    : "text-[#767676] hover:text-[#2a2a2a] hover:bg-[#ededed]"
+                    ? "bg-brand-blue text-white"
+                    : "bg-[#ededed] text-[#666] hover:bg-[#e5e5e5]"
                 }`}
               >
-                <Icon className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate">{label}</span>
+                {label}
               </button>
             ))}
           </div>
-        ))}
-      </aside>
-
-      {/* ── Content panel ── */}
-      <div className="flex-1 min-w-0 h-full flex flex-col sm:pl-5 pb-4">
-
-        {/* Mobile nav — horizontal scrollable pills */}
-        <div className="sm:hidden flex gap-1.5 overflow-x-auto pb-2 mb-3 no-scrollbar shrink-0">
-          {ALL_ITEMS.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              onClick={() => setActive(id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[12px] font-medium whitespace-nowrap transition-colors shrink-0 ${
-                active === id
-                  ? "bg-[#1f1f1f] text-white border-[#1f1f1f]"
-                  : "bg-white text-[#666] border-[#d8d8d8] hover:bg-[#f5f5f5]"
-              }`}
-            >
-              <Icon className="w-3 h-3" />
-              {label}
-            </button>
-          ))}
-        </div>
+        )}
 
         {/* Section header */}
         <div className="mb-3 shrink-0">
@@ -163,7 +208,7 @@ export default function SettingsContainer({ user, profile, aiDefaults, initialSe
           <div className="flex-1 min-h-0 flex flex-col">
             <AISettingsCard
               key={`${active}-${profile ? JSON.stringify(profile) : "default-ai"}`}
-              section={active as "engine" | "metadata" | "scheduling" | "study-planner" | "topics" | "course-intel" | "usage"}
+              section={active as "engine" | "metadata" | "scheduling" | "topics" | "course-intel" | "usage"}
               initialProvider={(profile?.ai_provider as string) || "perplexity"}
               initialModel={(profile?.ai_default_model as string) || aiDefaults.modelCatalog.perplexity[0] || aiDefaults.modelCatalog.openai[0] || aiDefaults.modelCatalog.gemini[0] || ""}
               initialWebSearchEnabled={(profile?.ai_web_search_enabled as boolean | undefined) ?? false}
@@ -179,25 +224,70 @@ export default function SettingsContainer({ user, profile, aiDefaults, initialSe
           </div>
         ) : null}
 
-        {/* AI Learning Planner */}
-        <div className={active === "learning-planner" ? "flex-1 min-h-0" : "hidden"}>
+        {/* AI Learning Planner (Merged with Study Planner Logic) */}
+        <div className={active === "learning-planner" ? "flex-1 min-h-0 flex flex-col gap-6 overflow-y-auto" : "hidden"}>
           <AILearningPlanner />
+          
+          <div className="border-t border-[#f0f0f0] pt-6">
+            <div className="mb-4">
+              <h4 className="text-sm font-bold text-[#1f1f1f] uppercase tracking-wider">Planner Logic Configuration</h4>
+              <p className="text-xs text-[#7a7a7a] mt-1">Configure the prompt templates and model settings for the study planner.</p>
+            </div>
+            <AISettingsCard
+              key={`study-planner-logic-${profile ? JSON.stringify(profile) : "default-ai"}`}
+              section="study-planner"
+              initialProvider={(profile?.ai_provider as string) || "perplexity"}
+              initialModel={(profile?.ai_default_model as string) || aiDefaults.modelCatalog.perplexity[0] || aiDefaults.modelCatalog.openai[0] || aiDefaults.modelCatalog.gemini[0] || ""}
+              initialWebSearchEnabled={(profile?.ai_web_search_enabled as boolean | undefined) ?? false}
+              initialPromptTemplate={(profile?.ai_prompt_template as string) || ""}
+              initialStudyPlanPromptTemplate={(profile?.ai_study_plan_prompt_template as string) || ""}
+              initialPlannerPromptTemplate={(profile?.ai_planner_prompt_template as string) || ""}
+              initialTopicsPromptTemplate={(profile?.ai_topics_prompt_template as string) || ""}
+              initialCourseUpdatePromptTemplate={(profile?.ai_course_update_prompt_template as string) || ""}
+              initialSyllabusPromptTemplate={(profile?.ai_syllabus_prompt_template as string) || ""}
+              initialCourseIntelPromptTemplate={(profile?.ai_course_intel_prompt_template as string) || ""}
+              modelCatalog={aiDefaults.modelCatalog}
+            />
+          </div>
         </div>
 
-        {/* Identity & Security */}
+        {/* Account (Identity + Danger Zone) */}
         <div className={active === "identity" ? "flex-1 min-h-0" : "hidden"}>
-          <SecurityIdentitySection view="identity" provider={user.app_metadata.provider} />
-        </div>
-
-        {/* Account / Danger Zone */}
-        <div className={active === "account" ? "flex-1 min-h-0" : "hidden"}>
-          <SecurityIdentitySection view="account" provider={user.app_metadata.provider} />
+          <div className="space-y-4">
+            <SecurityIdentitySection view="identity" provider={user.app_metadata.provider} />
+            <SecurityIdentitySection view="account" provider={user.app_metadata.provider} />
+          </div>
         </div>
 
         {/* Data Synchronization */}
         <div className={active === "sync" ? "flex-1 min-h-0" : "hidden"}>
           <SystemMaintenanceCard />
         </div>
+
+        {/* Catalog Ingestion */}
+        <div className={active === "import" ? "flex-1 min-h-0" : "hidden"}>
+          <ImportForm dict={dict?.dashboard?.import} />
+        </div>
+
+        {/* API Control */}
+        <div className={active === "api-management" ? "flex-1 min-h-0" : "hidden"}>
+          <ApiManagementCard />
+        </div>
+
+        {/* API Reference */}
+        <div className={active === "api-reference" ? "flex-1 min-h-0 h-full" : "hidden"}>
+          <div className="h-full min-h-0 flex flex-col gap-4">
+            <div className="shrink-0">
+              <p className="text-sm text-[#666]">
+                External endpoints require <code>x-api-key: &lt;your_generated_key&gt;</code> and use <code>application/json</code>.
+              </p>
+            </div>
+            <div className="flex-1 min-h-0">
+              <ExternalApiSwagger />
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   );
