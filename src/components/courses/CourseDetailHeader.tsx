@@ -99,8 +99,7 @@ export default function CourseDetailHeader({
 
   const isAiUpdating = aiJob?.status === "queued" || aiJob?.status === "running";
   const progress = typeof aiJob?.meta?.progress === "number" ? aiJob.meta.progress : null;
-  const jobActivity = Array.isArray(aiJob?.meta?.activity) ? aiJob.meta.activity : [];
-  const activity = liveActivity.length > 0 ? liveActivity : jobActivity;
+  const activity = liveActivity;
 
   const loadLatestJob = async () => {
     try {
@@ -110,8 +109,6 @@ export default function CourseDetailHeader({
       if (payload?.item && typeof payload.item === "object") {
         const nextJob = payload.item as CourseIntelJob;
         setAiJob(nextJob);
-        const nextActivity = Array.isArray(nextJob.meta?.activity) ? nextJob.meta.activity : [];
-        setLiveActivity(nextActivity);
       } else {
         setAiJob(null);
         setLiveActivity([]);
@@ -151,26 +148,19 @@ export default function CourseDetailHeader({
               id: rowId,
             }) as CourseIntelJob);
 
-            const payloadActivity = Array.isArray((rowMeta?.activity as ActivityItem[] | undefined))
-              ? (rowMeta?.activity as ActivityItem[])
-              : [];
-            if (payloadActivity.length > 0) {
-              setLiveActivity(payloadActivity.slice(-40));
-            } else {
-              const nextProgress = typeof rowMeta?.progress === "number" ? rowMeta.progress : undefined;
-              const statusText = typeof row?.status === "string" ? row.status : "running";
-              setLiveActivity((prev) => {
-                const entry: ActivityItem = {
-                  ts: new Date().toISOString(),
-                  stage: "realtime",
-                  message: `Realtime update: ${statusText}${typeof nextProgress === "number" ? ` (${nextProgress}%)` : ""}`,
-                  progress: nextProgress,
-                };
-                const last = prev[prev.length - 1];
-                if (last?.message === entry.message) return prev;
-                return [...prev, entry].slice(-40);
-              });
-            }
+            const nextProgress = typeof rowMeta?.progress === "number" ? rowMeta.progress : undefined;
+            const statusText = typeof row?.status === "string" ? row.status : "running";
+            setLiveActivity((prev) => {
+              const entry: ActivityItem = {
+                ts: new Date().toISOString(),
+                stage: "realtime",
+                message: `Realtime update: ${statusText}${typeof nextProgress === "number" ? ` (${nextProgress}%)` : ""}`,
+                progress: nextProgress,
+              };
+              const last = prev[prev.length - 1];
+              if (last?.message === entry.message) return prev;
+              return [...prev, entry].slice(-40);
+            });
           }
           void loadLatestJob();
         }
@@ -233,6 +223,9 @@ export default function CourseDetailHeader({
       setLiveActivity([]);
       return;
     }
+    if (aiJob.status === "completed" || aiJob.status === "failed") {
+      setLiveActivity([]);
+    }
 
     const previous = previousJobRef.current;
     const fromActiveSameJob = Boolean(
@@ -262,6 +255,7 @@ export default function CourseDetailHeader({
   const handleAiUpdate = async () => {
     if (isAiUpdating) return;
     setAiStatus('idle');
+    setLiveActivity([]);
     try {
       const res = await fetch('/api/ai/course-intel/jobs', {
         method: 'POST',
@@ -498,7 +492,7 @@ export default function CourseDetailHeader({
         </div>
       )}
 
-      {(isAiUpdating || activity.length > 0) && (
+      {isAiUpdating && (
         <div className="mt-3 rounded-sm border border-[#e8e8e8] bg-white p-2.5">
           <div className="flex items-center justify-between gap-2">
             <span className="text-xs font-semibold text-[#444]">AI Sync Activity</span>

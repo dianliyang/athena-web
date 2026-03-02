@@ -72,7 +72,7 @@ export async function startCourseIntelJob(input: {
     .from("scraper_jobs")
     .insert({
       university: input.university || "unknown",
-      status: "queued",
+      status: "running",
       started_at: now,
       job_type: "course-intel",
       triggered_by: "api",
@@ -90,7 +90,7 @@ export async function startCourseIntelJob(input: {
     .from("scraper_jobs")
     .insert({
       university: fallbackUniversity,
-      status: "queued",
+      status: "running",
       started_at: now,
       job_type: "courses",
       triggered_by: "api",
@@ -107,7 +107,7 @@ export async function startCourseIntelJob(input: {
     .from("scraper_jobs")
     .insert({
       university: fallbackUniversity,
-      status: "queued",
+      status: "running",
       started_at: now,
     })
     .select("id")

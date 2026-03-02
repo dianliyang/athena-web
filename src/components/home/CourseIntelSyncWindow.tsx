@@ -43,6 +43,14 @@ export default function CourseIntelSyncWindow() {
           const activity = Array.isArray(job.meta?.activity) ? job.meta.activity : [];
           const latestMessage = activity.length > 0 ? activity[activity.length - 1]?.message : "Processing...";
           const courseId = Number(job.meta?.course_id || 0);
+          const courseLabel =
+            (typeof job.course_label === "string" && job.course_label.trim()) ||
+            (
+              typeof job.course_university === "string" &&
+              typeof job.course_code === "string" &&
+              `${job.course_university} ${job.course_code}`.trim()
+            ) ||
+            (courseId ? `Course #${courseId}` : "Course");
           const sourceMode = job.sourceMode || job.meta?.source_mode || "auto";
 
           return (
@@ -50,11 +58,11 @@ export default function CourseIntelSyncWindow() {
               <div className="flex items-center justify-between gap-2">
                 <div className="inline-flex items-center gap-1.5 text-xs text-[#555]">
                   <Loader2 className="h-3.5 w-3.5 animate-spin text-[#666]" />
-                  <span>{courseId ? `Course #${courseId}` : "Course Sync"} · {sourceMode}</span>
+                  <span>course-intel · {courseLabel}</span>
                 </div>
                 <span className="text-[11px] text-[#777]">{progress}%</span>
               </div>
-              <p className="mt-1 text-xs text-[#666]">{latestMessage || "Processing..."}</p>
+              <p className="mt-1 text-xs text-[#666]">{latestMessage || "Processing..."} <span className="text-[#999]">({sourceMode})</span></p>
               {activity.length > 0 && (
                 <div className="mt-2 max-h-28 space-y-1 overflow-y-auto pr-1">
                   {activity.slice(-6).map((item, idx) => {

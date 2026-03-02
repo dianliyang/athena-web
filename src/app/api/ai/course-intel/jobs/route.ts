@@ -118,6 +118,63 @@ function deriveSourceMode(item: Record<string, unknown> | null | undefined): Cou
   return mode === "fresh" || mode === "existing" || mode === "auto" ? mode : null;
 }
 
+function stripActivityFromItem<T extends Record<string, unknown>>(item: T): T {
+  const meta = item?.meta && typeof item.meta === "object" ? { ...(item.meta as Record<string, unknown>) } : null;
+  if (meta && "activity" in meta) {
+    delete meta.activity;
+  }
+  if (!meta) return item;
+  return { ...item, meta } as T;
+}
+
+async function enrichJobsWithCourseIdentity(
+  rows: Array<Record<string, unknown>>
+): Promise<Array<Record<string, unknown>>> {
+  if (rows.length === 0) return rows;
+  const courseIds = Array.from(
+    new Set(
+      rows
+        .map((row) => {
+          const meta = row.meta && typeof row.meta === "object" ? (row.meta as Record<string, unknown>) : {};
+          const parsed = Number(meta.course_id || 0);
+          return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+        })
+        .filter((id) => id > 0)
+    )
+  );
+
+  if (courseIds.length === 0) return rows;
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("courses")
+    .select("id, university, course_code")
+    .in("id", courseIds);
+
+  const courseMap = new Map<number, { university: string; course_code: string }>();
+  for (const row of data || []) {
+    const id = Number((row as { id?: number }).id || 0);
+    if (!id) continue;
+    courseMap.set(id, {
+      university: String((row as { university?: string }).university || "").trim(),
+      course_code: String((row as { course_code?: string }).course_code || "").trim(),
+    });
+  }
+
+  return rows.map((row) => {
+    const meta = row.meta && typeof row.meta === "object" ? (row.meta as Record<string, unknown>) : {};
+    const courseId = Number(meta.course_id || 0);
+    const course = courseMap.get(courseId);
+    if (!course) return row;
+    const courseLabel = `${course.university} ${course.course_code}`.trim();
+    return {
+      ...row,
+      course_university: course.university,
+      course_code: course.course_code,
+      course_label: courseLabel,
+    };
+  });
+}
+
 async function executeCourseIntelJob(params: {
   jobId: number;
   userId: string;
@@ -309,13 +366,16 @@ export async function GET(request: NextRequest) {
   const courseId = Number(request.nextUrl.searchParams.get("courseId") || 0);
   if (!courseId) {
     const items = await getRecentCourseIntelJobs(user.id, 15);
-    const active = items.filter((row: Record<string, unknown>) =>
-      row.status === "queued" || row.status === "running"
-    );
+    const enrichedItems = await enrichJobsWithCourseIdentity(items as Array<Record<string, unknown>>);
+    const enrichedActive = enrichedItems.filter((row) => row.status === "queued" || row.status === "running");
     return NextResponse.json({
-      items: items.map((row: Record<string, unknown>) => ({ ...row, sourceMode: deriveSourceMode(row) || "auto" })),
-      active: active.map((row: Record<string, unknown>) => ({ ...row, sourceMode: deriveSourceMode(row) || "auto" })),
-      hasActive: active.length > 0,
+      items: enrichedItems.map((row: Record<string, unknown>) =>
+        stripActivityFromItem({ ...row, sourceMode: deriveSourceMode(row) || "auto" })
+      ),
+      active: enrichedActive.map((row: Record<string, unknown>) =>
+        stripActivityFromItem({ ...row, sourceMode: deriveSourceMode(row) || "auto" })
+      ),
+      hasActive: enrichedActive.length > 0,
     });
   }
 
@@ -323,7 +383,7 @@ export async function GET(request: NextRequest) {
   if (cached && typeof cached === "object") {
     const status = String(cached.status || "queued");
     if (status === "queued" || status === "running") {
-      return NextResponse.json({ item: cached });
+      return NextResponse.json({ item: stripActivityFromItem(cached as Record<string, unknown>) });
     }
   }
 
@@ -334,7 +394,7 @@ export async function GET(request: NextRequest) {
   } else if (!item) {
     await clearCachedCourseIntelJob(user.id, courseId);
   }
-  return NextResponse.json({ item });
+  return NextResponse.json({ item: item ? stripActivityFromItem(item as Record<string, unknown>) : null });
 }
 
 export async function POST(request: NextRequest) {
@@ -382,10 +442,11 @@ export async function POST(request: NextRequest) {
     },
   };
   await setCachedCourseIntelJob(user.id, numericCourseId, queuedItem);
+  const queuedItemResponse = stripActivityFromItem(queuedItem as unknown as Record<string, unknown>);
 
   return NextResponse.json({
     success: true,
     jobId,
-    item: queuedItem,
+    item: queuedItemResponse,
   }, { status: 202 });
 }

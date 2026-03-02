@@ -9,6 +9,9 @@ export type CourseIntelJobItem = {
   error?: string | null;
   sourceMode?: "auto" | "existing" | "fresh";
   university?: string | null;
+  course_university?: string | null;
+  course_code?: string | null;
+  course_label?: string | null;
   created_at?: string | null;
   started_at?: string | null;
   completed_at?: string | null;
