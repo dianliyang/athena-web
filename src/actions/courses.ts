@@ -385,9 +385,11 @@ export async function previewStudyPlansFromCourseSchedule(courseId: number) {
   const selectedModel = (profile?.ai_default_model as string || "").trim();
   const model = await resolveModelForProvider(provider, selectedModel);
   const webSearchEnabled = (profile?.ai_web_search_enabled as boolean) ?? false;
-  const promptTemplate = (profile?.ai_study_plan_prompt_template as string || "").trim();
+  const promptTemplate =
+    (profile?.ai_course_intel_prompt_template as string || "").trim() ||
+    (profile?.ai_study_plan_prompt_template as string || "").trim();
   if (!promptTemplate) {
-    throw new Error("Study plan prompt is not configured. Set Study Plan Prompt in Settings first.");
+    throw new Error("Course generation prompt is not configured. Set Course Generation Logic in Settings first.");
   }
   const prompt = applyPromptTemplate(promptTemplate, {
     schedule_lines: originalSchedule.map((s) => `- ${s.type}: ${s.line}`).join("\n"),
@@ -1054,9 +1056,11 @@ export async function regenerateCourseDescription(courseId: number) {
   const selectedModel = (profile?.ai_default_model as string || "").trim();
   const model = await resolveModelForProvider(provider, selectedModel);
   const webSearchEnabled = (profile?.ai_web_search_enabled as boolean) ?? false;
-  const template = (profile?.ai_prompt_template as string || "").trim();
+  const template =
+    (profile?.ai_course_intel_prompt_template as string || "").trim() ||
+    (profile?.ai_prompt_template as string || "").trim();
   if (!template) {
-    throw new Error("Metadata prompt is not configured. Set Metadata Logic in Settings first.");
+    throw new Error("Course generation prompt is not configured. Set Course Generation Logic in Settings first.");
   }
   const prompt = applyPromptTemplate(template, {
     title: row.title || "",
@@ -1326,9 +1330,11 @@ export async function generateTopicsForCoursesAction(courseIds: number[]) {
 
   console.log(`[generateTopics] User: ${user.id}, Provider: ${provider}, Model: ${model} (Selected: ${selectedModel})`);
 
-  const topicsTemplate = (profile?.ai_topics_prompt_template as string || "").trim();
+  const topicsTemplate =
+    (profile?.ai_course_intel_prompt_template as string || "").trim() ||
+    (profile?.ai_topics_prompt_template as string || "").trim();
   if (!topicsTemplate) {
-    throw new Error("Topic prompt is not configured. Set Topic Classification Logic in Settings first.");
+    throw new Error("Course generation prompt is not configured. Set Course Generation Logic in Settings first.");
   }
 
   const { data: rows, error: rowsError } = await supabase

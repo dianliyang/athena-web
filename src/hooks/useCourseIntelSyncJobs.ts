@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 
 export type CourseIntelJobItem = {
@@ -30,8 +30,11 @@ export type CourseIntelJobItem = {
 export function useCourseIntelSyncJobs() {
   const [items, setItems] = useState<CourseIntelJobItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [hasSubscribed, setHasSubscribed] = useState(false);
+  const channelRef = useRef<ReturnType<ReturnType<typeof createBrowserSupabaseClient>["channel"]> | null>(null);
+  const supabaseRef = useRef<ReturnType<typeof createBrowserSupabaseClient> | null>(null);
 
-  const loadJobs = async () => {
+  const loadJobs = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch("/api/ai/course-intel/jobs", { cache: "no-store" });
@@ -45,12 +48,23 @@ export function useCourseIntelSyncJobs() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  useEffect(() => {
-    void loadJobs();
-    const supabase = createBrowserSupabaseClient();
-    const channel = supabase
+  const closeChannel = useCallback(async () => {
+    const supabase = supabaseRef.current;
+    const channel = channelRef.current;
+    if (supabase && channel) {
+      await supabase.removeChannel(channel);
+    }
+    channelRef.current = null;
+    setHasSubscribed(false);
+  }, []);
+
+  const openChannel = useCallback(() => {
+    if (channelRef.current) return;
+    const supabase = supabaseRef.current || createBrowserSupabaseClient();
+    supabaseRef.current = supabase;
+    channelRef.current = supabase
       .channel("course_intel_jobs:global")
       .on(
         "postgres_changes",
@@ -60,14 +74,39 @@ export function useCourseIntelSyncJobs() {
         }
       )
       .subscribe();
+    setHasSubscribed(true);
+  }, [loadJobs]);
+
+  useEffect(() => {
+    void loadJobs();
+    const onStarted = () => {
+      void loadJobs();
+    };
+    const onFocus = () => {
+      void loadJobs();
+    };
+    window.addEventListener("course-intel-job-started", onStarted as EventListener);
+    window.addEventListener("focus", onFocus);
 
     return () => {
-      void supabase.removeChannel(channel);
+      window.removeEventListener("course-intel-job-started", onStarted as EventListener);
+      window.removeEventListener("focus", onFocus);
+      void closeChannel();
     };
-  }, []);
+  }, [closeChannel, loadJobs]);
 
   const activeJobs = items.filter((job) => job.status === "queued" || job.status === "running");
   const hasActive = activeJobs.length > 0;
+
+  useEffect(() => {
+    if (hasActive) {
+      openChannel();
+      return;
+    }
+    if (hasSubscribed) {
+      void closeChannel();
+    }
+  }, [closeChannel, hasActive, hasSubscribed, openChannel]);
 
   return {
     items,

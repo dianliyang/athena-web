@@ -74,6 +74,7 @@ export default function CourseDetailContent({
   availableSemesters,
   studyPlans,
   projectSeminarRef = null,
+  assignments = [],
   scheduleItems = [],
 }: CourseDetailContentProps) {
   const [enrolled, setEnrolled] = useState(isEnrolled);
@@ -151,7 +152,7 @@ export default function CourseDetailContent({
   }, [course.resources]);
 
   const studyPlanCalendar = useMemo(() => {
-    const rows = scheduleItems
+    const scheduleRows = scheduleItems
       .map((item) => {
         const parsedDate = parseIsoDate(item.date);
         if (!parsedDate) return null;
@@ -165,8 +166,7 @@ export default function CourseDetailContent({
         return { dateIso, label, meta };
       })
       .filter((row): row is { dateIso: string; label: string; meta: string } => row !== null);
-
-    if (rows.length === 0) {
+    if (scheduleRows.length === 0) {
       return {
         range: null as null | { startIso: string; endIso: string },
         months: [] as Array<{
@@ -178,11 +178,29 @@ export default function CourseDetailContent({
       };
     }
 
-    const sortedDates = rows.map((row) => row.dateIso).sort();
-    const rangeStart = parseIsoDate(sortedDates[0])!;
-    const rangeEnd = parseIsoDate(sortedDates[sortedDates.length - 1])!;
+    const scheduleSortedDates = scheduleRows.map((row) => row.dateIso).sort();
+    const rangeStart = parseIsoDate(scheduleSortedDates[0])!;
+    const rangeEnd = parseIsoDate(scheduleSortedDates[scheduleSortedDates.length - 1])!;
     const rangeStartIso = toIsoDateUtc(rangeStart);
     const rangeEndIso = toIsoDateUtc(rangeEnd);
+
+    const deadlineRows = assignments
+      .map((item) => {
+        if (!item.due_on) return null;
+        const parsedDate = parseIsoDate(item.due_on);
+        if (!parsedDate) return null;
+        const dateIso = toIsoDateUtc(parsedDate);
+        if (dateIso < rangeStartIso || dateIso > rangeEndIso) return null;
+        const label = String(item.label || "Deadline").trim() || "Deadline";
+        const kind = String(item.kind || "").trim();
+        return {
+          dateIso,
+          label,
+          meta: `Deadline${kind ? ` · ${kind}` : ""}`,
+        };
+      })
+      .filter((row): row is { dateIso: string; label: string; meta: string } => row !== null);
+    const rows = [...scheduleRows, ...deadlineRows];
 
     const eventsByDate = new Map<string, PlanCalendarEvent[]>();
     for (const row of rows) {
@@ -229,7 +247,7 @@ export default function CourseDetailContent({
       months,
       eventsByDate,
     };
-  }, [scheduleItems]);
+  }, [scheduleItems, assignments]);
 
   useEffect(() => {
     if (!studyPlanCalendar.range) {

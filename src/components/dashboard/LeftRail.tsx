@@ -33,6 +33,7 @@ interface LeftRailProps {
     courses: string;
     projectsSeminars: string;
     studyPlan: string;
+    smartPlanner: string;
     studySchedule: string;
     workouts: string;
     profile: string; // Keep for compat
@@ -52,6 +53,7 @@ interface LeftRailProps {
 
 const commandNavItems = [
   { href: "/study-plan", key: "studyPlan", icon: Map },
+  { href: "/smart-planner", key: "smartPlanner", icon: Sparkles },
   { href: "/study-schedule", key: "studySchedule", icon: CalendarDays },
   { href: "/profile", key: "identity", icon: User },
 ] as const;

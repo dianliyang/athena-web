@@ -110,6 +110,7 @@ export default function CourseDetailHeader({
   }, [course.id]);
 
   useEffect(() => {
+    if (!isAiUpdating) return;
     const supabase = createBrowserSupabaseClient();
     const channel = supabase
       .channel(`course_intel_jobs:${course.id}`)
@@ -126,7 +127,7 @@ export default function CourseDetailHeader({
       void supabase.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [course.id]);
+  }, [course.id, isAiUpdating]);
 
   useEffect(() => {
     if (!aiJob) {
@@ -178,6 +179,7 @@ export default function CourseDetailHeader({
           // Ignore payload parse errors and rely on realtime/explicit refresh to pick up the job.
         }
         showToast({ type: "success", message: `AI sync started in background (${aiSourceMode}).` });
+        window.dispatchEvent(new Event("course-intel-job-started"));
         await loadLatestJob();
       } else {
         setAiStatus('error');
@@ -226,7 +228,7 @@ export default function CourseDetailHeader({
   return (
     <header
       data-course-title-header
-      className="sticky top-0 z-20 rounded-lg border border-[#e5e5e5] bg-[#fcfcfc] p-3 sm:p-4"
+      className="sticky top-0 z-20 rounded-sm border border-[#e5e5e5] bg-[#fcfcfc] p-3 sm:p-4"
     >
 
       {/* Single row: logo · info · actions */}
@@ -398,7 +400,7 @@ export default function CourseDetailHeader({
       )}
 
       {(isAiUpdating || activity.length > 0) && (
-        <div className="mt-3 rounded-md border border-[#e8e8e8] bg-white p-2.5">
+        <div className="mt-3 rounded-sm border border-[#e8e8e8] bg-white p-2.5">
           <div className="flex items-center justify-between gap-2">
             <span className="text-xs font-semibold text-[#444]">AI Sync Activity</span>
             <span className="text-[11px] text-[#777]">

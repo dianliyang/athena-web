@@ -9,13 +9,18 @@ interface ProjectsSeminarsToolbarProps {
   semesters: string[];
 }
 
-export default function ProjectsSeminarsToolbar({ categories, semesters }: ProjectsSeminarsToolbarProps) {
+export default function ProjectsSeminarsToolbar({
+  categories,
+  semesters,
+}: ProjectsSeminarsToolbarProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [query, setQuery] = useState(searchParams.get("q") || "");
   const view = searchParams.get("view") === "grid" ? "grid" : "list";
-  const selectedCategories = searchParams.get("category")?.split(",").filter(Boolean) || [];
-  const selectedSemesters = searchParams.get("semester")?.split(",").filter(Boolean) || [];
+  const selectedCategories =
+    searchParams.get("category")?.split(",").filter(Boolean) || [];
+  const selectedSemesters =
+    searchParams.get("semester")?.split(",").filter(Boolean) || [];
   const sort = searchParams.get("sort") || "title";
   const lastPushedQuery = useRef(searchParams.get("q") || "");
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -38,7 +43,9 @@ export default function ProjectsSeminarsToolbar({ categories, semesters }: Proje
   };
 
   const toggleItem = (list: string[], value: string) =>
-    list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
+    list.includes(value)
+      ? list.filter((item) => item !== value)
+      : [...list, value];
 
   useEffect(() => {
     const urlQuery = searchParams.get("q") || "";
@@ -126,14 +133,23 @@ export default function ProjectsSeminarsToolbar({ categories, semesters }: Proje
           {filtersOpen ? (
             <div className="absolute right-0 z-30 mt-1.5 w-[320px] rounded-md border border-[#e1e1e1] bg-white p-3 shadow-sm">
               <div className="space-y-2">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-[#7a7a7a]">Category</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-[#7a7a7a]">
+                  Category
+                </p>
                 <div className="max-h-40 overflow-y-auto space-y-1 pr-1">
                   {categories.map((name) => (
-                    <label key={name} className="flex items-center gap-2 text-[13px] text-[#444]">
+                    <label
+                      key={name}
+                      className="flex items-center gap-2 text-[13px] text-[#444]"
+                    >
                       <input
                         type="checkbox"
                         checked={selectedCategories.includes(name)}
-                        onChange={() => pushWith({ category: toggleItem(selectedCategories, name) })}
+                        onChange={() =>
+                          pushWith({
+                            category: toggleItem(selectedCategories, name),
+                          })
+                        }
                         className="h-3.5 w-3.5 rounded border-[#cfcfcf] accent-[#2f2f2f]"
                       />
                       <span>{name}</span>
@@ -142,14 +158,23 @@ export default function ProjectsSeminarsToolbar({ categories, semesters }: Proje
                 </div>
               </div>
               <div className="mt-3 space-y-2">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-[#7a7a7a]">Semesters</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-[#7a7a7a]">
+                  Semesters
+                </p>
                 <div className="max-h-40 overflow-y-auto space-y-1 pr-1">
                   {semesters.map((name) => (
-                    <label key={name} className="flex items-center gap-2 text-[13px] text-[#444]">
+                    <label
+                      key={name}
+                      className="flex items-center gap-2 text-[13px] text-[#444]"
+                    >
                       <input
                         type="checkbox"
                         checked={selectedSemesters.includes(name)}
-                        onChange={() => pushWith({ semester: toggleItem(selectedSemesters, name) })}
+                        onChange={() =>
+                          pushWith({
+                            semester: toggleItem(selectedSemesters, name),
+                          })
+                        }
                         className="h-3.5 w-3.5 rounded border-[#cfcfcf] accent-[#2f2f2f]"
                       />
                       <span>{name}</span>

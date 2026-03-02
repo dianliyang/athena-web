@@ -32,7 +32,7 @@ export default function CourseIntelSyncWindow() {
   if (!hasActive) return null;
 
   return (
-    <section className="rounded-lg border border-[#e5e5e5] bg-[#fcfcfc] p-4">
+    <section className="rounded-sm border border-[#e5e5e5] bg-[#fcfcfc] p-4">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold text-[#1f1f1f]">AI Sync Progress</h2>
         <span className="text-[11px] text-[#777]">{activeJobs.length} running</span>
@@ -46,7 +46,7 @@ export default function CourseIntelSyncWindow() {
           const sourceMode = job.sourceMode || job.meta?.source_mode || "auto";
 
           return (
-            <article key={job.id} className="rounded-md border border-[#e8e8e8] bg-white p-2.5">
+            <article key={job.id} className="rounded-sm border border-[#e8e8e8] bg-white p-2.5">
               <div className="flex items-center justify-between gap-2">
                 <div className="inline-flex items-center gap-1.5 text-xs text-[#555]">
                   <Loader2 className="h-3.5 w-3.5 animate-spin text-[#666]" />

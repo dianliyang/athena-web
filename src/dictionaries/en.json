@@ -76,6 +76,7 @@
     "courses": "Courses",
     "projects_seminars": "S&P",
     "roadmap": "Roadmap",
+    "smart_planner": "Smart Planer",
     "schedule": "Schedule",
     "workouts": "Workouts",
     "command": "Command",
@@ -86,7 +87,7 @@
     "settings_usage": "Usage Statistics",
     "settings_account": "Account",
     "settings_security": "Security",
-    "settings_system": "System",
+    "settings_system": "Synchronization",
     "settings_api_control": "API Control",
     "settings_api_reference": "API Reference",
     "enter": "Browse",
@@ -260,7 +261,7 @@
       "back_to_auth": "Back to Authentication"
     },
     "import": {
-      "label": "Batch Processing",
+      "label": "Import",
       "title_main": "Ingest",
       "title_sub": "Data_Package",
       "return_btn": "Return to Roadmap",

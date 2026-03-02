@@ -86,6 +86,7 @@
     "courses": "课程目录",
     "projects_seminars": "研/项",
     "roadmap": "学习路线",
+    "smart_planner": "智能规划",
     "schedule": "课程表",
     "workouts": "运动",
     "command": "主控台",
@@ -96,7 +97,7 @@
     "settings_usage": "使用统计",
     "settings_account": "账户",
     "settings_security": "安全隐私",
-    "settings_system": "系统维护",
+    "settings_system": "同步",
     "settings_api_control": "API 控制",
     "settings_api_reference": "API 参考",
     "enter": "进入",
@@ -270,7 +271,7 @@
       "back_to_auth": "返回身份验证"
     },
     "import": {
-      "label": "批量处理",
+      "label": "导入",
       "title_main": "数据",
       "title_sub": "导入系统",
       "return_btn": "返回路线图",

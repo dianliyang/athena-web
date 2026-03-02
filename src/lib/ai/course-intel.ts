@@ -7,6 +7,7 @@ import { parseLenientJson } from "@/lib/ai/parse-json";
 import { logAiUsage } from "@/lib/ai/log-usage";
 import type { Json } from "@/lib/supabase/database.types";
 import {
+  type DailyPlan,
   type PlanSeedTask,
   buildAssignmentsFromDailyPlan,
   buildCourseSchedulesFromDailyPlan,
@@ -1535,22 +1536,105 @@ async function generateDailyPlanWithModel(params: {
   return out.text || "";
 }
 
+function normalizeGeneratedDescription(input: unknown): string | null {
+  if (typeof input !== "string") return null;
+  const value = input.replace(/\s+/g, " ").trim();
+  if (!value) return null;
+  return value.slice(0, 1200);
+}
+
+function normalizeGeneratedSubdomain(input: unknown): string | null {
+  if (typeof input !== "string") return null;
+  const value = input.replace(/\s+/g, " ").trim();
+  if (!value) return null;
+  return value.slice(0, 120);
+}
+
+function normalizeGeneratedTopics(input: unknown): string[] {
+  const values = Array.isArray(input)
+    ? input
+    : typeof input === "string"
+      ? input.split(/[\n,;|]/g).map((item) => item.trim())
+      : [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of values) {
+    const value = String(raw || "").replace(/^[-*]\s*/, "").replace(/\s+/g, " ").trim();
+    if (!value || value.length > 60) continue;
+    const key = value.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(value);
+    if (out.length >= 10) break;
+  }
+  return out;
+}
+
+function extractMetadataFromAny(input: unknown) {
+  const obj = input && typeof input === "object" && !Array.isArray(input)
+    ? (input as Record<string, unknown>)
+    : {};
+  const nested = obj.content && typeof obj.content === "object" && !Array.isArray(obj.content)
+    ? (obj.content as Record<string, unknown>)
+    : {};
+  const description = normalizeGeneratedDescription(
+    obj.description ?? obj.course_description ?? nested.description ?? nested.course_description
+  );
+  const subdomain = normalizeGeneratedSubdomain(
+    obj.subdomain ?? obj.domain ?? nested.subdomain ?? nested.domain
+  );
+  const topics = normalizeGeneratedTopics(
+    obj.topics ?? obj.topic_tags ?? nested.topics ?? nested.topic_tags
+  );
+  return { description, subdomain, topics };
+}
+
+async function generateCourseMetadataWithModel(params: {
+  provider: "perplexity" | "openai" | "gemini";
+  modelName: string;
+  prompt: string;
+}): Promise<{ description: string | null; subdomain: string | null; topics: string[] }> {
+  const text = await generateDailyPlanWithModel({
+    provider: params.provider,
+    modelName: params.modelName,
+    prompt: params.prompt,
+  });
+  const parsed = parseLenientJson(text);
+  const fromParsed = extractMetadataFromAny(parsed);
+  if (fromParsed.description || fromParsed.subdomain || fromParsed.topics.length > 0) return fromParsed;
+  return extractMetadataFromAny(text);
+}
+
 function buildPracticalPlanPrompt(input: {
   courseCode: string;
   title: string;
-  todayIso: string;
-  tasks: Array<{ kind: string; title: string; due_on: string | null; source_sequence: string | null; url: string | null }>;
+  startIso: string;
+  endIso: string;
+  tasks: Array<{
+    kind: string;
+    title: string;
+    due_on: string | null;
+    source_sequence: string | null;
+    url: string | null;
+    estimated_minutes: number;
+    importance_score: number;
+    urgency_score: number;
+    priority_score: number;
+    difficulty: "light" | "medium" | "heavy";
+  }>;
 }) {
   return [
     "You are a practical course planner.",
     `Course: ${input.courseCode} ${input.title}`,
-    `Start planning from: ${input.todayIso} (today).`,
+    `Plan window: ${input.startIso} to ${input.endIso}.`,
     "Use only the provided tasks. Build a realistic day-by-day plan.",
     "Hard rules:",
-    `1) Do not generate any day before ${input.todayIso}.`,
-    "2) Balance workload and put deadlines first.",
-    "3) Keep each day concise (max 4 tasks).",
-    "4) Keep important tasks only (no noisy filler).",
+    `1) Do not generate any day before ${input.startIso}.`,
+    `2) Do not generate any day after ${input.endIso}.`,
+    "3) Prioritize by deadline + priority_score (higher first).",
+    "4) Balance workload each day and include rest/light days between heavy days.",
+    "5) Keep each day concise (max 4 tasks).",
+    "6) Keep important tasks only (no noisy filler).",
     "Preferred output is JSON using this schema:",
     '{"days":[{"date":"YYYY-MM-DD","focus":"...","tasks":[{"title":"...","kind":"reading|assignment|project|lab|exercise|quiz|exam","minutes":60}]}]}',
     "If you cannot produce strict JSON, provide clean plain text in this format:",
@@ -1558,6 +1642,155 @@ function buildPracticalPlanPrompt(input: {
     "- task line",
     `Tasks: ${JSON.stringify(input.tasks)}`,
   ].join("\n");
+}
+
+function isoToDateUtc(iso: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+  const parsed = new Date(`${iso}T00:00:00.000Z`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function addDaysIso(iso: string, days: number): string {
+  const base = isoToDateUtc(iso) || new Date();
+  const next = new Date(base.getTime());
+  next.setUTCDate(next.getUTCDate() + days);
+  return toIsoDateUtc(next);
+}
+
+function diffDaysInclusive(startIso: string, endIso: string): number {
+  const start = isoToDateUtc(startIso);
+  const end = isoToDateUtc(endIso);
+  if (!start || !end) return 1;
+  const diff = Math.floor((end.getTime() - start.getTime()) / 86400000);
+  return diff + 1;
+}
+
+function resolvePlanningWindow(
+  rows: Array<Record<string, unknown>> | null | undefined,
+  todayIso: string,
+  fallbackWindowDays = 21
+) {
+  const normalized = Array.isArray(rows)
+    ? rows
+      .map((row) => ({
+        start: normalizeDate(row.start_date),
+        end: normalizeDate(row.end_date),
+      }))
+      .filter((row) => Boolean(row.start) && Boolean(row.end)) as Array<{ start: string; end: string }>
+    : [];
+
+  const earliestStart = normalized.length > 0
+    ? normalized.reduce((min, row) => (row.start < min ? row.start : min), normalized[0].start)
+    : null;
+  const latestEnd = normalized.length > 0
+    ? normalized.reduce((max, row) => (row.end > max ? row.end : max), normalized[0].end)
+    : null;
+
+  const startIso = earliestStart && earliestStart > todayIso ? earliestStart : todayIso;
+  const endIso = latestEnd && latestEnd >= startIso
+    ? latestEnd
+    : addDaysIso(startIso, Math.max(1, fallbackWindowDays) - 1);
+  const windowDays = Math.max(1, Math.min(180, diffDaysInclusive(startIso, endIso)));
+
+  return {
+    startIso,
+    endIso,
+    windowDays,
+    fromUserStudyPlan: Boolean(earliestStart && latestEnd),
+  };
+}
+
+function clampDailyPlanToRange(plan: DailyPlan, startIso: string, endIso: string): DailyPlan {
+  return {
+    days: (plan.days || [])
+      .filter((day) => day.date >= startIso && day.date <= endIso)
+      .map((day) => ({ ...day, tasks: Array.isArray(day.tasks) ? day.tasks.slice(0, 4) : [] }))
+      .filter((day) => day.tasks.length > 0)
+      .sort((a, b) => a.date.localeCompare(b.date)),
+  };
+}
+
+function estimateTaskMinutes(kind: string): number {
+  const k = String(kind || "").toLowerCase();
+  if (k === "exam") return 150;
+  if (k === "project") return 120;
+  if (k === "assignment") return 90;
+  if (k === "lab") return 90;
+  if (k === "reading") return 45;
+  if (k === "quiz") return 40;
+  return 60;
+}
+
+function buildPlanningTaskProfiles(tasks: PlanSeedTask[], startIso: string) {
+  return tasks.map((task) => {
+    const kind = String(task.kind || "task");
+    const estimatedMinutes = estimateTaskMinutes(kind);
+    const importanceBase =
+      kind === "exam" ? 5 :
+      kind === "project" ? 5 :
+      kind === "assignment" ? 4 :
+      kind === "lab" ? 4 :
+      kind === "quiz" ? 3 : 2;
+    const due = task.due_on || "";
+    const urgency =
+      due && due >= startIso
+        ? Math.max(1, 6 - Math.min(5, Math.floor((diffDaysInclusive(startIso, due) - 1) / 3)))
+        : 1;
+    const difficulty: "light" | "medium" | "heavy" =
+      estimatedMinutes >= 120 ? "heavy" : estimatedMinutes >= 75 ? "medium" : "light";
+    return {
+      ...task,
+      estimated_minutes: estimatedMinutes,
+      importance_score: importanceBase,
+      urgency_score: urgency,
+      priority_score: importanceBase * 2 + urgency,
+      difficulty,
+    };
+  });
+}
+
+function assignSyntheticDeadlines(tasks: PlanSeedTask[], startIso: string, endIso: string): PlanSeedTask[] {
+  if (tasks.length === 0) return [];
+  const windowDays = Math.max(1, diffDaysInclusive(startIso, endIso));
+  const extractSequence = (task: PlanSeedTask): number | null => {
+    const candidates = [task.source_sequence, task.title]
+      .filter((v): v is string => typeof v === "string" && v.trim().length > 0);
+    for (const raw of candidates) {
+      const text = raw.toLowerCase();
+      const m = text.match(/\b(?:project|assignment|homework|lab|exercise|quiz|week|module|part)\s*#?\s*(\d{1,3})\b/);
+      if (m?.[1]) return Number(m[1]);
+      const trailing = text.match(/\b(\d{1,3})\b/);
+      if (trailing?.[1]) return Number(trailing[1]);
+    }
+    return null;
+  };
+  const scored = tasks
+    .map((task, index) => {
+      const kind = String(task.kind || "task").toLowerCase();
+      const weight =
+        kind === "exam" ? 6 :
+        kind === "project" ? 5 :
+        kind === "assignment" ? 4 :
+        kind === "lab" ? 4 :
+        kind === "quiz" ? 3 : 2;
+      return { task, index, weight, sequence: extractSequence(task), kind };
+    })
+    .sort((a, b) => {
+      if (b.weight !== a.weight) return b.weight - a.weight;
+      if (a.kind === b.kind && a.sequence !== null && b.sequence !== null && a.sequence !== b.sequence) {
+        return a.sequence - b.sequence;
+      }
+      return a.index - b.index;
+    });
+
+  return scored.map((item, idx) => {
+    const offset = Math.min(windowDays - 1, Math.floor((idx * windowDays) / Math.max(1, scored.length)));
+    return {
+      ...item.task,
+      // Ignore raw due dates and use synthesized in-window targets for active-course planning.
+      due_on: addDaysIso(startIso, offset),
+    };
+  });
 }
 
 async function fetchBraveSnippetForUrl(
@@ -1815,10 +2048,27 @@ export async function runCourseIntel(
   };
   const { data: course } = await supabase
     .from("courses")
-    .select("id, course_code, university, title, url, resources")
+    .select("id, course_code, university, title, url, resources, description, subdomain")
     .eq("id", courseId)
     .single();
   if (!course) throw new Error("Course not found");
+  const { data: existingFieldRows } = await supabase
+    .from("course_fields")
+    .select("fields(name)")
+    .eq("course_id", courseId);
+  const existingTopics = Array.from(
+    new Set(
+      (existingFieldRows || [])
+        .map((row: Record<string, unknown>) => {
+          const field = row.fields as Record<string, unknown> | null;
+          return typeof field?.name === "string" ? field.name.trim() : "";
+        })
+        .filter((name: string) => name.length > 0)
+    )
+  );
+  const hasDescription = typeof course.description === "string" && course.description.trim().length > 0;
+  const hasSubdomain = typeof course.subdomain === "string" && course.subdomain.trim().length > 0;
+  const hasTopics = existingTopics.length > 0;
   mark("loaded_course");
   await emitProgress("load", "Loaded course record.", 5);
 
@@ -1873,6 +2123,13 @@ export async function runCourseIntel(
     .eq("course_id", courseId)
     .order("due_on", { ascending: true })
     .limit(500);
+  const { data: userStudyPlanRows } = await supabase
+    .from("study_plans")
+    .select("start_date, end_date")
+    .eq("user_id", userId)
+    .eq("course_id", courseId)
+    .order("start_date", { ascending: true })
+    .limit(120);
 
   const existingScheduleRows = Array.isArray(existingSyllabus?.schedule) ? (existingSyllabus.schedule as Array<Record<string, unknown>>) : [];
   const existingAssignments = Array.isArray(existingAssignmentsRows) ? existingAssignmentsRows : [];
@@ -1899,6 +2156,120 @@ export async function runCourseIntel(
     12,
     { sourceModeRequested, sourceModeEffective, hasExistingData }
   );
+  const todayIso = toIsoDateUtc(new Date());
+  const planningWindow = resolvePlanningWindow(userStudyPlanRows as Array<Record<string, unknown>> | null | undefined, todayIso, 21);
+  await emitProgress("planning_window", "Step 1/6 Planning window resolved.", 14, {
+    startDate: planningWindow.startIso,
+    endDate: planningWindow.endIso,
+    windowDays: planningWindow.windowDays,
+    source: planningWindow.fromUserStudyPlan ? "user_study_plan" : "default",
+  });
+
+  const persistMissingCourseMetadata = async (input: {
+    extracted: unknown;
+    contextText: string;
+    taskHints: PlanSeedTask[];
+  }) => {
+    if (hasDescription && hasSubdomain && hasTopics) return;
+
+    const extracted = extractMetadataFromAny(input.extracted);
+    let description = hasDescription ? null : extracted.description;
+    let subdomain = hasSubdomain ? null : extracted.subdomain;
+    let topics = hasTopics ? [] : extracted.topics;
+
+    const needsGeneration =
+      (!hasDescription && !description) ||
+      (!hasSubdomain && !subdomain) ||
+      (!hasTopics && topics.length === 0);
+
+    if (needsGeneration) {
+      const taskPreview = input.taskHints.slice(0, 40).map((task) => ({
+        kind: task.kind,
+        title: task.title,
+        due_on: task.due_on,
+      }));
+      const metadataPrompt = [
+        template,
+        "",
+        "Generate ONLY missing metadata fields for this course.",
+        `Course code: ${String(course.course_code || "")}`,
+        `Title: ${String(course.title || "")}`,
+        `University: ${String(course.university || "")}`,
+        `Current description: ${hasDescription ? String(course.description || "") : "(missing)"}`,
+        `Current subdomain: ${hasSubdomain ? String(course.subdomain || "") : "(missing)"}`,
+        `Current topics: ${hasTopics ? existingTopics.join(", ") : "(missing)"}`,
+        "Task hints:",
+        JSON.stringify(taskPreview),
+        "Retrieved context:",
+        input.contextText.slice(0, 9000),
+        "",
+        "Return ONLY one JSON object in this exact schema:",
+        '{"description": "string|null", "subdomain": "string|null", "topics": ["string"]}',
+      ].join("\n");
+
+      try {
+        const generated = await generateCourseMetadataWithModel({
+          provider,
+          modelName,
+          prompt: metadataPrompt,
+        });
+        if (!description) description = generated.description;
+        if (!subdomain) subdomain = generated.subdomain;
+        if (topics.length === 0) topics = generated.topics;
+      } catch {
+        // Metadata completion is best-effort; keep sync moving.
+      }
+    }
+
+    const coursePatch: Record<string, unknown> = {};
+    if (!hasDescription && description) coursePatch.description = description;
+    if (!hasSubdomain && subdomain) coursePatch.subdomain = subdomain;
+
+    const admin = createAdminClient() as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+    let topicsSaved = 0;
+
+    if (Object.keys(coursePatch).length > 0) {
+      const { error: patchError } = await admin.from("courses").update(coursePatch).eq("id", courseId);
+      if (patchError) throw new Error(patchError.message);
+    }
+
+    if (!hasTopics && topics.length > 0) {
+      const { error: fieldUpsertError } = await admin
+        .from("fields")
+        .upsert(topics.map((name) => ({ name })), { onConflict: "name", ignoreDuplicates: true });
+      if (fieldUpsertError) throw new Error(fieldUpsertError.message);
+
+      const { data: fieldRows, error: fieldFetchError } = await admin
+        .from("fields")
+        .select("id, name")
+        .in("name", topics);
+      if (fieldFetchError) throw new Error(fieldFetchError.message);
+
+      const selectedFields = Array.isArray(fieldRows) ? fieldRows : [];
+      if (selectedFields.length > 0) {
+        const { error: clearError } = await admin
+          .from("course_fields")
+          .delete()
+          .eq("course_id", courseId);
+        if (clearError) throw new Error(clearError.message);
+
+        const { error: insertError } = await admin
+          .from("course_fields")
+          .insert(selectedFields.map((row: Record<string, unknown>) => ({
+            course_id: courseId,
+            field_id: Number(row.id),
+          })));
+        if (insertError) throw new Error(insertError.message);
+        topicsSaved = selectedFields.length;
+      }
+    }
+
+    await emitProgress("metadata", "Completed missing metadata check (description/topics/subdomain).", 81, {
+      descriptionSaved: Boolean(coursePatch.description),
+      subdomainSaved: Boolean(coursePatch.subdomain),
+      topicsSaved,
+    });
+  };
 
   if (sourceModeEffective === "existing") {
     const nowIso = new Date().toISOString();
@@ -1949,37 +2320,69 @@ export async function runCourseIntel(
       seedTaskKey.add(key);
       return true;
     });
-    const todayIso = toIsoDateUtc(new Date());
-    await emitProgress("planning", "Generating practical plan from existing data.", 55, {
+    await emitProgress("task_extract", "Step 3/6 Loaded lectures, assignments, exams, and key events from existing data.", 45, {
       seedTasks: seedTasks.length,
       existingScheduleRows: existingScheduleRows.length,
       existingAssignments: assignmentRowsExisting.length,
     });
+    const tasksForPlanning = assignSyntheticDeadlines(
+      seedTasks.map((task) => ({ ...task, due_on: null })),
+      planningWindow.startIso,
+      planningWindow.endIso
+    );
+    const profiledTasks = buildPlanningTaskProfiles(tasksForPlanning, planningWindow.startIso);
+    await emitProgress("workload", "Step 4/6 Evaluated workload and difficulty.", 52, {
+      heavyTasks: profiledTasks.filter((task) => task.difficulty === "heavy").length,
+      mediumTasks: profiledTasks.filter((task) => task.difficulty === "medium").length,
+      lightTasks: profiledTasks.filter((task) => task.difficulty === "light").length,
+    });
 
-    let practicalPlan = buildFallbackDailyPlan(seedTasks, todayIso, 21);
+    let practicalPlan = buildFallbackDailyPlan(tasksForPlanning, planningWindow.startIso, planningWindow.windowDays);
+    practicalPlan = clampDailyPlanToRange(practicalPlan, planningWindow.startIso, planningWindow.endIso);
+    await emitProgress("prioritize", "Step 5/6 Prioritized tasks and generated schedule draft.", 58, {
+      prioritizedTasks: profiledTasks.length,
+    });
     if (seedTasks.length > 0) {
       try {
         const planPrompt = buildPracticalPlanPrompt({
           courseCode: String(course.course_code || ""),
           title: String(course.title || ""),
-          todayIso,
-          tasks: seedTasks.slice(0, 80).map((task) => ({
+          startIso: planningWindow.startIso,
+          endIso: planningWindow.endIso,
+          tasks: profiledTasks.slice(0, 120).map((task) => ({
             kind: task.kind,
             title: task.title,
             due_on: task.due_on,
             source_sequence: task.source_sequence,
             url: task.url,
+            estimated_minutes: task.estimated_minutes,
+            importance_score: task.importance_score,
+            urgency_score: task.urgency_score,
+            priority_score: task.priority_score,
+            difficulty: task.difficulty,
           })),
         });
         const rawPlan = await generateDailyPlanWithModel({ provider, modelName, prompt: planPrompt });
         const parsedPlan = parseLenientJson(rawPlan);
-        const sanitized = sanitizeDailyPlan(parsedPlan, todayIso);
-        const looseParsed = sanitized.days.length > 0 ? sanitized : parseLooseDailyPlanText(rawPlan, todayIso);
+        const sanitized = clampDailyPlanToRange(
+          sanitizeDailyPlan(parsedPlan, planningWindow.startIso),
+          planningWindow.startIso,
+          planningWindow.endIso
+        );
+        const looseParsed = sanitized.days.length > 0
+          ? sanitized
+          : clampDailyPlanToRange(parseLooseDailyPlanText(rawPlan, planningWindow.startIso), planningWindow.startIso, planningWindow.endIso);
         if (looseParsed.days.length > 0) practicalPlan = looseParsed;
       } catch {
         // Keep fallback plan.
       }
     }
+
+    await persistMissingCourseMetadata({
+      extracted: existingParsedContent,
+      contextText: `${existingRawText}\n\n${JSON.stringify(existingParsedContent || {})}`,
+      taskHints: seedTasks,
+    });
 
     const mergedContent = {
       ...existingParsedContent,
@@ -2095,7 +2498,7 @@ export async function runCourseIntel(
 
     mark("db_persist_done");
     const totalMs = Date.now() - t0;
-    await emitProgress("done", "AI sync completed from existing data.", 100, {
+    await emitProgress("done", "Step 6/6 Completed and persisted personalized schedule.", 100, {
       scheduleRowsPersisted,
       assignmentsPersisted,
       sourceModeEffective,
@@ -2146,7 +2549,7 @@ export async function runCourseIntel(
 
   const knownUrls = [course.url, ...(Array.isArray(course.resources) ? course.resources : [])]
     .filter(Boolean) as string[];
-  await emitProgress("discovery", "Collecting source URLs and deterministic signals.", 18, {
+  await emitProgress("discovery", "Step 2/6 Retrieving course data from web and database sources.", 18, {
     knownUrls: knownUrls.length,
   });
 
@@ -2192,7 +2595,7 @@ export async function runCourseIntel(
     .filter((r): r is PromiseFulfilledResult<DeterministicSignals> => r.status === "fulfilled")
     .map((r) => r.value);
   mark("collected_context_signals");
-  await emitProgress("discovery", "Context collection complete.", 35, {
+  await emitProgress("discovery", "Step 2/6 Source retrieval completed.", 35, {
     contextUrls: contextUrls.length,
     analysisUrls: analysisContextUrls.length,
   });
@@ -2396,30 +2799,63 @@ export async function runCourseIntel(
   const mergedScheduleArray = mergeDeterministicScheduleRows(mergedWithWeekSignals, deterministicRows);
   const schedule = mergedScheduleArray as Json;
   const seedTasks = buildPlanSeedTasks(mergedScheduleArray);
-  const todayIso = toIsoDateUtc(new Date());
+  const tasksForPlanning = assignSyntheticDeadlines(
+    seedTasks.map((task) => ({ ...task, due_on: null })),
+    planningWindow.startIso,
+    planningWindow.endIso
+  );
+  const profiledTasks = buildPlanningTaskProfiles(tasksForPlanning, planningWindow.startIso);
+  await emitProgress("task_extract", "Step 3/6 Parsed lectures, assignments, exams, and key events.", 74, {
+    extractedTasks: seedTasks.length,
+  });
+  await emitProgress("workload", "Step 4/6 Evaluated workload and task difficulty.", 76, {
+    heavyTasks: profiledTasks.filter((task) => task.difficulty === "heavy").length,
+    mediumTasks: profiledTasks.filter((task) => task.difficulty === "medium").length,
+    lightTasks: profiledTasks.filter((task) => task.difficulty === "light").length,
+  });
   await emitProgress("planning", "Curated learning tasks prepared.", 76, {
-    curatedTasks: seedTasks.length,
+    curatedTasks: tasksForPlanning.length,
   });
 
-  let practicalPlan = buildFallbackDailyPlan(seedTasks, todayIso, 21);
+  let practicalPlan = buildFallbackDailyPlan(tasksForPlanning, planningWindow.startIso, planningWindow.windowDays);
+  practicalPlan = clampDailyPlanToRange(practicalPlan, planningWindow.startIso, planningWindow.endIso);
+  await emitProgress("prioritize", "Step 5/6 Prioritized tasks and generated schedule draft.", 78, {
+    prioritizedTasks: profiledTasks.length,
+  });
   if (seedTasks.length > 0) {
     try {
       const planPrompt = buildPracticalPlanPrompt({
         courseCode: String(course.course_code || ""),
         title: String(course.title || ""),
-        todayIso,
-        tasks: seedTasks.slice(0, 80).map((task) => ({
+        startIso: planningWindow.startIso,
+        endIso: planningWindow.endIso,
+        tasks: profiledTasks.slice(0, 120).map((task) => ({
           kind: task.kind,
           title: task.title,
           due_on: task.due_on,
           source_sequence: task.source_sequence,
           url: task.url,
+          estimated_minutes: task.estimated_minutes,
+          importance_score: task.importance_score,
+          urgency_score: task.urgency_score,
+          priority_score: task.priority_score,
+          difficulty: task.difficulty,
         })),
       });
       const rawPlan = await generateDailyPlanWithModel({ provider, modelName, prompt: planPrompt });
       const parsedPlan = parseLenientJson(rawPlan);
-      const sanitized = sanitizeDailyPlan(parsedPlan, todayIso);
-      const looseParsed = sanitized.days.length > 0 ? sanitized : parseLooseDailyPlanText(rawPlan, todayIso);
+      const sanitized = clampDailyPlanToRange(
+        sanitizeDailyPlan(parsedPlan, planningWindow.startIso),
+        planningWindow.startIso,
+        planningWindow.endIso
+      );
+      const looseParsed = sanitized.days.length > 0
+        ? sanitized
+        : clampDailyPlanToRange(
+          parseLooseDailyPlanText(rawPlan, planningWindow.startIso),
+          planningWindow.startIso,
+          planningWindow.endIso
+        );
       const finalPlan = looseParsed.days.length > 0 ? looseParsed : sanitized;
       if (finalPlan.days.length > 0) practicalPlan = finalPlan;
     } catch {
@@ -2428,6 +2864,12 @@ export async function runCourseIntel(
   }
   await emitProgress("planning", "Daily practical plan generated.", 80, {
     days: practicalPlan.days.length,
+  });
+
+  await persistMissingCourseMetadata({
+    extracted: parsed,
+    contextText: `${contextBlocks}\n\n${text}`,
+    taskHints: seedTasks,
   });
 
   const nowIso = new Date().toISOString();
@@ -2606,7 +3048,7 @@ export async function runCourseIntel(
 
   mark("db_persist_done");
   const totalMs = Date.now() - t0;
-  await emitProgress("persist", "Persistence complete.", 95, {
+  await emitProgress("persist", "Step 6/6 Persisted schedule, deadlines, and calendar events.", 95, {
     assignmentsPersisted,
     assignmentsPreserved,
     scheduleRowsPersisted,
@@ -2637,7 +3079,7 @@ export async function runCourseIntel(
       totalMs,
     },
   });
-  await emitProgress("done", "AI sync completed.", 100, {
+  await emitProgress("done", "Step 6/6 Completed personalized study schedule.", 100, {
     totalMs,
     scheduleEntries: mergedScheduleArray.length,
   });

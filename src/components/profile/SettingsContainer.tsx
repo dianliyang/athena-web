@@ -1,11 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
 import { User } from "@supabase/supabase-js";
-import { LucideIcon, Cpu, FileCode, CalendarDays, Tag, Shield, Database, Sparkles, Library, KeyRound, BookOpen } from "lucide-react";
-import AILearningPlanner from "@/components/home/AILearningPlanner";
+import { LucideIcon, Cpu, Shield, Database, Sparkles, Library, KeyRound, BookOpen } from "lucide-react";
 import { Dictionary } from "@/lib/dictionary";
 import { getSettingsPathForSection, getSettingsSectionFromPathname } from "./settings-route";
 
@@ -17,7 +16,7 @@ const ApiManagementCard = dynamic(() => import("./ApiManagementCard"), { ssr: fa
 const ExternalApiSwagger = dynamic(() => import("./ExternalApiSwagger"), { ssr: false });
 
 export type SectionId =
-  | "engine" | "metadata" | "scheduling" | "study-planner" | "learning-planner" | "topics" | "course-intel" | "usage"
+  | "engine" | "course-intel" | "usage"
   | "identity" | "account"
   | "sync" | "import" | "api-management" | "api-reference";
 
@@ -27,12 +26,8 @@ const NAV_GROUPS: Array<{ label: string; items: NavItem[] }> = [
   {
     label: "Intelligence",
     items: [
-      { id: "learning-planner", label: "AI Learning Planner", icon: Sparkles },
       { id: "engine",        label: "Engine Configuration", icon: Cpu },
-      { id: "metadata",      label: "Metadata Logic",       icon: FileCode },
-      { id: "scheduling",    label: "Scheduling Logic",     icon: CalendarDays },
-      { id: "topics",        label: "Domain Logic", icon: Tag },
-      { id: "course-intel",      label: "Course Intel Logic",         icon: Sparkles },
+      { id: "course-intel",  label: "Course Generation Logic", icon: Sparkles },
     ],
   },
   {
@@ -42,7 +37,7 @@ const NAV_GROUPS: Array<{ label: string; items: NavItem[] }> = [
     ],
   },
   {
-    label: "System",
+    label: "Synchronization",
     items: [
       { id: "sync", label: "Data Synchronization", icon: Database },
       { id: "api-management", label: "API Control", icon: KeyRound },
@@ -57,7 +52,7 @@ const NAV_GROUPS: Array<{ label: string; items: NavItem[] }> = [
   {
     label: "Import",
     items: [
-      { id: "import", label: "Catalog Ingestion", icon: Library },
+      { id: "import", label: "Import", icon: Library },
     ],
   },
 ];
@@ -67,22 +62,17 @@ const ACTIVE_SECTION_STORAGE_KEY = "settings_active_section";
 
 const SECTION_META: Record<SectionId, { title: string; desc: string }> = {
   "engine":        { title: "Engine Configuration",   desc: "Configure AI providers, models and web grounding." },
-  "metadata":      { title: "Metadata Logic",         desc: "Prompt template for course description generation." },
-  "scheduling":    { title: "Scheduling Logic",       desc: "Prompt template for study plan generation." },
-  "study-planner": { title: "Study Planner Logic",    desc: "Prompt template for AI planner course recommendations." },
-  "learning-planner": { title: "AI Learning Planner", desc: "Generate and apply roadmap recommendations directly from Settings." },
-  "topics":        { title: "Domain Logic",   desc: "Prompt template for topic tagging." },
-  "course-intel":      { title: "Course Intel Logic",      desc: "Merged prompt for resources, syllabus, and assignments retrieval." },
+  "course-intel":  { title: "Course Generation Logic", desc: "Unified prompt for retrieval, description, topics/subdomain, and schedule generation." },
   "usage":             { title: "Usage Statistics",       desc: "AI call history, token usage, and cost breakdown." },
   "identity":      { title: "Account",                desc: "Authentication provider, account status, and danger zone." },
   "account":       { title: "Account",                desc: "Danger zone — irreversible operations." },
   "sync":          { title: "Data Synchronization",   desc: "Synchronize course catalogs from institution scrapers." },
-  "import":        { title: "Catalog Ingestion",      desc: "Import course data packages into the registry." },
+  "import":        { title: "Import",                 desc: "Import course data packages into the registry." },
   "api-management": { title: "API Control",           desc: "Manage API key and endpoint enable/disable state." },
   "api-reference":  { title: "API Reference",         desc: "Reference endpoints, auth and usage examples." },
 };
 
-const AI_SECTIONS: SectionId[] = ["engine", "metadata", "scheduling", "topics", "course-intel", "usage"];
+const AI_SECTIONS: SectionId[] = ["engine", "course-intel", "usage"];
 
 interface SettingsContainerProps {
   user: User;
@@ -97,7 +87,7 @@ interface SettingsContainerProps {
 export default function SettingsContainer({ user, profile, aiDefaults, initialSection, dict }: SettingsContainerProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const [active, setActive] = useState<SectionId>(() => {
+  const [activeState, setActiveState] = useState<SectionId>(() => {
     const sectionFromPath = getSettingsSectionFromPathname(pathname, initialSection || "engine");
     if (sectionFromPath && ALL_ITEMS.some((item) => item.id === sectionFromPath)) {
       return sectionFromPath;
@@ -114,9 +104,16 @@ export default function SettingsContainer({ user, profile, aiDefaults, initialSe
     }
     return sectionFromPath || "engine";
   });
+  const active = useMemo<SectionId>(() => {
+    if (pathname?.startsWith("/settings")) {
+      const routeSection = getSettingsSectionFromPathname(pathname, initialSection || "engine");
+      if (ALL_ITEMS.some((item) => item.id === routeSection)) return routeSection;
+    }
+    return activeState;
+  }, [pathname, initialSection, activeState]);
 
   const setActiveSection = (next: SectionId) => {
-    setActive(next);
+    setActiveState(next);
     try {
       window.localStorage.setItem(ACTIVE_SECTION_STORAGE_KEY, next);
     } catch {
@@ -144,6 +141,7 @@ export default function SettingsContainer({ user, profile, aiDefaults, initialSe
   const totalItems = filteredGroups.reduce((acc, g) => acc + g.items.length, 0);
   const showSubSidebar =
     totalItems > 1 &&
+    active !== "engine" &&
     active !== "usage" &&
     active !== "sync" &&
     active !== "api-management";
@@ -207,48 +205,16 @@ export default function SettingsContainer({ user, profile, aiDefaults, initialSe
           <div className="flex-1 min-h-0 flex flex-col">
             <AISettingsCard
               key={`${active}-${profile ? JSON.stringify(profile) : "default-ai"}`}
-              section={active as "engine" | "metadata" | "scheduling" | "topics" | "course-intel" | "usage"}
+              section={active as "engine" | "course-intel" | "usage"}
               initialProvider={(profile?.ai_provider as string) || "perplexity"}
               initialModel={(profile?.ai_default_model as string) || aiDefaults.modelCatalog.perplexity[0] || aiDefaults.modelCatalog.openai[0] || aiDefaults.modelCatalog.gemini[0] || ""}
               initialWebSearchEnabled={(profile?.ai_web_search_enabled as boolean | undefined) ?? false}
-              initialPromptTemplate={(profile?.ai_prompt_template as string) || ""}
-              initialStudyPlanPromptTemplate={(profile?.ai_study_plan_prompt_template as string) || ""}
               initialPlannerPromptTemplate={(profile?.ai_planner_prompt_template as string) || ""}
-              initialTopicsPromptTemplate={(profile?.ai_topics_prompt_template as string) || ""}
-              initialCourseUpdatePromptTemplate={(profile?.ai_course_update_prompt_template as string) || ""}
-              initialSyllabusPromptTemplate={(profile?.ai_syllabus_prompt_template as string) || ""}
               initialCourseIntelPromptTemplate={(profile?.ai_course_intel_prompt_template as string) || ""}
               modelCatalog={aiDefaults.modelCatalog}
             />
           </div>
         ) : null}
-
-        {/* AI Learning Planner (Merged with Study Planner Logic) */}
-        <div className={active === "learning-planner" ? "flex-1 min-h-0 flex flex-col gap-6 overflow-y-auto" : "hidden"}>
-          <AILearningPlanner />
-          
-          <div className="border-t border-[#f0f0f0] pt-6">
-            <div className="mb-4">
-              <h4 className="text-sm font-bold text-[#1f1f1f] uppercase tracking-wider">Planner Logic Configuration</h4>
-              <p className="text-xs text-[#7a7a7a] mt-1">Configure the prompt templates and model settings for the study planner.</p>
-            </div>
-            <AISettingsCard
-              key={`study-planner-logic-${profile ? JSON.stringify(profile) : "default-ai"}`}
-              section="study-planner"
-              initialProvider={(profile?.ai_provider as string) || "perplexity"}
-              initialModel={(profile?.ai_default_model as string) || aiDefaults.modelCatalog.perplexity[0] || aiDefaults.modelCatalog.openai[0] || aiDefaults.modelCatalog.gemini[0] || ""}
-              initialWebSearchEnabled={(profile?.ai_web_search_enabled as boolean | undefined) ?? false}
-              initialPromptTemplate={(profile?.ai_prompt_template as string) || ""}
-              initialStudyPlanPromptTemplate={(profile?.ai_study_plan_prompt_template as string) || ""}
-              initialPlannerPromptTemplate={(profile?.ai_planner_prompt_template as string) || ""}
-              initialTopicsPromptTemplate={(profile?.ai_topics_prompt_template as string) || ""}
-              initialCourseUpdatePromptTemplate={(profile?.ai_course_update_prompt_template as string) || ""}
-              initialSyllabusPromptTemplate={(profile?.ai_syllabus_prompt_template as string) || ""}
-              initialCourseIntelPromptTemplate={(profile?.ai_course_intel_prompt_template as string) || ""}
-              modelCatalog={aiDefaults.modelCatalog}
-            />
-          </div>
-        </div>
 
         {/* Account (Identity + Danger Zone) */}
         <div className={active === "identity" ? "flex-1 min-h-0" : "hidden"}>
@@ -263,7 +229,7 @@ export default function SettingsContainer({ user, profile, aiDefaults, initialSe
           <SystemMaintenanceCard />
         </div>
 
-        {/* Catalog Ingestion */}
+        {/* Import */}
         <div className={active === "import" ? "flex-1 min-h-0" : "hidden"}>
           <ImportForm dict={dict?.dashboard?.import} />
         </div>

@@ -11,6 +11,19 @@ vi.mock("@/lib/ai/models-client", () => ({
   AI_PROVIDERS: ["perplexity", "gemini", "openai", "vertex"],
 }));
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    refresh: vi.fn(),
+    push: vi.fn(),
+  }),
+}));
+
+vi.mock("@/components/common/AppToastProvider", () => ({
+  useAppToast: () => ({
+    showToast: vi.fn(),
+  }),
+}));
+
 describe("AI settings usage chart", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -61,12 +74,8 @@ describe("AI settings usage chart", () => {
         initialProvider="perplexity"
         initialModel="sonar"
         initialWebSearchEnabled={false}
-        initialPromptTemplate=""
-        initialStudyPlanPromptTemplate=""
         initialPlannerPromptTemplate=""
-        initialTopicsPromptTemplate=""
-        initialCourseUpdatePromptTemplate=""
-        initialSyllabusPromptTemplate=""
+        initialCourseIntelPromptTemplate=""
         modelCatalog={{ perplexity: ["sonar"], gemini: ["gemini-2.5-flash"], openai: ["gpt-5-mini"], vertex: ["gemini-2.5-pro"] }}
       />
     );
@@ -77,9 +86,9 @@ describe("AI settings usage chart", () => {
 
     expect(screen.getByText("12")).toBeDefined();
     expect(screen.getByText("$0.0456")).toBeDefined();
-    expect(screen.getByText("Recent AI Responses (10)")).toBeDefined();
+    expect(screen.getByText("Recent AI Responses (1)")).toBeDefined();
     expect(screen.getByText("AI Planner · AI Infra")).toBeDefined();
-    expect(screen.getByText("By Feature")).toBeDefined();
-    expect(screen.getByText("By Model")).toBeDefined();
+    expect(screen.getByText("By Feature (Top Spend)")).toBeDefined();
+    expect(screen.getByText("By Model (Top Spend)")).toBeDefined();
   });
 });

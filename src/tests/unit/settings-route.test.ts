@@ -19,6 +19,6 @@ describe("settings route mapping", () => {
   });
 
   it("returns null for non-route-backed section", () => {
-    expect(getSettingsPathForSection("metadata")).toBeNull();
+    expect(getSettingsPathForSection("course-intel")).toBeNull();
   });
 });

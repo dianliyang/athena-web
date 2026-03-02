@@ -12,6 +12,7 @@ import {
 } from "@/lib/ai/course-intel-jobs";
 
 export const runtime = "nodejs";
+const COURSE_INTEL_JOB_TIMEOUT_MS = 5 * 60 * 1000;
 
 function deriveSourceMode(item: Record<string, unknown> | null | undefined): CourseIntelSourceMode | null {
   const meta = item?.meta && typeof item.meta === "object" ? (item.meta as Record<string, unknown>) : {};
@@ -26,6 +27,8 @@ async function executeCourseIntelJob(params: {
   sourceMode: CourseIntelSourceMode;
 }) {
   const { jobId, userId, courseId, sourceMode } = params;
+  let timedOut = false;
+  let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
   try {
     await markCourseIntelJobRunning(jobId);
     await appendCourseIntelJobActivity(jobId, {
@@ -35,18 +38,29 @@ async function executeCourseIntelJob(params: {
       progress: 3,
     });
 
-    const result = await runCourseIntel(userId, courseId, {
-      sourceMode,
-      onProgress: async (event) => {
-        await appendCourseIntelJobActivity(jobId, {
-          ts: new Date().toISOString(),
-          stage: event.stage,
-          message: event.message,
-          progress: event.progress,
-          details: event.details,
-        });
-      },
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutHandle = setTimeout(() => {
+        timedOut = true;
+        reject(new Error("AI sync timed out after 5 minutes. Job terminated."));
+      }, COURSE_INTEL_JOB_TIMEOUT_MS);
     });
+
+    const result = await Promise.race([
+      runCourseIntel(userId, courseId, {
+        sourceMode,
+        onProgress: async (event) => {
+          if (timedOut) return;
+          await appendCourseIntelJobActivity(jobId, {
+            ts: new Date().toISOString(),
+            stage: event.stage,
+            message: event.message,
+            progress: event.progress,
+            details: event.details,
+          });
+        },
+      }),
+      timeoutPromise,
+    ]);
 
     await appendCourseIntelJobActivity(jobId, {
       ts: new Date().toISOString(),
@@ -82,6 +96,8 @@ async function executeCourseIntelJob(params: {
       progress: 100,
     });
     await failCourseIntelJob(jobId, error);
+  } finally {
+    if (timeoutHandle) clearTimeout(timeoutHandle);
   }
 }
 

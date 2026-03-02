@@ -11,21 +11,16 @@ import {
 } from "@/actions/profile";
 import { AI_PROVIDERS, type AIProvider } from "@/lib/ai/models-client";
 import { useAppToast } from "@/components/common/AppToastProvider";
-import { Save, Loader2, Cpu, FileCode, CalendarDays, Tag, BarChart2, Search, Sparkles, BookOpen, Trash2, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Save, Loader2, Cpu, BarChart2, Sparkles, Trash2, CheckCircle2, AlertTriangle } from "lucide-react";
 
-type AISectionId = "engine" | "metadata" | "scheduling" | "study-planner" | "topics" | "course-update" | "syllabus-retrieve" | "course-intel" | "usage";
+type AISectionId = "engine" | "study-planner" | "course-intel" | "usage";
 
 interface AISettingsCardProps {
   section: AISectionId;
   initialProvider: string;
   initialModel: string;
   initialWebSearchEnabled: boolean;
-  initialPromptTemplate: string;
-  initialStudyPlanPromptTemplate: string;
   initialPlannerPromptTemplate: string;
-  initialTopicsPromptTemplate: string;
-  initialCourseUpdatePromptTemplate: string;
-  initialSyllabusPromptTemplate: string;
   initialCourseIntelPromptTemplate: string;
   modelCatalog: { perplexity: string[]; gemini: string[]; openai: string[]; vertex?: string[] };
 }
@@ -67,6 +62,9 @@ type AIHealthStats = {
   active?: { provider: string | null; model: string | null };
   checked_at: string;
 };
+
+const AI_HEALTH_CACHE_KEY = "cc:ai-health-cache";
+const AI_HEALTH_CACHE_TTL_MS = 5 * 60 * 1000;
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -122,12 +120,7 @@ export default function AISettingsCard({
   initialProvider,
   initialModel,
   initialWebSearchEnabled,
-  initialPromptTemplate,
-  initialStudyPlanPromptTemplate,
   initialPlannerPromptTemplate,
-  initialTopicsPromptTemplate,
-  initialCourseUpdatePromptTemplate,
-  initialSyllabusPromptTemplate,
   initialCourseIntelPromptTemplate,
   modelCatalog,
 }: AISettingsCardProps) {
@@ -146,21 +139,11 @@ export default function AISettingsCard({
   const [provider, setProvider] = useState<AIProvider>(normalizeProvider(initialProvider));
   const [defaultModel, setDefaultModel] = useState(initialModel);
   const [webSearchEnabled, setWebSearchEnabled] = useState(initialWebSearchEnabled);
-  const [promptTemplate, setPromptTemplate] = useState(initialPromptTemplate);
-  const [studyPlanPromptTemplate, setStudyPlanPromptTemplate] = useState(initialStudyPlanPromptTemplate);
   const [plannerPromptTemplate, setPlannerPromptTemplate] = useState(initialPlannerPromptTemplate);
-  const [topicsPromptTemplate, setTopicsPromptTemplate] = useState(initialTopicsPromptTemplate);
-  const [courseUpdatePromptTemplate, setCourseUpdatePromptTemplate] = useState(initialCourseUpdatePromptTemplate);
-  const [syllabusPromptTemplate, setSyllabusPromptTemplate] = useState(initialSyllabusPromptTemplate);
   const [courseIntelPromptTemplate, setCourseIntelPromptTemplate] = useState(initialCourseIntelPromptTemplate);
 
   const [isSavingProvider, setIsSavingProvider] = useState(false);
-  const [isSavingDescription, setIsSavingDescription] = useState(false);
-  const [isSavingStudyPlan, setIsSavingStudyPlan] = useState(false);
   const [isSavingPlanner, setIsSavingPlanner] = useState(false);
-  const [isSavingTopics, setIsSavingTopics] = useState(false);
-  const [isSavingCourseUpdate, setIsSavingCourseUpdate] = useState(false);
-  const [isSavingSyllabus, setIsSavingSyllabus] = useState(false);
   const [isSavingCourseIntel, setIsSavingCourseIntel] = useState(false);
   const [isSavingCatalog, setIsSavingCatalog] = useState(false);
   const [newModelName, setNewModelName] = useState("");
@@ -185,6 +168,43 @@ export default function AISettingsCard({
         return costDiff !== 0 ? costDiff : b[1].requests - a[1].requests;
       })
     : [];
+
+  const loadHealth = useCallback(async (force = false) => {
+    setHealthLoading(true);
+    try {
+      if (!force && typeof window !== "undefined") {
+        const raw = window.localStorage.getItem(AI_HEALTH_CACHE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw) as { cachedAt?: number; data?: AIHealthStats };
+          const cachedAt = Number(parsed?.cachedAt || 0);
+          if (cachedAt > 0 && parsed?.data && Date.now() - cachedAt < AI_HEALTH_CACHE_TTL_MS) {
+            setHealthStats(parsed.data);
+            setHealthLoading(false);
+            return;
+          }
+        }
+      }
+
+      const response = await fetch("/api/ai/health", { cache: "no-store" });
+      const d = await response.json();
+      if (!d.error) {
+        const next: AIHealthStats = {
+          healthy: Boolean(d.healthy),
+          providers: Array.isArray(d.providers) ? d.providers : [],
+          active: d.active && typeof d.active === "object" ? d.active : undefined,
+          checked_at: typeof d.checked_at === "string" ? d.checked_at : new Date().toISOString(),
+        };
+        setHealthStats(next);
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(AI_HEALTH_CACHE_KEY, JSON.stringify({ cachedAt: Date.now(), data: next }));
+        }
+      }
+    } catch {
+      // Ignore transient health load errors.
+    } finally {
+      setHealthLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     const available = modelsForProvider(provider);
@@ -213,22 +233,8 @@ export default function AISettingsCard({
 
   useEffect(() => {
     if (section !== "engine") return;
-    setHealthLoading(true);
-    fetch("/api/ai/health", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((d) => {
-        if (!d.error) {
-          setHealthStats({
-            healthy: Boolean(d.healthy),
-            providers: Array.isArray(d.providers) ? d.providers : [],
-            active: d.active && typeof d.active === "object" ? d.active : undefined,
-            checked_at: typeof d.checked_at === "string" ? d.checked_at : new Date().toISOString(),
-          });
-        }
-      })
-      .catch(() => {})
-      .finally(() => setHealthLoading(false));
-  }, [section]);
+    void loadHealth(false);
+  }, [section, loadHealth]);
 
   const saveProviderSettings = () => {
     setIsSavingProvider(true);
@@ -296,51 +302,6 @@ export default function AISettingsCard({
     })();
   };
 
-  const saveDescriptionPrompt = () => {
-    setIsSavingDescription(true);
-    void (async () => {
-      try {
-        await updateAiPromptTemplates({ descriptionPromptTemplate: promptTemplate });
-        showToast({ type: "success", message: "Metadata instructions updated." });
-        router.refresh();
-      } catch (error) {
-        showToast({ type: "error", message: error instanceof Error ? error.message : "Update failed." });
-      } finally {
-        setIsSavingDescription(false);
-      }
-    })();
-  };
-
-  const saveStudyPlanPrompt = () => {
-    setIsSavingStudyPlan(true);
-    void (async () => {
-      try {
-        await updateAiPromptTemplates({ studyPlanPromptTemplate });
-        showToast({ type: "success", message: "Scheduling logic updated." });
-        router.refresh();
-      } catch (error) {
-        showToast({ type: "error", message: error instanceof Error ? error.message : "Update failed." });
-      } finally {
-        setIsSavingStudyPlan(false);
-      }
-    })();
-  };
-
-  const saveTopicsPrompt = () => {
-    setIsSavingTopics(true);
-    void (async () => {
-      try {
-        await updateAiPromptTemplates({ topicsPromptTemplate });
-        showToast({ type: "success", message: "Topic classification logic updated." });
-        router.refresh();
-      } catch (error) {
-        showToast({ type: "error", message: error instanceof Error ? error.message : "Update failed." });
-      } finally {
-        setIsSavingTopics(false);
-      }
-    })();
-  };
-
   const savePlannerPrompt = () => {
     setIsSavingPlanner(true);
     void (async () => {
@@ -352,36 +313,6 @@ export default function AISettingsCard({
         showToast({ type: "error", message: error instanceof Error ? error.message : "Update failed." });
       } finally {
         setIsSavingPlanner(false);
-      }
-    })();
-  };
-
-  const saveSyllabusPrompt = () => {
-    setIsSavingSyllabus(true);
-    void (async () => {
-      try {
-        await updateAiPromptTemplates({ syllabusPromptTemplate });
-        showToast({ type: "success", message: "Syllabus retrieve logic updated." });
-        router.refresh();
-      } catch (error) {
-        showToast({ type: "error", message: error instanceof Error ? error.message : "Update failed." });
-      } finally {
-        setIsSavingSyllabus(false);
-      }
-    })();
-  };
-
-  const saveCourseUpdatePrompt = () => {
-    setIsSavingCourseUpdate(true);
-    void (async () => {
-      try {
-        await updateAiPromptTemplates({ courseUpdatePromptTemplate });
-        showToast({ type: "success", message: "Course update search logic updated." });
-        router.refresh();
-      } catch (error) {
-        showToast({ type: "error", message: error instanceof Error ? error.message : "Update failed." });
-      } finally {
-        setIsSavingCourseUpdate(false);
       }
     })();
   };
@@ -427,21 +358,7 @@ export default function AISettingsCard({
                 <p className="text-xs font-semibold text-[#5a5a5a] uppercase tracking-wide">AI Provider Health</p>
                 <button
                   onClick={() => {
-                    setHealthLoading(true);
-                    fetch("/api/ai/health", { cache: "no-store" })
-                      .then((r) => r.json())
-                      .then((d) => {
-                        if (!d.error) {
-                          setHealthStats({
-                            healthy: Boolean(d.healthy),
-                            providers: Array.isArray(d.providers) ? d.providers : [],
-                            active: d.active && typeof d.active === "object" ? d.active : undefined,
-                            checked_at: typeof d.checked_at === "string" ? d.checked_at : new Date().toISOString(),
-                          });
-                        }
-                      })
-                      .catch(() => {})
-                      .finally(() => setHealthLoading(false));
+                    void loadHealth(true);
                   }}
                   disabled={healthLoading}
                   className="inline-flex h-7 items-center gap-1 rounded-md border border-[#d8d8d8] bg-white px-2 text-[11px] font-medium text-[#444] hover:bg-[#f8f8f8] disabled:opacity-60"
@@ -651,83 +568,7 @@ export default function AISettingsCard({
         </div>
       </div>
 
-      {/* 2. Metadata Instruction Set */}
-      <div className={section === "metadata" ? "h-full flex flex-col" : "hidden"}>
-        <div className="bg-white border border-[#e5e5e5] rounded-md p-4 flex flex-col h-full">
-          <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#efefef] shrink-0">
-            <div className="flex items-center gap-2 text-[#222]">
-              <FileCode className="w-4 h-4 text-[#777]" />
-              <span className="text-sm font-semibold">Metadata Logic</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={saveDescriptionPrompt}
-                disabled={isSavingDescription}
-                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[#d3d3d3] bg-white px-2.5 text-[13px] font-medium text-[#333] hover:bg-[#f8f8f8] transition-colors disabled:opacity-50"
-              >
-                {isSavingDescription ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                Push Metadata Logic
-              </button>
-              <button
-                onClick={() => setPromptTemplate("")}
-                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[#d3d3d3] bg-white px-2.5 text-[13px] font-medium text-[#3b3b3b] hover:bg-[#f8f8f8] transition-colors"
-              >
-                Clear
-              </button>
-            </div>
-          </div>
-
-          <div className="flex-1 flex flex-col min-h-0 gap-3">
-            <textarea
-              value={promptTemplate}
-              onChange={(e) => setPromptTemplate(e.target.value)}
-              className="w-full flex-1 min-h-0 rounded-md border border-[#d8d8d8] bg-white p-3 text-[13px] leading-relaxed text-[#333] outline-none transition-colors focus:border-[#bcbcbc] resize-none"
-              placeholder="ENTER_INSTRUCTION_SET..."
-              disabled={isSavingDescription}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* 3. Scheduling Instruction Set */}
-      <div className={section === "scheduling" ? "h-full flex flex-col" : "hidden"}>
-        <div className="bg-white border border-[#e5e5e5] rounded-md p-4 flex flex-col h-full">
-          <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#efefef] shrink-0">
-            <div className="flex items-center gap-2 text-[#222]">
-              <CalendarDays className="w-4 h-4 text-[#777]" />
-              <span className="text-sm font-semibold">Scheduling Logic</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={saveStudyPlanPrompt}
-                disabled={isSavingStudyPlan}
-                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[#d3d3d3] bg-white px-2.5 text-[13px] font-medium text-[#333] hover:bg-[#f8f8f8] transition-colors disabled:opacity-50"
-              >
-                {isSavingStudyPlan ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                Push Schedule Logic
-              </button>
-              <button
-                onClick={() => setStudyPlanPromptTemplate("")}
-                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[#d3d3d3] bg-white px-2.5 text-[13px] font-medium text-[#3b3b3b] hover:bg-[#f8f8f8] transition-colors"
-              >
-                Clear
-              </button>
-            </div>
-          </div>
-
-          <div className="flex-1 flex flex-col min-h-0 gap-3">
-            <textarea
-              value={studyPlanPromptTemplate}
-              onChange={(e) => setStudyPlanPromptTemplate(e.target.value)}
-              className="w-full flex-1 min-h-0 rounded-md border border-[#d8d8d8] bg-white p-3 text-[13px] leading-relaxed text-[#333] outline-none transition-colors focus:border-[#bcbcbc] resize-none"
-              placeholder="ENTER_INSTRUCTION_SET..."
-              disabled={isSavingStudyPlan}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* 4. Study Planner Logic */}
+      {/* 2. Study Planner Logic */}
       <div className={section === "study-planner" ? "h-full flex flex-col" : "hidden"}>
         <div className="bg-white border border-[#e5e5e5] rounded-md p-4 flex flex-col h-full">
           <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#efefef] shrink-0">
@@ -765,127 +606,13 @@ export default function AISettingsCard({
         </div>
       </div>
 
-      {/* 5. Domain Logic */}
-      <div className={section === "topics" ? "h-full flex flex-col" : "hidden"}>
-        <div className="bg-white border border-[#e5e5e5] rounded-md p-4 flex flex-col h-full">
-          <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#efefef] shrink-0">
-            <div className="flex items-center gap-2 text-[#222]">
-              <Tag className="w-4 h-4 text-[#777]" />
-              <span className="text-sm font-semibold">Domain Logic</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={saveTopicsPrompt}
-                disabled={isSavingTopics}
-                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[#d3d3d3] bg-white px-2.5 text-[13px] font-medium text-[#333] hover:bg-[#f8f8f8] transition-colors disabled:opacity-50"
-              >
-                {isSavingTopics ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                Push Domain Logic
-              </button>
-              <button
-                onClick={() => setTopicsPromptTemplate("")}
-                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[#d3d3d3] bg-white px-2.5 text-[13px] font-medium text-[#3b3b3b] hover:bg-[#f8f8f8] transition-colors"
-              >
-                Clear
-              </button>
-            </div>
-          </div>
-
-          <div className="flex-1 flex flex-col min-h-0 gap-3">
-            <textarea
-              value={topicsPromptTemplate}
-              onChange={(e) => setTopicsPromptTemplate(e.target.value)}
-              className="w-full flex-1 min-h-0 rounded-md border border-[#d8d8d8] bg-white p-3 text-[13px] leading-relaxed text-[#333] outline-none transition-colors focus:border-[#bcbcbc] resize-none"
-              placeholder="ENTER_INSTRUCTION_SET..."
-              disabled={isSavingTopics}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* 6. Course Update Search Logic */}
-      <div className={section === "course-update" ? "h-full flex flex-col" : "hidden"}>
-        <div className="bg-white border border-[#e5e5e5] rounded-md p-4 flex flex-col h-full">
-          <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#efefef] shrink-0">
-            <div className="flex items-center gap-2 text-[#222]">
-              <Search className="w-4 h-4 text-[#777]" />
-              <span className="text-sm font-semibold">Course Update Search Logic</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={saveCourseUpdatePrompt}
-                disabled={isSavingCourseUpdate}
-                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[#d3d3d3] bg-white px-2.5 text-[13px] font-medium text-[#333] hover:bg-[#f8f8f8] transition-colors disabled:opacity-50"
-              >
-                {isSavingCourseUpdate ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                Push Update Search Logic
-              </button>
-              <button
-                onClick={() => setCourseUpdatePromptTemplate("")}
-                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[#d3d3d3] bg-white px-2.5 text-[13px] font-medium text-[#3b3b3b] hover:bg-[#f8f8f8] transition-colors"
-              >
-                Clear
-              </button>
-            </div>
-          </div>
-
-          <div className="flex-1 flex flex-col min-h-0 gap-3">
-            <textarea
-              value={courseUpdatePromptTemplate}
-              onChange={(e) => setCourseUpdatePromptTemplate(e.target.value)}
-              className="w-full flex-1 min-h-0 rounded-md border border-[#d8d8d8] bg-white p-3 text-[13px] leading-relaxed text-[#333] outline-none transition-colors focus:border-[#bcbcbc] resize-none"
-              placeholder="ENTER_INSTRUCTION_SET..."
-              disabled={isSavingCourseUpdate}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* 7. Syllabus Retrieve Logic */}
-      <div className={section === "syllabus-retrieve" ? "h-full flex flex-col" : "hidden"}>
-        <div className="bg-white border border-[#e5e5e5] rounded-md p-4 flex flex-col h-full">
-          <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#efefef] shrink-0">
-            <div className="flex items-center gap-2 text-[#222]">
-              <BookOpen className="w-4 h-4 text-[#777]" />
-              <span className="text-sm font-semibold">Syllabus Retrieve Logic</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={saveSyllabusPrompt}
-                disabled={isSavingSyllabus}
-                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[#d3d3d3] bg-white px-2.5 text-[13px] font-medium text-[#333] hover:bg-[#f8f8f8] transition-colors disabled:opacity-50"
-              >
-                {isSavingSyllabus ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                Push Syllabus Logic
-              </button>
-              <button
-                onClick={() => setSyllabusPromptTemplate("")}
-                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[#d3d3d3] bg-white px-2.5 text-[13px] font-medium text-[#3b3b3b] hover:bg-[#f8f8f8] transition-colors"
-              >
-                Clear
-              </button>
-            </div>
-          </div>
-
-          <div className="flex-1 flex flex-col min-h-0 gap-3">
-            <textarea
-              value={syllabusPromptTemplate}
-              onChange={(e) => setSyllabusPromptTemplate(e.target.value)}
-              className="w-full flex-1 min-h-0 rounded-md border border-[#d8d8d8] bg-white p-3 text-[13px] leading-relaxed text-[#333] outline-none transition-colors focus:border-[#bcbcbc] resize-none"
-              placeholder="ENTER_INSTRUCTION_SET..."
-              disabled={isSavingSyllabus}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* 8. Usage Statistics */}
+      {/* 3. Course Generation Logic */}
       <div className={section === "course-intel" ? "h-full flex flex-col" : "hidden"}>
         <div className="bg-white border border-[#e5e5e5] rounded-md p-4 flex flex-col h-full">
           <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#efefef] shrink-0">
             <div className="flex items-center gap-2 text-[#222]">
               <Sparkles className="w-4 h-4 text-[#777]" />
-              <span className="text-sm font-semibold">Course Intel Logic</span>
+              <span className="text-sm font-semibold">Course Generation Logic</span>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -894,7 +621,7 @@ export default function AISettingsCard({
                 className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[#d3d3d3] bg-white px-2.5 text-[13px] font-medium text-[#333] hover:bg-[#f8f8f8] transition-colors disabled:opacity-50"
               >
                 {isSavingCourseIntel ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                Push Course Intel Logic
+                Save Generation Logic
               </button>
               <button
                 onClick={() => setCourseIntelPromptTemplate("")}
