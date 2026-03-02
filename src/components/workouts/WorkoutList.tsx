@@ -10,7 +10,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 interface WorkoutListProps {
   initialWorkouts: Workout[];
-  totalItems: number;
   dict: Dictionary["dashboard"]["workouts"];
   lastUpdated: string | null;
   categoryGroups: Array<{ category: string; count: number; minStudentPrice: number | null; maxStudentPrice: number | null }>;
@@ -19,7 +18,6 @@ interface WorkoutListProps {
 
 export default function WorkoutList({
   initialWorkouts,
-  totalItems,
   dict,
   lastUpdated,
   categoryGroups,
@@ -63,7 +61,6 @@ export default function WorkoutList({
   return (
     <main className="h-full flex flex-col space-y-3 min-w-0">
       <WorkoutListHeader
-        totalItems={totalItems}
         viewMode={effectiveViewMode}
         setViewMode={handleViewModeChange}
         dict={dict}
@@ -73,10 +70,10 @@ export default function WorkoutList({
       <div className={`flex-1 min-h-0 bg-[#fcfcfc] rounded-lg border border-[#e5e5e5] ${effectiveViewMode === "grid" ? "overflow-auto p-3" : "overflow-hidden"}`}>
         {effectiveViewMode === "list" ? (
           <>
-            <div className="hidden md:grid md:grid-cols-[320px_minmax(0,1fr)] min-h-[480px]">
-              <div className="border-r border-[#e5e5e5] bg-[#fafafa]">
-                <div className="px-4 py-2.5 bg-[#f3f3f3] text-[11px] font-semibold text-[#757575] uppercase tracking-wide">Category</div>
-                <div className="max-h-[620px] overflow-y-auto">
+            <div className="hidden md:grid md:grid-cols-[320px_minmax(0,1fr)] h-full min-h-0">
+              <div className="border-r border-[#e5e5e5] bg-[#fafafa] flex flex-col min-h-0">
+                <div className="px-4 py-2.5 bg-[#f3f3f3] border-b border-[#e5e5e5] text-[11px] font-semibold text-[#757575] uppercase tracking-wide">Category</div>
+                <div className="flex-1 min-h-0 overflow-y-auto">
                   {categoryGroups.map((group) => {
                     const priceRange = group.minStudentPrice == null
                       ? "-"
@@ -106,8 +103,8 @@ export default function WorkoutList({
                 </div>
               </div>
 
-              <div>
-                <div className="px-4 py-2.5 bg-[#f3f3f3] text-[11px] font-semibold text-[#757575] uppercase tracking-wide flex items-center justify-between gap-2">
+              <div className="flex flex-col min-h-0">
+                <div className="px-4 py-2.5 bg-[#f3f3f3] border-b border-[#e5e5e5] text-[11px] font-semibold text-[#757575] uppercase tracking-wide flex items-center justify-between gap-2">
                   <span>{selectedGroup ? `${selectedGroup.category} choices` : "Choices"}</span>
                   {selectedActionHref ? (
                     <a href={selectedActionHref} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded border border-[#d6d6d6] bg-white px-2 py-1 text-[11px] text-[#444] hover:bg-[#f4f4f4] normal-case">
@@ -115,7 +112,7 @@ export default function WorkoutList({
                     </a>
                   ) : null}
                 </div>
-                <div className="max-h-[620px] overflow-y-auto divide-y divide-[#efefef]">
+                <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-[#efefef]">
                   {selectedGroup?.items.map((w) => {
                     const title = w.titleEn || w.title;
                     return (

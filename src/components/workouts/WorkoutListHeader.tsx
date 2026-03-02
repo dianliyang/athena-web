@@ -7,14 +7,13 @@ import { LayoutGrid, List, RefreshCw, Search, SlidersHorizontal, X } from "lucid
 import { useAppToast } from "@/components/common/AppToastProvider";
 
 interface WorkoutListHeaderProps {
-  totalItems: number;
   viewMode: "list" | "grid";
   setViewMode: (mode: "list" | "grid") => void;
   dict: Dictionary["dashboard"]["workouts"];
   lastUpdated: string | null;
 }
 
-export default function WorkoutListHeader({ totalItems, viewMode, setViewMode, dict, lastUpdated }: WorkoutListHeaderProps) {
+export default function WorkoutListHeader({ viewMode, setViewMode, dict, lastUpdated }: WorkoutListHeaderProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sortBy = searchParams.get("sort") || "title";
@@ -187,12 +186,9 @@ export default function WorkoutListHeader({ totalItems, viewMode, setViewMode, d
 
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-0">
-          <span className="text-xs font-medium text-[#1f1f1f]">
-            {totalItems} {dict?.found_suffix || "workouts"}
-          </span>
           {formattedUpdate && (
             <span className="text-xs font-medium text-brand-blue">
-              {" · "}Updated {formattedUpdate}
+              Updated {formattedUpdate}
             </span>
           )}
         </div>

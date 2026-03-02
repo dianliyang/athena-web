@@ -91,7 +91,6 @@ async function WorkoutListData({ params, dict }: {
   return (
     <WorkoutList 
       initialWorkouts={dbWorkouts.items}
-      totalItems={dbWorkouts.total}
       dict={dict}
       lastUpdated={lastUpdated}
       categoryGroups={dbWorkouts.categoryGroups}
