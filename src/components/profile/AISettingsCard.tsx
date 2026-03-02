@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   deactivateAiModelPricing,
@@ -140,8 +140,9 @@ export default function AISettingsCard({
     if (value === "openai") return "openai";
     return "perplexity";
   };
-  const modelsForProvider = (p: AIProvider) =>
-    p === "gemini" ? geminiModels : p === "openai" ? openaiModels : perplexityModels;
+  const modelsForProvider = useCallback((p: AIProvider) =>
+    p === "gemini" ? geminiModels : p === "openai" ? openaiModels : perplexityModels,
+  [geminiModels, openaiModels, perplexityModels]);
   const [provider, setProvider] = useState<AIProvider>(normalizeProvider(initialProvider));
   const [defaultModel, setDefaultModel] = useState(initialModel);
   const [webSearchEnabled, setWebSearchEnabled] = useState(initialWebSearchEnabled);
@@ -191,7 +192,7 @@ export default function AISettingsCard({
     if (!available.includes(defaultModel)) {
       setDefaultModel(available[0]);
     }
-  }, [provider, defaultModel, geminiModels, perplexityModels, openaiModels]);
+  }, [provider, defaultModel, modelsForProvider]);
 
   useEffect(() => {
     if (section !== "usage") return;

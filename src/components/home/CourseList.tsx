@@ -8,7 +8,7 @@ import CourseListHeader from "./CourseListHeader";
 import Pagination from "./Pagination";
 import { useAppToast } from "@/components/common/AppToastProvider";
 import { Check, EyeOff, Loader2, Trash2, WandSparkles } from "lucide-react";
-import { clearTopicsForCoursesAction, fetchCoursesAction, generateTopicsForCoursesAction, hideCoursesAction } from "@/actions/courses";
+import { clearTopicsForCoursesAction, generateTopicsForCoursesAction, hideCoursesAction } from "@/actions/courses";
 import { useRouter, useSearchParams } from "next/navigation";
 import { trackAiUsage } from "@/lib/ai/usage";
 

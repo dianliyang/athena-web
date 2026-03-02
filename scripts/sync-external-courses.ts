@@ -1,5 +1,3 @@
-/* eslint-disable no-console */
-
 type ExternalCourse = {
   code?: string;
   university?: string;
