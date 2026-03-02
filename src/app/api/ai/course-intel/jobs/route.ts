@@ -13,7 +13,7 @@ import {
 } from "@/lib/ai/course-intel-jobs";
 
 export const runtime = "nodejs";
-const COURSE_INTEL_JOB_TIMEOUT_MS = 5 * 60 * 1000;
+const COURSE_INTEL_JOB_TIMEOUT_MS = 10 * 60 * 1000;
 const COURSE_INTEL_CACHE_TTL_SECONDS = 2 * 60 * 60;
 
 type CourseIntelBroadcastEvent = {
@@ -250,7 +250,7 @@ async function executeCourseIntelJob(params: {
     const timeoutPromise = new Promise<never>((_, reject) => {
       timeoutHandle = setTimeout(() => {
         timedOut = true;
-        reject(new Error("AI sync timed out after 5 minutes. Job terminated."));
+        reject(new Error("AI sync timed out after 10 minutes. Job terminated."));
       }, COURSE_INTEL_JOB_TIMEOUT_MS);
     });
 

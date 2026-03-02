@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/server";
-const COURSE_INTEL_STALE_TIMEOUT = "5 minutes";
+const COURSE_INTEL_STALE_TIMEOUT = "10 minutes";
 
 type ActivityItem = {
   ts: string;
@@ -43,7 +43,7 @@ async function failStaleCourseIntelJobsForUser(userId: string) {
     .eq("triggered_by_user_id", userId)
     .eq("job_type", "course-intel")
     .in("status", ["queued", "running"])
-    .lt("started_at", new Date(Date.now() - 5 * 60 * 1000).toISOString());
+    .lt("started_at", new Date(Date.now() - 10 * 60 * 1000).toISOString());
 }
 
 export async function startCourseIntelJob(input: {

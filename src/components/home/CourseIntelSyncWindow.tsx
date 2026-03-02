@@ -17,9 +17,17 @@ function formatTs(value: string) {
 
 function formatDetails(details: unknown): string {
   if (!details || typeof details !== "object" || Array.isArray(details)) return "";
-  const entries = Object.entries(details as Record<string, unknown>)
+  const source = details as Record<string, unknown>;
+  const preferredOrder = ["hasExistingData", "sourceModeEffective", "sourceModeRequested"];
+  const preferredEntries = preferredOrder
+    .filter((key) => key in source)
+    .map((key) => [key, source[key]] as const);
+  const remainingEntries = Object.entries(source).filter(
+    ([key]) => !preferredOrder.includes(key)
+  );
+  const entries = [...preferredEntries, ...remainingEntries]
     .filter(([, v]) => typeof v === "string" || typeof v === "number" || typeof v === "boolean")
-    .slice(0, 3);
+    .slice(0, 4);
   if (entries.length === 0) return "";
   return entries
     .map(([k, v]) => `${k}: ${String(v)}`)
@@ -64,20 +72,26 @@ export default function CourseIntelSyncWindow() {
               </div>
               <p className="mt-1 text-xs text-[#666]">{latestMessage || "Processing..."} <span className="text-[#999]">({sourceMode})</span></p>
               {activity.length > 0 && (
-                <div className="mt-2 max-h-28 space-y-1 overflow-y-auto pr-1">
+                <div className="mt-2 max-h-28 space-y-0.5 overflow-y-auto pr-1">
                   {activity.slice(-6).map((item, idx) => {
-                    const line = formatDetails(item.details);
+                    const caption = formatDetails(item.details);
+                    const status = formatStage(item.stage);
                     return (
-                      <div key={`${item.ts}-${idx}`} className="rounded border border-[#efefef] bg-[#fafafa] px-1.5 py-1">
-                        <div className="flex items-center justify-between gap-2 text-[10px] text-[#666]">
-                          <span className="font-medium uppercase tracking-wide">{formatStage(item.stage)}</span>
-                          <span>{formatTs(item.ts)}{typeof item.progress === "number" ? ` · ${item.progress}%` : ""}</span>
-                        </div>
-                        <p className="text-[11px] text-[#4f4f4f]">{item.message || "Processing..."}</p>
-                        {line && <p className="text-[10px] text-[#7a7a7a]">{line}</p>}
-                      </div>
+                      <p key={`${item.ts}-${idx}`} className="text-[11px] leading-relaxed text-[#4f4f4f]">
+                        <span className="text-[#8a8a8a]">[{formatTs(item.ts) || "--:--:--"}]</span>{" "}
+                        <span className="font-semibold capitalize text-[#2f6db5]">{status}</span>{" "}
+                        <span className="text-[#2f2f2f]">{item.message || "Processing..."}</span>
+                        {caption ? <span className="text-[#7a7a7a]"> {caption}</span> : null}
+                        {typeof item.progress === "number" ? <span className="text-[#6f6f6f]"> · {item.progress}%</span> : null}
+                      </p>
                     );
                   })}
+                  <p className="inline-flex items-center gap-1.5 text-[11px] leading-relaxed text-[#6f6f6f]">
+                    <Loader2 className="h-3 w-3 animate-spin text-[#7a7a7a]" />
+                    <span className="text-[#8a8a8a]">[{formatTs(new Date().toISOString()) || "--:--:--"}]</span>{" "}
+                    <span className="font-semibold capitalize text-[#2f6db5]">running</span>{" "}
+                    <span className="animate-pulse text-[#5f5f5f]">Waiting for next output...</span>
+                  </p>
                 </div>
               )}
               <div className="mt-2 h-1.5 rounded bg-[#efefef]">
