@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/server";
+const COURSE_INTEL_STALE_TIMEOUT = "5 minutes";
 
 type ActivityItem = {
   ts: string;
@@ -28,6 +29,21 @@ function parseCourseIdFromFallbackUniversity(university: unknown): number | null
 async function updateJob(jobId: number, patch: Record<string, unknown>) {
   const supabase = createAdminClient() as any; // eslint-disable-line @typescript-eslint/no-explicit-any
   await supabase.from("scraper_jobs").update(patch).eq("id", jobId);
+}
+
+async function failStaleCourseIntelJobsForUser(userId: string) {
+  const supabase = createAdminClient() as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  await supabase
+    .from("scraper_jobs")
+    .update({
+      status: "failed",
+      completed_at: new Date().toISOString(),
+      error: `AI sync timed out after ${COURSE_INTEL_STALE_TIMEOUT}. Job terminated.`,
+    })
+    .eq("triggered_by_user_id", userId)
+    .eq("job_type", "course-intel")
+    .in("status", ["queued", "running"])
+    .lt("started_at", new Date(Date.now() - 5 * 60 * 1000).toISOString());
 }
 
 export async function startCourseIntelJob(input: {
@@ -151,6 +167,7 @@ export async function failCourseIntelJob(jobId: number, error: unknown) {
 }
 
 export async function getLatestCourseIntelJob(userId: string, courseId: number) {
+  await failStaleCourseIntelJobsForUser(userId);
   const supabase = createAdminClient() as any; // eslint-disable-line @typescript-eslint/no-explicit-any
   const { data, error } = await supabase
     .from("scraper_jobs")
@@ -199,6 +216,7 @@ export async function getLatestCourseIntelJob(userId: string, courseId: number) 
 }
 
 export async function getRecentCourseIntelJobs(userId: string, limit = 20) {
+  await failStaleCourseIntelJobsForUser(userId);
   const supabase = createAdminClient() as any; // eslint-disable-line @typescript-eslint/no-explicit-any
   const { data, error } = await supabase
     .from("scraper_jobs")

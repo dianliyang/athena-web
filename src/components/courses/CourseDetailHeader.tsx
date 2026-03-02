@@ -130,6 +130,15 @@ export default function CourseDetailHeader({
   }, [course.id, isAiUpdating]);
 
   useEffect(() => {
+    if (!isAiUpdating) return;
+    const timer = window.setInterval(() => {
+      void loadLatestJob();
+    }, 8000);
+    return () => window.clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAiUpdating, course.id]);
+
+  useEffect(() => {
     if (!aiJob) {
       previousJobRef.current = null;
       return;

@@ -108,6 +108,14 @@ export function useCourseIntelSyncJobs() {
     }
   }, [closeChannel, hasActive, hasSubscribed, openChannel]);
 
+  useEffect(() => {
+    if (!hasActive) return;
+    const timer = window.setInterval(() => {
+      void loadJobs();
+    }, 8000);
+    return () => window.clearInterval(timer);
+  }, [hasActive, loadJobs]);
+
   return {
     items,
     activeJobs,
