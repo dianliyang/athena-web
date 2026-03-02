@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ExternalLink } from "lucide-react";
 
 // ---- types ----------------------------------------------------------------
@@ -131,6 +131,10 @@ export default function CourseSyllabusTable({
   const [showAllGrading, setShowAllGrading] = useState(false);
   const [showAllObjectives, setShowAllObjectives] = useState(false);
   const [showAllPolicies, setShowAllPolicies] = useState(false);
+  const [hasOverflowObjectives, setHasOverflowObjectives] = useState(false);
+  const [hasOverflowPolicies, setHasOverflowPolicies] = useState(false);
+  const objectivesRef = useRef<HTMLDivElement | null>(null);
+  const policiesRef = useRef<HTMLParagraphElement | null>(null);
   const clearApplied = clearSignal > 0;
 
   const filteredSchedule = schedule.filter((e) => {
@@ -171,6 +175,18 @@ export default function CourseSyllabusTable({
 
     return hasNonDateContent;
   });
+
+  useEffect(() => {
+    const el = objectivesRef.current;
+    if (!el) return;
+    setHasOverflowObjectives(el.scrollHeight > el.clientHeight + 1);
+  }, [content.objectives, showAllObjectives]);
+
+  useEffect(() => {
+    const el = policiesRef.current;
+    if (!el) return;
+    setHasOverflowPolicies(el.scrollHeight > el.clientHeight + 1);
+  }, [content.policies, showAllPolicies]);
 
   return (
     <div className="space-y-4">
@@ -317,20 +333,22 @@ export default function CourseSyllabusTable({
           {content.objectives && content.objectives.length > 0 && (
             <div className="rounded-lg border border-[#e5e5e5] bg-[#fcfcfc] p-4">
               <h3 className="text-sm font-semibold text-[#1f1f1f] mb-3">Objectives</h3>
-              <div className={showAllObjectives ? "" : "line-clamp-3"}>
+              <div ref={objectivesRef} className={showAllObjectives ? "" : "line-clamp-3"}>
                 <ul className="space-y-1.5 list-disc list-inside">
                   {content.objectives.map((o, i) => (
                     <li key={i} className="text-sm text-[#555] leading-relaxed">{o}</li>
                   ))}
                 </ul>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowAllObjectives((v) => !v)}
-                className="mt-1 text-xs font-medium text-[#335b9a] hover:underline"
-              >
-                {showAllObjectives ? "Less" : "More"}
-              </button>
+              {(hasOverflowObjectives || showAllObjectives) && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllObjectives((v) => !v)}
+                  className="mt-1 text-xs font-medium text-[#335b9a] hover:underline"
+                >
+                  {showAllObjectives ? "Less" : "More"}
+                </button>
+              )}
             </div>
           )}
           {content.textbooks && content.textbooks.length > 0 && (
@@ -367,16 +385,21 @@ export default function CourseSyllabusTable({
           {content.policies && (
             <div className="rounded-lg border border-[#e5e5e5] bg-[#fcfcfc] p-4">
               <h3 className="text-sm font-semibold text-[#1f1f1f] mb-3">Policies</h3>
-              <p className={`text-sm text-[#555] leading-relaxed whitespace-pre-wrap ${showAllPolicies ? "" : "line-clamp-3"}`}>
+              <p
+                ref={policiesRef}
+                className={`text-sm text-[#555] leading-relaxed whitespace-pre-wrap ${showAllPolicies ? "" : "line-clamp-3"}`}
+              >
                 {renderPolicies(content.policies)}
               </p>
-              <button
-                type="button"
-                onClick={() => setShowAllPolicies((v) => !v)}
-                className="mt-1 text-xs font-medium text-[#335b9a] hover:underline"
-              >
-                {showAllPolicies ? "Less" : "More"}
-              </button>
+              {(hasOverflowPolicies || showAllPolicies) && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllPolicies((v) => !v)}
+                  className="mt-1 text-xs font-medium text-[#335b9a] hover:underline"
+                >
+                  {showAllPolicies ? "Less" : "More"}
+                </button>
+              )}
             </div>
           )}
         </div>
