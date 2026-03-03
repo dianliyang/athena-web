@@ -253,38 +253,84 @@ export function parseLooseDailyPlanText(raw: string, todayIso: string): DailyPla
 
 export function buildFallbackDailyPlan(tasks: PlanSeedTask[], todayIso: string, windowDays = 21): DailyPlan {
   const today = new Date(`${todayIso}T00:00:00.000Z`);
+  const horizon = Math.max(1, windowDays);
+  const allDates = Array.from({ length: horizon }, (_, idx) =>
+    toIsoDateUtc(new Date(today.getTime() + idx * 86400000))
+  );
   const byDate = new Map<string, DailyPlanTask[]>();
+  const dayMinutes = new Map<string, number>();
+  const weekMinutes = new Map<string, number>();
+  const maxTasksPerDay = 3;
+  const maxMinutesPerDay = 210;
+  const maxMinutesPerWeek = 720;
   const sorted = [...tasks].sort((a, b) => {
     const ad = a.due_on || "9999-12-31";
     const bd = b.due_on || "9999-12-31";
     return ad.localeCompare(bd);
   });
-  let rollingIndex = 0;
+
+  const weekKey = (dateIso: string) => {
+    const date = new Date(`${dateIso}T00:00:00.000Z`);
+    const day = date.getUTCDay() || 7;
+    date.setUTCDate(date.getUTCDate() - day + 1);
+    return toIsoDateUtc(date);
+  };
+
+  const pickTargetDate = (preferred: string | null, minutes: number): string => {
+    const candidates = (preferred && preferred >= todayIso && allDates.includes(preferred))
+      ? [preferred, ...allDates.filter((d) => d !== preferred)]
+      : allDates;
+    let best = candidates[0];
+    let bestScore = Number.POSITIVE_INFINITY;
+    for (const date of candidates) {
+      const tasksInDay = (byDate.get(date) || []).length;
+      const usedDayMinutes = dayMinutes.get(date) || 0;
+      const wk = weekKey(date);
+      const usedWeekMinutes = weekMinutes.get(wk) || 0;
+      const overflowPenalty =
+        (tasksInDay >= maxTasksPerDay ? 1000 : 0) +
+        (usedDayMinutes + minutes > maxMinutesPerDay ? 600 : 0) +
+        (usedWeekMinutes + minutes > maxMinutesPerWeek ? 400 : 0);
+      const score = overflowPenalty + tasksInDay * 50 + usedDayMinutes * 0.2 + usedWeekMinutes * 0.05;
+      if (score < bestScore) {
+        best = date;
+        bestScore = score;
+      }
+    }
+    return best;
+  };
+
   for (const task of sorted) {
-    const target = task.due_on && task.due_on >= todayIso
-      ? task.due_on
-      : toIsoDateUtc(new Date(today.getTime() + (rollingIndex % Math.max(1, windowDays)) * 86400000));
-    const day = byDate.get(target) || [];
     const minutes = task.kind === "reading"
       ? 45
       : task.kind === "quiz"
-        ? 30
+        ? 35
         : task.kind === "exam"
           ? 120
-          : 75;
+          : task.kind === "project"
+            ? 110
+            : 75;
+    const target = pickTargetDate(task.due_on && task.due_on >= todayIso ? task.due_on : null, minutes);
+    const day = byDate.get(target) || [];
     day.push({ title: task.title, kind: task.kind, minutes });
     byDate.set(target, day);
-    rollingIndex += 1;
+    dayMinutes.set(target, (dayMinutes.get(target) || 0) + minutes);
+    const wk = weekKey(target);
+    weekMinutes.set(wk, (weekMinutes.get(wk) || 0) + minutes);
   }
-  const days = Array.from(byDate.entries())
-    .filter(([date]) => date >= todayIso)
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .slice(0, windowDays)
-    .map(([date, dayTasks]) => ({
-      date,
-      focus: dayTasks[0]?.kind === "reading" ? "Reading" : "Course Work",
-      tasks: dayTasks.slice(0, 4),
-    }));
+
+  const days = allDates
+    .map((date) => {
+      const dayTasks = byDate.get(date) || [];
+      if (dayTasks.length === 0) return null;
+      return {
+        date,
+        focus: dayTasks[0]?.kind === "reading" ? "Reading" : "Course Work",
+        tasks: dayTasks.slice(0, 4),
+      };
+    })
+    .filter((day): day is DailyPlanDay => Boolean(day));
+
   return { days };
 }
 
@@ -398,18 +444,23 @@ export function buildCourseSchedulesFromDailyPlan(input: {
     updated_at: string;
   }> = [];
 
+  const seen = new Set<string>();
   for (const day of input.plan.days) {
     const scheduleDate = normalizeDate(day.date);
     if (!scheduleDate) continue;
     for (const task of day.tasks) {
       const taskTitle = normalizeTitle(task.title);
       if (!taskTitle) continue;
+      const taskKind = task.kind ? normalizeKind(task.kind) : null;
+      const dedupeKey = `${scheduleDate}|${taskTitle.toLowerCase()}|${String(taskKind || "").toLowerCase()}`;
+      if (seen.has(dedupeKey)) continue;
+      seen.add(dedupeKey);
       rows.push({
         course_id: input.courseId,
         syllabus_id: input.syllabusId,
         schedule_date: scheduleDate,
         focus: normalizeTitle(day.focus) || null,
-        task_kind: task.kind ? normalizeKind(task.kind) : null,
+        task_kind: taskKind,
         task_title: taskTitle,
         duration_minutes: Number.isFinite(Number(task.minutes)) ? Number(task.minutes) : null,
         source: "ai_course_intel",
