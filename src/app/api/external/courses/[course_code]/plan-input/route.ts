@@ -11,6 +11,7 @@ type PlanTaskKind =
   | "quiz"
   | "exam"
   | "task";
+type PlanRetrieveMode = "fresh" | "existing" | "hybrid";
 
 function toIsoDate(value: unknown): string | null {
   if (typeof value !== "string") return null;
@@ -69,6 +70,11 @@ export async function GET(
   if (!courseCode) {
     return NextResponse.json({ error: "Invalid course_code" }, { status: 400 });
   }
+  const rawMode = (request.nextUrl.searchParams.get("mode") || "hybrid").trim().toLowerCase();
+  if (!["fresh", "existing", "hybrid"].includes(rawMode)) {
+    return NextResponse.json({ error: "Invalid mode. Use fresh|existing|hybrid" }, { status: 400 });
+  }
+  const mode = rawMode as PlanRetrieveMode;
 
   try {
     const supabase = createAdminClient();
@@ -215,6 +221,7 @@ export async function GET(
 
     return NextResponse.json({
       success: true,
+      mode,
       course: {
         id: data.id,
         code: data.course_code,
@@ -226,9 +233,9 @@ export async function GET(
       },
       planInput: {
         planningWindow: {
-          startDate: latestPlan?.start_date ?? null,
-          endDate: latestPlan?.end_date ?? null,
-          source: latestPlan ? "study_plan" : "default",
+          startDate: mode === "fresh" ? null : latestPlan?.start_date ?? null,
+          endDate: mode === "fresh" ? null : latestPlan?.end_date ?? null,
+          source: mode === "fresh" ? "mode_fresh" : latestPlan ? "study_plan" : "default",
         },
         sources: {
           primaryUrl: typeof data.url === "string" ? data.url : null,
@@ -236,10 +243,16 @@ export async function GET(
           syllabusSourceUrl: typeof syllabus?.source_url === "string" ? syllabus.source_url : null,
         },
         signals: {
-          lectures,
-          tasks: dedupedTasks,
+          lectures: mode === "fresh" ? [] : lectures,
+          tasks: mode === "fresh" ? [] : dedupedTasks,
         },
         counts: {
+          scheduleRows: mode === "fresh" ? 0 : scheduleRows.length,
+          assignments: mode === "fresh" ? 0 : assignmentRows.length,
+          normalizedTasks: mode === "fresh" ? 0 : dedupedTasks.length,
+        },
+        existingData: {
+          hasStudyPlan: !!latestPlan,
           scheduleRows: scheduleRows.length,
           assignments: assignmentRows.length,
           normalizedTasks: dedupedTasks.length,
@@ -253,4 +266,3 @@ export async function GET(
     );
   }
 }
-

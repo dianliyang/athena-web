@@ -8,7 +8,7 @@ description: Use when an external agent (without this codebase) must build and s
 ## Retrieve APIs
 Use only these API endpoints from `https://course.oili.dev`:
 
-1. `GET /api/external/courses/:course_code/plan-input`
+1. `GET /api/external/courses/:course_code/plan-input?mode=:mode`
 Purpose: primary generation input.
 
 2. `GET /api/external/courses/:course_code`
@@ -24,35 +24,58 @@ Writes: `courses`, `study_plans`, `course_syllabi`, `course_schedules`, `course_
 ## Authentication
 - Header: `x-api-key: <API_KEY>`
 - Content-Type for submit: `application/json`
+- Default from env: `CM_API_KEY`
 
 ## Required Inputs
 - `base_url` (default `https://course.oili.dev`)
-- `api_key`
+- `api_key` (default from env `CM_API_KEY`)
 - `course_code`
-- Optional `user_id` (server auto-resolves if omitted)
+- Optional `user_id` (default from env `CM_USER_ID`; server auto-resolves if omitted)
+- `mode` (required user choice before retrieval): `fresh|existing|hybrid`
 
 ## Agent Workflow (No Codebase Dependency)
-1. Call `GET /api/external/courses/:course_code/plan-input`.
-2. Check if data is sufficient:
+1. Ask user to choose planning mode: `fresh`, `existing`, or `hybrid`.
+   - `fresh`: retrieve minimal required course/source context and exclude existing plan/signal payload from `plan-input`.
+   - `existing`: retrieve and use existing plan/signal payload as-is.
+   - `hybrid`: retrieve existing payload and merge with new retrieval/internet findings.
+2. Call `GET /api/external/courses/:course_code/plan-input?mode=:mode` using the selected mode.
+3. Show retrieved data summary to user before planning:
+   - Course metadata found/missing.
+   - Number of lectures/tasks/assignments and detected date window.
+   - Existing plan/schedule presence (if any).
+4. Check if data is sufficient:
    - At least one source URL (`primaryUrl` or `resources`)
    - Non-empty signals (`lectures` or `tasks`)
    - Reasonable planning window (`startDate/endDate` or inferable duration)
-3. If insufficient, retrieve from internet directly:
+5. If insufficient, retrieve from internet directly:
    - Crawl official course pages from known URLs.
    - Search web for syllabus/assignments/calendar pages.
    - Extract: lecture timeline, readings, labs, assignments, projects, quizzes, exams.
-4. Normalize tasks:
+6. Normalize tasks:
    - Kinds: `reading|lecture|lab|assignment|project|quiz|exam|task`
    - Remove duplicates by `(kind,title,due date)`
    - Keep only actionable items.
-5. Generate practical schedule:
+   - Semester rule: use latest semester data/pages first; if insufficient, fallback to older archived semester pages.
+7. Complete missing course fields only (do not overwrite existing values):
+   - `description`
+   - `units`
+   - `workload`
+   - `level`
+   - `category`
+8. Generate practical schedule according to selected mode:
    - Start from today or study-plan start date (whichever is later).
    - Spread workload across days/weeks.
-   - Max 3-4 tasks/day.
+   - Max 2-3 tasks/day for normal days.
    - Avoid overloading a single week.
    - Preserve sequence for numbered series (Project 1 before Project 2).
-6. Validate JSON payload (strict checks below).
-7. Call `POST /api/external/courses/:course_code/plan-submit`.
+   - Add break capacity: at least 1 light/rest day per 7-day window.
+   - Avoid consecutive heavy days when possible.
+   - Use a rolling horizon: detailed day-level tasks for the next 21 days; beyond that, keep at most 1 lighter placeholder/planning task per week until closer to due dates.
+   - Compute weekly capacity from `daysOfWeek`, `startTime`, and `endTime`; target about 60-85% of that capacity, not 100%.
+   - If required work cannot fit without cramming, extend schedule range or mark carry-over tasks instead of increasing daily load.
+9. Validate JSON payload (strict checks below).
+10. Call `POST /api/external/courses/:course_code/plan-submit`.
+11. After reporting submit result, ask the user to clear any exported env vars used for this run (for example `unset CM_API_KEY CM_USER_ID API_KEY`).
 
 ## Validation Rules Before Submit
 - `plan.days` exists and non-empty.
@@ -60,10 +83,21 @@ Writes: `courses`, `study_plans`, `course_syllabi`, `course_schedules`, `course_
   - `date` in `YYYY-MM-DD`
   - `tasks` array with non-empty `title`
 - No date before today unless explicitly required by user.
+- `studyPlan.startDate` must be today or later; if source dates are in the past, convert to catch-up priorities instead of backdating plan days.
+- Must include explicit `mode` choice (`fresh|existing|hybrid`) before generation.
 - No task explosion:
-  - Prefer <=4 tasks/day
+  - Prefer <=3 tasks/day (<=2 for most days)
   - Weekly load balanced (no single week containing majority of heavy tasks)
+  - Keep at least 2 light/rest days per 7-day window when planning range is 3+ weeks
 - `scheduleRows` and `assignments` (if provided) must be consistent with `plan`.
+- Course patch fields should only be sent when currently missing.
+- Semester source rule:
+  - prefer latest semester records/pages;
+  - if latest semester lacks required tasks/schedule details, fallback to older archive.
+- Schedule intensity rule:
+  - no more than 2 heavy days in any rolling 7-day window,
+  - include at least 1 light/rest day in any rolling 7-day window.
+  - for plans longer than 6 weeks, keep far-future weeks sparse and avoid fully packing every week.
 
 ## Submit Payload Template
 ```json
@@ -72,6 +106,10 @@ Writes: `courses`, `study_plans`, `course_syllabi`, `course_schedules`, `course_
   "replaceExisting": true,
   "course": {
     "description": "only if missing",
+    "units": "only if missing",
+    "workload": 3,
+    "level": "only if missing",
+    "category": "only if missing",
     "subdomain": "only if missing",
     "url": "https://...",
     "resources": ["https://..."]
