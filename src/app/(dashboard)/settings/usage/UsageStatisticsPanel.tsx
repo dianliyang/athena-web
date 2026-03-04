@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
+import { Card, CardContent } from "@/components/ui/card";
 
 type UsageStats = {
   totals: { requests: number; tokens_input: number; tokens_output: number; cost_usd: number };
@@ -25,11 +25,15 @@ type UsageStats = {
 
 function StatBlock({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-sm border p-3">
+    <Card className="h-full">
+      <CardContent>
+        <div>
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 text-2xl font-semibold tracking-tight">{value}</p>
-      {sub ? <p className="mt-1 text-xs text-muted-foreground">{sub}</p> : null}
-    </div>
+      <p className="mt-0.5 text-2xl font-semibold tracking-tight">{value}</p>
+        </div>
+      {sub ? <p className="mt-1 text-xs text-muted-foreground">{sub}</p> : <span />}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -94,27 +98,39 @@ export default function UsageStatisticsPanel() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatBlock
-          label="Requests"
-          value={stats.totals.requests.toLocaleString()}
-          sub={`${stats.recentTotals.requests.toLocaleString()} in last 7 days`}
-        />
-        <StatBlock label="Input Tokens" value={stats.totals.tokens_input.toLocaleString()} />
-        <StatBlock label="Output Tokens" value={stats.totals.tokens_output.toLocaleString()} />
-        <StatBlock
-          label="Total Cost (USD)"
-          value={`$${Number(stats.totals.cost_usd || 0).toFixed(4)}`}
-          sub={`$${Number(stats.recentTotals.cost_usd || 0).toFixed(4)} in last 7 days`}
-        />
+    <div className="px-4 space-y-3">
+      <div>
+        <h3 className="text-2xl font-semibold tracking-tight text-[#1f1f1f]">Usage Statistics</h3>
+        <p className="mt-1 text-sm text-muted-foreground">Requests, token usage, cost trends, and recent AI responses.</p>
       </div>
 
-      <Separator />
+      <div className="flex gap-2 overflow-x-auto">
+        <div className="min-w-[190px] flex-1">
+          <StatBlock
+            label="Requests"
+            value={stats.totals.requests.toLocaleString()}
+            sub={`${stats.recentTotals.requests.toLocaleString()} in last 7 days`}
+          />
+        </div>
+        <div className="min-w-[190px] flex-1">
+          <StatBlock label="Input Tokens" value={stats.totals.tokens_input.toLocaleString()} />
+        </div>
+        <div className="min-w-[190px] flex-1">
+          <StatBlock label="Output Tokens" value={stats.totals.tokens_output.toLocaleString()} />
+        </div>
+        <div className="min-w-[190px] flex-1">
+          <StatBlock
+            label="Total Cost (USD)"
+            value={`$${Number(stats.totals.cost_usd || 0).toFixed(4)}`}
+            sub={`$${Number(stats.recentTotals.cost_usd || 0).toFixed(4)} in last 7 days`}
+          />
+        </div>
+      </div>
 
-      <section className="space-y-2">
+      <section className="space-y-1.5">
         <h4 className="text-sm font-semibold">Daily Activity</h4>
-        <div className="rounded-sm border p-3">
+        <Card>
+          <CardContent>
           {dailyRows.length > 0 ? (
             <div className="grid h-28 grid-cols-7 items-end gap-2">
               {dailyRows.map(([day, row]) => (
@@ -135,13 +151,13 @@ export default function UsageStatisticsPanel() {
           ) : (
             <p className="text-sm text-muted-foreground">No daily activity.</p>
           )}
-        </div>
+          </CardContent>
+        </Card>
       </section>
 
-      <Separator />
-
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <section className="rounded-sm border p-3">
+      <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-2">
+        <Card>
+          <CardContent>
           <h4 className="text-sm font-semibold">By Feature</h4>
           <div className="mt-2 space-y-2">
             {featureRows.length > 0 ? (
@@ -157,9 +173,11 @@ export default function UsageStatisticsPanel() {
               <p className="text-sm text-muted-foreground">No feature data.</p>
             )}
           </div>
-        </section>
+          </CardContent>
+        </Card>
 
-        <section className="rounded-sm border p-3">
+        <Card>
+          <CardContent>
           <h4 className="text-sm font-semibold">By Model</h4>
           <div className="mt-2 space-y-2">
             {modelRows.length > 0 ? (
@@ -175,12 +193,12 @@ export default function UsageStatisticsPanel() {
               <p className="text-sm text-muted-foreground">No model data.</p>
             )}
           </div>
-        </section>
+          </CardContent>
+        </Card>
       </div>
 
-      <Separator />
-
-      <section className="rounded-sm border p-3">
+      <Card>
+        <CardContent>
         <h4 className="text-sm font-semibold">Recent AI Responses</h4>
         {stats.recentResponses.length > 0 ? (
           <div className="mt-2 overflow-x-auto">
@@ -216,7 +234,8 @@ export default function UsageStatisticsPanel() {
         ) : (
           <p className="mt-2 text-sm text-muted-foreground">No recent responses.</p>
         )}
-      </section>
+        </CardContent>
+      </Card>
     </div>
   );
 }

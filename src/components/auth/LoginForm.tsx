@@ -78,7 +78,7 @@ export default function LoginForm({ onMagicLink, sent: initialSent, dict }: Logi
           {dict?.title || "Sign In"}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {dict?.subtitle || "Connect to the Flash node"}
+          {dict?.subtitle || "Connect to the Athena node"}
         </p>
       </div>
 

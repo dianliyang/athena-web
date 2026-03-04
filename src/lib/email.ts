@@ -74,7 +74,7 @@ export async function sendStudyReminderEmail(data: StudyReminderEmailData) {
 </head>
 <body>
   <div class="container">
-    <div class="logo">Flash<span class="dot">.</span>
+    <div class="logo">Athena<span class="dot">.</span>
       <div style="font-size:10px;font-weight:600;color:#9ca3af;letter-spacing:0.15em;text-transform:uppercase;margin-top:2px;">Learn &middot; Build &middot; Achieve</div>
     </div>
     <div class="content">
@@ -105,7 +105,7 @@ export async function sendStudyReminderEmail(data: StudyReminderEmailData) {
       </div>
     </div>
     <div class="footer">
-      <p class="footer-text">Flash &middot; Smart Academic Planner &middot; 2026</p>
+      <p class="footer-text">Athena &middot; Smart Academic Planner &middot; 2026</p>
     </div>
   </div>
 </body>

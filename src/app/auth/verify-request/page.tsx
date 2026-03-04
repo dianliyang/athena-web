@@ -15,14 +15,14 @@ export default async function VerifyRequestPage() {
         <div className="relative z-10">
           <Link href="/" className="flex items-center gap-3 w-fit">
             <Image
-              src="/flash.svg"
-              alt="Flash"
+              src="/athena.svg"
+              alt="Athena"
               width={48}
               height={48}
               className="w-12 h-12 brightness-200" />
             
             <div className="flex flex-col -space-y-1.5">
-              <span className="font-brand text-2xl font-bold tracking-tight text-white">Flash</span>
+              <span className="font-brand text-2xl font-bold tracking-tight text-white">Athena</span>
               <span className="text-xs font-medium text-brand-blue">{dict.navbar.global_network}</span>
             </div>
           </Link>
@@ -57,8 +57,8 @@ export default async function VerifyRequestPage() {
           {/* Mobile Logo Only */}
           <div className="lg:hidden flex justify-center mb-12">
             <Image
-              src="/flash.svg"
-              alt="Flash"
+              src="/athena.svg"
+              alt="Athena"
               width={64}
               height={64}
               className="w-16 h-16" />

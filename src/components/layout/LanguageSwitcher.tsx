@@ -15,22 +15,24 @@ export default function LanguageSwitcher({ currentLang }: {currentLang: Locale;}
   };
 
   return (
-    <div className="flex gap-4">
-      <Button variant="outline"
-      onClick={() => handleLanguageChange('en')}
-      disabled={isPending}>
-
-        
+    <div className="inline-flex items-center rounded-full border p-0.5">
+      <Button
+        variant={currentLang === "en" ? "secondary" : "ghost"}
+        onClick={() => handleLanguageChange("en")}
+        disabled={isPending || currentLang === "en"}
+        aria-pressed={currentLang === "en"}
+      >
         English
       </Button>
-      <span className="text-gray-300 text-[10px] font-black">/</span>
-      <Button variant="outline"
-      onClick={() => handleLanguageChange('zh')}
-      disabled={isPending}>
-
-        
+      <Button
+        variant={currentLang === "zh" ? "secondary" : "ghost"}
+        onClick={() => handleLanguageChange("zh")}
+        disabled={isPending || currentLang === "zh"}
+        aria-pressed={currentLang === "zh"}
+      >
         中文
       </Button>
-    </div>);
+    </div>
+  );
 
 }

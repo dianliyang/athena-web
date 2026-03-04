@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
 
 interface ImportFormProps {
   dict: {
@@ -203,8 +202,6 @@ export default function ImportForm({ dict }: ImportFormProps) {
         </div>
       ) : null}
 
-      <Separator />
-
       <form onSubmit={handleGlobalExecute} className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <section className="space-y-3 rounded-sm border p-4 lg:col-span-2">
           <div className="flex items-center justify-between gap-2">
@@ -357,8 +354,6 @@ export default function ImportForm({ dict }: ImportFormProps) {
           </div>
         </section>
       </form>
-
-      <Separator />
 
       <section className="space-y-3 rounded-sm border p-4">
         <h2 className="text-sm font-semibold">{dict.protocol_title}</h2>

@@ -10,6 +10,14 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import {
+  Card,
+  CardAction,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 interface WorkoutListProps {
   initialWorkouts: Workout[];
@@ -296,78 +304,115 @@ export default function WorkoutList({
         ) : (
           <div className="space-y-3 p-1">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {categoryGroups.map((group) => {
+              {categoryGroups.flatMap((group) => {
                 const priceRange =
                   group.minStudentPrice == null
                     ? "-"
                     : group.minStudentPrice === group.maxStudentPrice
-                      ? formatPrice(group.minStudentPrice)
-                      : `${formatPrice(group.minStudentPrice)} ~ ${formatPrice(group.maxStudentPrice)}`;
-                const expanded = expandedGridCategory === group.category;
+                      ? `€${formatPrice(group.minStudentPrice)}`
+                      : `€${formatPrice(group.minStudentPrice)} ~ €${formatPrice(group.maxStudentPrice)}`;
+                const expanded =
+                  expandedGridCategory === group.category &&
+                  selectedCategory === group.category;
+                const visibleChoices = expanded ? workouts : [];
 
-                return (
-                  <div key={group.category} className="space-y-2">
-                    <Button
-                      variant="outline"
-                      type="button"
-                      onClick={() => {
-                        setExpandedGridCategory(group.category);
-                        if (selectedCategory !== group.category) {
-                          setCategoryOnServer(group.category);
-                        }
-                      }}
-                      className={`h-auto w-full flex-col items-start ${
-                        expanded ? "border-black bg-muted/40" : ""
+                const categoryCard = (
+                  <Card
+                    key={group.category}
+                    className={expanded ? "bg-black text-white" : undefined}
+                    onClick={() => {
+                      if (expandedGridCategory === group.category) {
+                        setExpandedGridCategory(null);
+                        return;
+                      }
+                      setExpandedGridCategory(group.category);
+                      if (selectedCategory !== group.category) {
+                        setCategoryOnServer(group.category);
+                      }
+                    }}
+                  >
+                    <CardHeader>
+                      <CardTitle>{group.category}</CardTitle>
+                      <CardAction>
+                        <ChevronDown
+                          className={`size-4 transition-transform ${expanded ? "rotate-180" : ""}`}
+                        />
+                      </CardAction>
+                    </CardHeader>
+                    <CardFooter
+                      className={`mt-auto text-xs ${
+                        expanded ? "text-white/80" : "text-muted-foreground"
                       }`}
                     >
-                      <div className="flex w-full items-center justify-between gap-2">
-                        <p className="truncate font-medium">{group.category}</p>
-                        <ChevronDown
-                          className={`h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`}
-                        />
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {group.count} choices
+                      <p>
+                        <span
+                          className={expanded ? "font-medium text-white" : "font-medium text-foreground"}
+                        >
+                          {group.count}
+                        </span>{" "}
+                        choices
                       </p>
-                      <p className="text-xs text-muted-foreground">
-                        Student: {priceRange}
-                      </p>
-                    </Button>
-                    {expanded && selectedCategory === group.category ? (
-                      <div className="rounded-sm border bg-muted/20 p-2">
-                        <div className="mb-2 flex items-center justify-between">
-                          <p className="text-sm font-medium">{selectedCategory} choices</p>
-                          {selectedActionHref ? (
-                            <Button variant="outline" asChild>
-                              <a
-                                href={selectedActionHref}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                Open
-                                <ExternalLink className="h-3 w-3" />
-                              </a>
-                            </Button>
-                          ) : null}
-                        </div>
-                        <div className="grid grid-cols-1 gap-2">
-                          {workouts.map((workout, idx) => (
-                            <WorkoutCard
-                              key={workout.id}
-                              workout={workout}
-                              viewMode={effectiveViewMode}
-                              dict={dict}
-                              rowIndex={idx}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
+                      <p className="ml-auto">{priceRange}</p>
+                    </CardFooter>
+                  </Card>
                 );
+
+                if (!expanded) return [categoryCard];
+
+                const choiceCards = visibleChoices.map((workout) => {
+                  const bookingHref = workout.bookingUrl || workout.url;
+                  const title = workout.titleEn || workout.title;
+                  const timeLabel = `${workout.dayOfWeek || "-"} ${workout.startTime ? workout.startTime.slice(0, 5) : ""}${workout.endTime ? `-${workout.endTime.slice(0, 5)}` : ""}`.trim();
+                  const dateLabel =
+                    workout.startDate && workout.endDate
+                      ? `${workout.startDate} - ${workout.endDate}`
+                      : workout.startDate || workout.endDate || "-";
+                  const statusClass =
+                    workout.bookingStatus && statusStyle[workout.bookingStatus]
+                      ? statusStyle[workout.bookingStatus]
+                      : "bg-slate-50 text-slate-600 border-slate-100";
+                  const statusLabel = getStatusLabel(workout.bookingStatus, dict);
+
+                  return (
+                    <Card
+                      key={`${group.category}-${workout.id}`}
+                      className={
+                        bookingHref
+                          ? "cursor-pointer transition-colors hover:bg-muted/60"
+                          : undefined
+                      }
+                      onClick={
+                        bookingHref
+                          ? () => window.open(bookingHref, "_blank", "noopener,noreferrer")
+                          : undefined
+                      }
+                    >
+                      <CardHeader>
+                        <CardTitle>{title}</CardTitle>
+                        <CardAction>
+                          {bookingHref ? <ExternalLink className="size-4" /> : null}
+                        </CardAction>
+                        <CardDescription className="text-xs">
+                          <div className="space-y-1">
+                            <p className="truncate">{workout.locationEn || workout.location || "-"}</p>
+                            <p className="truncate">{dateLabel}</p>
+                            <p className="truncate">{timeLabel}</p>
+                          </div>
+                        </CardDescription>
+                      </CardHeader>
+                      <CardFooter className="mt-auto text-xs text-muted-foreground">
+                        <Badge className={statusClass}>{statusLabel}</Badge>
+                        <p className="ml-auto font-medium text-foreground">
+                          €{formatPrice(workout.priceStudent)}
+                        </p>
+                      </CardFooter>
+                    </Card>
+                  );
+                });
+
+                return [categoryCard, ...choiceCards];
               })}
             </div>
-
           </div>
         )}
 

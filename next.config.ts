@@ -42,7 +42,7 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        source: "/flash.svg",
+        source: "/athena.svg",
         headers: [
           {
             key: "Cache-Control",

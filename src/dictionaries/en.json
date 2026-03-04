@@ -12,7 +12,7 @@
     "title_prefix": "A Simple Index",
     "title_middle": "for",
     "title_highlight": "Computer Science",
-    "desc_1": "Flash is an independent project that gathers public course catalogs from top schools like MIT, Stanford, and Berkeley into one easy-to-use search tool.",
+    "desc_1": "Athena is an independent project that gathers public course catalogs from top schools like MIT, Stanford, and Berkeley into one easy-to-use search tool.",
     "desc_2": "We don't host the classes. Instead, we organize scattered info—like what you need to know before joining and how hard a course is—to help you plan your own studies.",
     "stat_sources": "Schools",
     "stat_nodes": "Courses",
@@ -65,7 +65,7 @@
     "label": "Including Public Catalogs From"
   },
   "footer": {
-    "copyright": "© 2026 Flash Catalog. A helpful tool for learners."
+    "copyright": "© 2026 Athena Catalog. A helpful tool for learners."
   },
   "navbar": {
     "mission": "About",
@@ -228,7 +228,7 @@
       "microsoft_title": "Microsoft",
       "microsoft_desc": "Enterprise-grade login for corporate access.",
       "delete_title": "Deactivate Account",
-      "delete_desc": "Permanently remove your account and erase all study data from the Flash system.",
+      "delete_desc": "Permanently remove your account and erase all study data from the Athena system.",
       "delete_btn": "Delete My Account",
       "delete_confirm_title": "Dangerous Action",
       "delete_confirm_desc": "This will permanently delete your profile and all course progress. This cannot be undone.",
@@ -251,7 +251,7 @@
       "submit_resend": "Resend Magic Link",
       "submit_send": "Send Magic Link",
       "wrong_email": "Wrong email?",
-      "footer": "Protected by the Flash Security Protocol. Authorized Access Only.",
+      "footer": "Protected by the Athena Security Protocol. Authorized Access Only.",
       "verify_title": "Verification In Progress",
       "verify_desc": "A secure access link has been dispatched to your identity vector. Please verify your inbox to establish a session.",
       "check_email": "Check your email",

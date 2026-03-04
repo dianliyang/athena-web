@@ -16,25 +16,28 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: "Flash | Smart Learning Platform",
-    template: "%s | Flash",
+    default: "Athena | Smart Learning Platform",
+    template: "%s | Athena",
   },
   description: "Find the best computer science courses from top universities.",
   robots: { index: true, follow: true },
   manifest: "/manifest.json",
   icons: {
-    icon: [{ url: "/icon.png", sizes: "192x192", type: "image/png" }],
+    icon: [
+      { url: "/favicon.ico", type: "image/x-icon" },
+      { url: "/athena.svg", type: "image/svg+xml" },
+    ],
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Flash",
+    title: "Athena",
   },
   openGraph: {
     type: "website",
-    siteName: "Flash",
-    title: "Flash | Smart Learning Platform",
+    siteName: "Athena",
+    title: "Athena | Smart Learning Platform",
     description: "Find the best computer science courses from top universities.",
   },
 };
@@ -55,6 +58,8 @@ export default function RootLayout({
         />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
         <link rel="apple-touch-icon-precomposed" href="/apple-touch-icon.png" />
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" href="/athena.svg" type="image/svg+xml" />
       </head>
       <body className="antialiased">
         <TooltipProvider>

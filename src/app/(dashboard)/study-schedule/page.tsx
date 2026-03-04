@@ -26,7 +26,7 @@ export default async function StudySchedulePage() {
 
   return (
     <main className="w-full h-full flex flex-col">
-      <Suspense fallback={<div className="animate-pulse h-96 bg-gray-100" />}>
+      <Suspense fallback={null}>
         <StudyScheduleContent userId={user.id} dict={dict} />
       </Suspense>
     </main>

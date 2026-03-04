@@ -11,6 +11,8 @@ import { calculateAttendance } from "@/lib/attendance";
 import { ExternalLink, Ghost } from "lucide-react";
 import CourseIntelSyncWindow from "@/components/home/CourseIntelSyncWindow";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 
 export const dynamic = "force-dynamic";
 
@@ -254,6 +256,7 @@ async function StudyPlanContent({
           Review your active focus and upcoming study schedule.
         </p>
       </div>
+      <Separator />
       <CourseIntelSyncWindow />
 
       <section>
@@ -276,8 +279,8 @@ async function StudyPlanContent({
       </section>
 
       {enrolledCourses.length === 0 && enrolledProjectsSeminars.length === 0 &&
-      <div className="rounded-lg border">
-          <div className="flex flex-col items-center justify-center gap-2 py-7 text-center">
+      <Card>
+          <CardContent className="flex flex-col items-center justify-center gap-2 py-7 text-center">
             <Ghost className="h-5 w-5 text-muted-foreground" />
             <h2 className="text-sm font-medium text-[#2f2f2f]">{dict.dashboard.roadmap.null_path}</h2>
             <p className="max-w-[420px] text-xs text-muted-foreground">
@@ -286,8 +289,8 @@ async function StudyPlanContent({
             <Button variant="outline" size="sm" asChild>
               <Link href="/courses">{dict.dashboard.roadmap.empty_cta}</Link>
             </Button>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       }
     </div>);
 
@@ -295,7 +298,7 @@ async function StudyPlanContent({
 
 function ActiveProjectSeminarTrack({ item }: {item: EnrolledProjectSeminar;}) {
   return (
-    <div className="rounded-lg border">
+    <Card>
       <div className="flex items-start justify-between gap-1.5 p-2">
         <div className="flex items-start gap-1.5 min-w-0">
           <UniversityIcon
@@ -339,6 +342,6 @@ function ActiveProjectSeminarTrack({ item }: {item: EnrolledProjectSeminar;}) {
           ) : null}
         </div>
       </div>
-    </div>);
+    </Card>);
 
 }

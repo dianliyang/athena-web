@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,400&display=swap");
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -46,6 +47,9 @@
 }
 
 :root {
+  --font-landing-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-landing-serif: "Newsreader", Georgia, serif;
+  --font-landing-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   --shadow-2xs: 0 0 #0000;
   --shadow-xs: 0 0 #0000;
   --shadow-sm: 0 0 #0000;
@@ -136,5 +140,99 @@
   .font-brand {
     font-family: "MuseoModerno", sans-serif;
     letter-spacing: 0.01em;
+  }
+
+  @keyframes athena-fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes athena-float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-6px);
+    }
+  }
+
+  @keyframes athena-nav-scan {
+    0% {
+      transform: translateX(-120%);
+    }
+    100% {
+      transform: translateX(220%);
+    }
+  }
+
+  @keyframes athena-gradient {
+    to {
+      background-position: 200% center;
+    }
+  }
+
+  @keyframes gradient {
+    to {
+      background-position: var(--bg-size, 300%) 0;
+    }
+  }
+
+  @keyframes athena-blur-fade {
+    from {
+      opacity: 0;
+      filter: blur(6px);
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      filter: blur(0);
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-up {
+    animation: athena-fade-up 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .animate-fade-up-delay-1 {
+    animation-delay: 120ms;
+  }
+
+  .animate-fade-up-delay-2 {
+    animation-delay: 220ms;
+  }
+
+  .animate-fade-up-delay-3 {
+    animation-delay: 320ms;
+  }
+
+  .animate-float-soft {
+    animation: athena-float 6s ease-in-out infinite;
+  }
+
+  .animate-gradient {
+    animation: gradient 8s linear infinite;
+  }
+
+  .animate-nav-scan {
+    animation: athena-nav-scan 5s linear infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-fade-up,
+    .animate-fade-up-delay-1,
+    .animate-fade-up-delay-2,
+    .animate-fade-up-delay-3,
+    .animate-float-soft,
+    .animate-nav-scan {
+      animation: none !important;
+    }
   }
 }

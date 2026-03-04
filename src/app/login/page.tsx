@@ -52,8 +52,8 @@ export default async function LoginPage({ searchParams }: PageProps) {
         <div className="relative z-10">
           <Link href="/" className="flex items-center gap-3 w-fit">
             <Image
-              src="/flash.svg"
-              alt="Flash"
+              src="/athena.svg"
+              alt="Athena"
               width={48}
               height={48}
               priority
@@ -61,7 +61,7 @@ export default async function LoginPage({ searchParams }: PageProps) {
             />
             <div className="flex flex-col -space-y-1.5">
               <span className="font-brand text-2xl font-bold tracking-tight text-background">
-                Flash
+                Athena
               </span>
               <span className="text-xs font-medium text-brand-blue">
                 {dict.navbar.global_network}
@@ -101,8 +101,8 @@ export default async function LoginPage({ searchParams }: PageProps) {
           {/* Mobile Logo Only */}
           <div className="lg:hidden flex justify-center mb-8">
             <Image
-              src="/flash.svg"
-              alt="Flash"
+              src="/athena.svg"
+              alt="Athena"
               width={64}
               height={64}
               priority

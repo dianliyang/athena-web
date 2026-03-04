@@ -21,11 +21,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
-import {
-  Item,
-  ItemActions,
-  ItemContent
-} from "@/components/ui/item";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Popover,
   PopoverContent,
@@ -172,8 +168,8 @@ export default function ActiveCourseTrack({
   }, [localPlan, weekdaysShort]);
 
   return (
-    <Item variant="outline" className="gap-0 overflow-hidden p-0">
-      <ItemContent className="p-0">
+    <Card className="gap-0 overflow-hidden p-0">
+      <CardContent className="p-0">
         <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto]">
           <div
           role="link"
@@ -275,7 +271,7 @@ export default function ActiveCourseTrack({
             <p className="w-9 text-right text-sm font-semibold tracking-tight">{progress}%</p>
           </div>
           </div>
-          <ItemActions
+          <div
             data-no-card-nav="true"
             className="self-start items-start p-2">
             <ButtonGroup className="ml-auto">
@@ -363,9 +359,9 @@ export default function ActiveCourseTrack({
                 </PopoverContent>
               </Popover>
             </ButtonGroup>
-          </ItemActions>
+          </div>
         </div>
-      </ItemContent>
-    </Item>);
+      </CardContent>
+    </Card>);
 
 }

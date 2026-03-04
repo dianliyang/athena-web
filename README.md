@@ -1,6 +1,6 @@
-# Flash
+# Athena
 
-Flash is a comprehensive platform for students and learners, acting as a course aggregator that scrapes, organizes, and tracks university course data from top institutions like CMU, MIT, Stanford, and UC Berkeley, while also providing tools for personal study planning and progress tracking.
+Athena is a comprehensive platform for students and learners, acting as a course aggregator that scrapes, organizes, and tracks university course data from top institutions like CMU, MIT, Stanford, and UC Berkeley, while also providing tools for personal study planning and progress tracking.
 
 ## Features
 
@@ -207,7 +207,7 @@ Copy `.env.example` to `.env.local` and fill in the values.
 
 ## PWA Support
 
-Flash is a Progressive Web App:
+Athena is a Progressive Web App:
 
 - **Installable**: Add to home screen on mobile/desktop
 - **Offline**: Cached pages work without internet

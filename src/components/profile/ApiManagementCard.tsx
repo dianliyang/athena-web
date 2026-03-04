@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 type ApiKeyItem = {
   id: number;
@@ -70,6 +70,8 @@ export default function ApiManagementCard() {
   }, []);
 
   const hasRows = useMemo(() => items.length > 0, [items.length]);
+  const activeCount = useMemo(() => items.filter((item) => item.isActive).length, [items]);
+  const totalRequestsUsed = useMemo(() => items.reduce((acc, item) => acc + (item.requestsUsed || 0), 0), [items]);
 
   const showSaved = (message: string) => {
     setSaved(message);
@@ -171,51 +173,88 @@ export default function ApiManagementCard() {
 
   return (
     <div className="space-y-4">
-      <section className="grid gap-3 rounded-sm border p-3 sm:grid-cols-[1.5fr_1fr_auto] sm:items-end">
-        <div className="space-y-1">
-          <label className="text-sm font-medium">Key Name</label>
-          <Input
-            value={newName}
-            onChange={(e) => {
-              setNewName(e.target.value);
-              if (nameError && e.target.value.trim()) setNameError(false);
-            }}
-            placeholder="Enter key name"
-          />
-          {nameError ? <p className="text-xs text-destructive">Name is required.</p> : null}
-        </div>
-        <div className="space-y-1">
-          <label className="text-sm font-medium">Request Limit</label>
-          <Input
-            value={newLimit}
-            onChange={(e) => setNewLimit(e.target.value)}
-            type="number"
-            min={1}
-            placeholder="Unlimited"
-          />
-        </div>
-        <Button variant="outline" type="button" onClick={generateKey} disabled={isCreating}>
-          {isCreating ? <Loader2 className="animate-spin" /> : <WandSparkles />}
-          Generate Key
-        </Button>
-      </section>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <Card>
+          <CardContent>
+            <p className="text-xs text-muted-foreground">Total Keys</p>
+            <p className="mt-1 text-2xl font-semibold">{items.length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent>
+            <p className="text-xs text-muted-foreground">Active Keys</p>
+            <p className="mt-1 text-2xl font-semibold">{activeCount}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent>
+            <p className="text-xs text-muted-foreground">Requests Used</p>
+            <p className="mt-1 text-2xl font-semibold">{totalRequestsUsed}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Create API Key</CardTitle>
+          <CardDescription>Create a new key and optionally set a request limit.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <section className="grid gap-3 sm:grid-cols-[1.5fr_1fr_auto] sm:items-end">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Key Name</label>
+              <Input
+                value={newName}
+                onChange={(e) => {
+                  setNewName(e.target.value);
+                  if (nameError && e.target.value.trim()) setNameError(false);
+                }}
+                placeholder="Enter key name"
+              />
+              {nameError ? <p className="text-xs text-destructive">Name is required.</p> : null}
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Request Limit</label>
+              <Input
+                value={newLimit}
+                onChange={(e) => setNewLimit(e.target.value)}
+                type="number"
+                min={1}
+                placeholder="Unlimited"
+              />
+            </div>
+            <Button variant="outline" type="button" onClick={generateKey} disabled={isCreating}>
+              {isCreating ? <Loader2 className="animate-spin" /> : <WandSparkles />}
+              Generate Key
+            </Button>
+          </section>
+        </CardContent>
+      </Card>
 
       {latestKey ? (
-        <section className="rounded-sm border p-3">
-          <p className="text-xs text-muted-foreground">New key (shown once)</p>
-          <div className="mt-2 flex items-center gap-2">
-            <Input readOnly value={latestKey} />
-            <Button variant="outline" type="button" onClick={copyLatestKey}>
-              <Copy />
-              Copy
-            </Button>
-          </div>
-        </section>
+        <Card>
+          <CardHeader>
+            <CardTitle>New Key</CardTitle>
+            <CardDescription>Shown once. Copy and store it securely.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <Input readOnly value={latestKey} />
+              <Button variant="outline" type="button" onClick={copyLatestKey}>
+                <Copy />
+                Copy
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       ) : null}
 
-      <Separator />
-
-      <section className="rounded-sm border">
+      <Card>
+        <CardHeader>
+          <CardTitle>API Keys</CardTitle>
+          <CardDescription>Manage status, usage limits, and lifecycle.</CardDescription>
+        </CardHeader>
+        <CardContent>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-sm">
             <thead>
@@ -312,7 +351,8 @@ export default function ApiManagementCard() {
             </tbody>
           </table>
         </div>
-      </section>
+        </CardContent>
+      </Card>
 
       {saved ? (
         <p className="inline-flex items-center gap-1.5 text-xs text-emerald-700">

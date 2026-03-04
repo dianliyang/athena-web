@@ -1,15 +1,31 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Globe, Sparkles, X } from "lucide-react";
 import { AI_PROVIDERS, type AIProvider } from "@/lib/ai/models-client";
 import { updateAiPreferences } from "@/actions/profile";
 import { useAppToast } from "@/components/common/AppToastProvider";
 import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import {
+  Combobox,
+  ComboboxCollection,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxGroup,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@/components/ui/combobox";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Toggle } from "@/components/ui/toggle";
 
 interface EngineSettingsPanelProps {
   initialProvider: string;
@@ -29,95 +45,429 @@ function normalizeProvider(value: string): AIProvider {
   return "perplexity";
 }
 
+function pickPreferredModel(models: string[], keywords: string[]) {
+  const lowered = models.map((m) => ({ original: m, lower: m.toLowerCase() }));
+  for (const keyword of keywords) {
+    const found = lowered.find((entry) => entry.lower.includes(keyword));
+    if (found) return found.original;
+  }
+  return models[0] ?? "";
+}
+
+function providerLabel(value: AIProvider) {
+  if (value === "openai") return "OpenAI";
+  if (value === "gemini") return "Gemini";
+  return "Perplexity";
+}
+
+function providerIconPath(value: AIProvider) {
+  if (value === "openai") return "/brands/openai-combine.svg";
+  if (value === "gemini") return "/brands/gemini-combine.svg";
+  return "/brands/perplexity-combine.svg";
+}
+
+function providerIconClass(value: AIProvider) {
+  void value;
+  return "h-4 w-auto max-w-full";
+}
+
+function providerSummaryIconPath(value: AIProvider) {
+  if (value === "openai") return "/brands/openai.svg";
+  if (value === "gemini") return "/brands/gemini.svg";
+  return "/brands/perplexity.svg";
+}
+
+function providerSummaryIconClass(value: AIProvider) {
+  if (value === "openai") return "size-4";
+  if (value === "gemini") return "size-4";
+  return "size-4";
+}
+
 export default function EngineSettingsPanel({
   initialProvider,
   initialModel,
   initialWebSearchEnabled,
   modelCatalog,
 }: EngineSettingsPanelProps) {
+  const [backendModelCatalog, setBackendModelCatalog] = useState(modelCatalog);
   const [provider, setProvider] = useState<AIProvider>(normalizeProvider(initialProvider));
   const [defaultModel, setDefaultModel] = useState(initialModel);
   const [webSearchEnabled, setWebSearchEnabled] = useState(initialWebSearchEnabled);
-  const [isSaving, setIsSaving] = useState(false);
+  const [removedModels, setRemovedModels] = useState<Record<AIProvider, string[]>>({
+    perplexity: [],
+    gemini: [],
+    openai: [],
+  });
+  const [customModels, setCustomModels] = useState<Record<AIProvider, string[]>>({
+    perplexity: [],
+    gemini: [],
+    openai: [],
+  });
+  const [modelDraft, setModelDraft] = useState("");
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const { showToast } = useAppToast();
+  const isFirstSyncRef = useRef(true);
+  const saveSeqRef = useRef(0);
+
+  const providerCatalogModels = useMemo(() => {
+    return provider === "gemini"
+      ? backendModelCatalog.gemini
+      : provider === "openai"
+        ? backendModelCatalog.openai
+        : backendModelCatalog.perplexity;
+  }, [provider, backendModelCatalog]);
 
   const availableModels = useMemo(() => {
-    if (provider === "gemini") return modelCatalog.gemini;
-    if (provider === "openai") return modelCatalog.openai;
-    return modelCatalog.perplexity;
-  }, [provider, modelCatalog]);
+    const source = [...providerCatalogModels, ...(customModels[provider] || [])];
+    const uniqueSource = Array.from(new Set(source));
+    const removed = new Set(removedModels[provider] || []);
+    return uniqueSource.filter((model) => !removed.has(model));
+  }, [provider, providerCatalogModels, customModels, removedModels]);
+
+  const modelPickerOptions = useMemo(() => {
+    const ordered = [...availableModels, ...(removedModels[provider] || [])];
+    return Array.from(new Set(ordered));
+  }, [availableModels, removedModels, provider]);
+
+  const saveStatusLabel = useMemo(() => {
+    if (saveState === "saving") return "Saving...";
+    if (saveState === "saved") return lastSavedAt ? `Saved ${lastSavedAt.toLocaleTimeString()}` : "Saved";
+    if (saveState === "error") return "Save failed";
+    return "Ready";
+  }, [saveState, lastSavedAt]);
 
   useEffect(() => {
-    if (!availableModels.includes(defaultModel) && availableModels.length > 0) {
-      setDefaultModel(availableModels[0]);
-    }
-  }, [availableModels, defaultModel]);
+    let cancelled = false;
+    const loadModelCatalog = async () => {
+      try {
+        const res = await fetch("/api/ai/models", { cache: "no-store" });
+        if (!res.ok) return;
+        const payload = (await res.json()) as {
+          modelCatalog?: {
+            perplexity?: string[];
+            gemini?: string[];
+            openai?: string[];
+          };
+        };
+        if (cancelled || !payload.modelCatalog) return;
+        setBackendModelCatalog((prev) => ({
+          perplexity: payload.modelCatalog?.perplexity || prev.perplexity || [],
+          gemini: payload.modelCatalog?.gemini || prev.gemini || [],
+          openai: payload.modelCatalog?.openai || prev.openai || [],
+        }));
+      } catch {
+        // keep initial server-provided catalog when request fails
+      }
+    };
+    loadModelCatalog();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  const saveSettings = async () => {
-    setIsSaving(true);
+  useEffect(() => {
+    if (isFirstSyncRef.current) {
+      isFirstSyncRef.current = false;
+      return;
+    }
+
+    const saveId = ++saveSeqRef.current;
+
+    const timer = window.setTimeout(async () => {
+      setSaveState("saving");
+      try {
+        await updateAiPreferences({ provider, defaultModel, webSearchEnabled });
+        if (saveSeqRef.current !== saveId) return;
+        setSaveState("saved");
+        setLastSavedAt(new Date());
+      } catch (error) {
+        if (saveSeqRef.current !== saveId) return;
+        setSaveState("error");
+        showToast({ type: "error", message: error instanceof Error ? error.message : "Update failed." });
+      }
+    }, 1500);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [provider, defaultModel, webSearchEnabled, showToast]);
+
+  const saveNow = async () => {
+    const saveId = ++saveSeqRef.current;
+    setSaveState("saving");
     try {
       await updateAiPreferences({ provider, defaultModel, webSearchEnabled });
-      showToast({ type: "success", message: "Engine settings updated." });
+      if (saveSeqRef.current !== saveId) return;
+      setSaveState("saved");
+      setLastSavedAt(new Date());
     } catch (error) {
+      if (saveSeqRef.current !== saveId) return;
+      setSaveState("error");
       showToast({ type: "error", message: error instanceof Error ? error.message : "Update failed." });
-    } finally {
-      setIsSaving(false);
     }
+  };
+
+  const applyPreset = (mode: "balanced" | "fast" | "quality") => {
+    if (mode === "balanced") {
+      setProvider("perplexity");
+      setDefaultModel(pickPreferredModel(backendModelCatalog.perplexity, ["sonar", "pro", "small"]));
+      setWebSearchEnabled(true);
+      return;
+    }
+    if (mode === "fast") {
+      setProvider("openai");
+      setDefaultModel(pickPreferredModel(backendModelCatalog.openai, ["mini", "nano", "4o-mini"]));
+      setWebSearchEnabled(false);
+      return;
+    }
+    setProvider("gemini");
+    setDefaultModel(pickPreferredModel(backendModelCatalog.gemini, ["pro", "2.0", "1.5"]));
+    setWebSearchEnabled(true);
+  };
+
+  const removeModel = (model: string) => {
+    setRemovedModels((prev) => ({
+      ...prev,
+      [provider]: [...prev[provider], model],
+    }));
+    if (defaultModel === model) {
+      const next = availableModels.filter((m) => m !== model)[0] || "";
+      setDefaultModel(next);
+    }
+  };
+
+  const addModel = (rawModel: string) => {
+    const model = rawModel.trim();
+    if (!model) return;
+
+    if (!providerCatalogModels.includes(model)) {
+      setCustomModels((prev) => ({
+        ...prev,
+        [provider]: Array.from(new Set([...prev[provider], model])),
+      }));
+    }
+
+    setRemovedModels((prev) => ({
+      ...prev,
+      [provider]: prev[provider].filter((m) => m !== model),
+    }));
+
+    setDefaultModel(model);
+    setModelDraft("");
   };
 
   return (
     <div className="space-y-4">
-      <section className="space-y-2">
-        <h4 className="text-sm font-semibold">Provider</h4>
-        <div className="flex flex-wrap gap-2">
-          {AI_PROVIDERS.map((p) => (
-            <Button key={p} variant="outline" type="button" onClick={() => setProvider(p as AIProvider)}>
-              <span className="capitalize">{p}</span>
-              {provider === p ? <Badge variant="secondary">Active</Badge> : null}
-            </Button>
-          ))}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <Card>
+          <CardContent>
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <img
+                src={providerSummaryIconPath(provider)}
+                alt={`${providerLabel(provider)} icon`}
+                className={providerSummaryIconClass(provider)}
+              />
+              <span className="text-xs">Active Provider</span>
+            </div>
+            <p className="mt-2 text-base font-semibold">{providerLabel(provider)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent>
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Sparkles className="size-4" />
+              <span className="text-xs">Default Model</span>
+            </div>
+            <p className="mt-2 text-base font-semibold truncate">{defaultModel || "Not selected"}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent>
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Globe className="size-4" />
+              <span className="text-xs">Web Grounding</span>
+            </div>
+            <p className="mt-2 text-base font-semibold">{webSearchEnabled ? "Enabled" : "Disabled"}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.35fr_0.65fr]">
+        <Card>
+          <CardHeader>
+            <CardTitle>Control Surface</CardTitle>
+            <CardDescription>Provider, model, and retrieval policy. Changes autosave.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <section className="space-y-3">
+              <div className="space-y-1">
+                <h4 className="text-sm font-semibold tracking-tight">Provider</h4>
+                <p className="text-sm text-muted-foreground">Choose the primary AI service.</p>
+              </div>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                {AI_PROVIDERS.map((p) => (
+                  <Toggle
+                    key={p}
+                    variant="outline"
+                    className="w-full data-[state=on]:border-2 data-[state=on]:border-black data-[state=on]:bg-transparent data-[state=on]:text-foreground"
+                    pressed={provider === p}
+                    onPressedChange={(pressed) => {
+                      if (pressed) setProvider(p as AIProvider);
+                    }}
+                    aria-label={providerLabel(p as AIProvider)}
+                    title={providerLabel(p as AIProvider)}
+                  >
+                    <img src={providerIconPath(p as AIProvider)} alt="" className={providerIconClass(p as AIProvider)} />
+                  </Toggle>
+                ))}
+              </div>
+            </section>
+
+            <section className="space-y-3">
+              <div className="space-y-1">
+                <h4 className="text-sm font-semibold tracking-tight">Default Model</h4>
+                <p className="text-sm text-muted-foreground">Models are filtered by selected provider.</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Combobox
+                  multiple
+                  items={[{ value: "Models", items: modelPickerOptions }]}
+                  value={availableModels}
+                  inputValue={modelDraft}
+                  onInputValueChange={(value) => setModelDraft(value)}
+                  onValueChange={(next) => {
+                    if (!Array.isArray(next)) return;
+                    const nextValues = next.map((value) => String(value));
+                    const added = nextValues.filter((value) => !availableModels.includes(value));
+                    if (added.length === 0) return;
+                    addModel(added[added.length - 1]);
+                  }}
+                >
+                  <ComboboxInput placeholder="Search or type model" className="h-8 w-full min-w-56" />
+                  <ComboboxContent>
+                    <ComboboxEmpty>No models found.</ComboboxEmpty>
+                    <ComboboxList>
+                      {(group) => (
+                        <ComboboxGroup key={group.value} items={group.items}>
+                          <ComboboxCollection>
+                            {(item) => (
+                              <ComboboxItem key={item} value={item}>
+                                {item}
+                              </ComboboxItem>
+                            )}
+                          </ComboboxCollection>
+                        </ComboboxGroup>
+                      )}
+                    </ComboboxList>
+                  </ComboboxContent>
+                </Combobox>
+                {availableModels.map((model) => (
+                  <ButtonGroup
+                    key={model}
+                    className={defaultModel === model ? "rounded-md border-2 border-black" : undefined}
+                  >
+                    <Toggle
+                      size="sm"
+                      variant="outline"
+                      className="font-medium data-[state=on]:bg-transparent data-[state=on]:text-foreground"
+                      pressed={defaultModel === model}
+                      onPressedChange={(pressed) => {
+                        if (pressed) setDefaultModel(model);
+                      }}
+                    >
+                      {model}
+                    </Toggle>
+                    <Button
+                      variant="outline"
+                      size="icon-sm"
+                      type="button"
+                      aria-label={`Remove ${model}`}
+                      onClick={() => removeModel(model)}
+                    >
+                      <X className="size-4" />
+                    </Button>
+                  </ButtonGroup>
+                ))}
+                {availableModels.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No models available.</p>
+                ) : null}
+              </div>
+            </section>
+
+            <section className="space-y-3">
+              <div className="space-y-1">
+                <h4 className="text-sm font-semibold tracking-tight">Retrieval Policy</h4>
+                <p className="text-sm text-muted-foreground">Control whether web context is included before parsing.</p>
+              </div>
+              <label className="flex w-full items-start gap-3 rounded-md border p-3">
+                <Checkbox
+                  id="retrieval-policy-grounding"
+                  name="retrieval-policy-grounding"
+                  checked={webSearchEnabled}
+                  onCheckedChange={(checked) => setWebSearchEnabled(checked === true)}
+                />
+                <div className="space-y-1">
+                  <p className="text-sm font-medium leading-none">Enable web grounding</p>
+                  <p className="text-sm text-muted-foreground">
+                    Include web-grounded context before parsing.
+                  </p>
+                </div>
+              </label>
+            </section>
+          </CardContent>
+        </Card>
+
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Quick Presets</CardTitle>
+              <CardDescription>Apply a tuned profile in one click.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <Button className="w-full" variant="outline" type="button" onClick={() => applyPreset("balanced")}>
+                Balanced
+              </Button>
+              <Button className="w-full" variant="outline" type="button" onClick={() => applyPreset("fast")}>
+                Fast Draft
+              </Button>
+              <Button className="w-full" variant="outline" type="button" onClick={() => applyPreset("quality")}>
+                High Quality
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between gap-3">
+                <span>Save & Health</span>
+                <span className="text-xs font-normal text-muted-foreground">{saveStatusLabel}</span>
+              </CardTitle>
+              <CardDescription>Live status for configuration persistence.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-1 text-xs text-muted-foreground">
+                <div className="flex items-center justify-between gap-3">
+                  <span>Provider</span>
+                  <span className="font-medium text-foreground">{provider}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span>Model</span>
+                  <span className="font-medium text-foreground">{defaultModel || "Not selected"}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span>Grounding</span>
+                  <span className="font-medium text-foreground">{webSearchEnabled ? "Enabled" : "Disabled"}</span>
+                </div>
+              </div>
+              {saveState === "error" ? (
+                <Button variant="outline" type="button" onClick={saveNow}>
+                  Retry Save
+                </Button>
+              ) : null}
+            </CardContent>
+          </Card>
         </div>
-      </section>
-
-      <Separator />
-
-      <section className="space-y-2">
-        <h4 className="text-sm font-semibold">Default Model</h4>
-        <Select value={defaultModel || undefined} onValueChange={setDefaultModel}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select a model" />
-          </SelectTrigger>
-          <SelectContent>
-            {availableModels.map((model) => (
-              <SelectItem key={model} value={model}>
-                {model}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </section>
-
-      <Separator />
-
-      <section className="space-y-2">
-        <h4 className="text-sm font-semibold">Retrieval</h4>
-        <label className="inline-flex items-start gap-2 text-sm text-muted-foreground">
-          <Checkbox
-            checked={webSearchEnabled}
-            onCheckedChange={(checked) => setWebSearchEnabled(checked === true)}
-            disabled={isSaving}
-          />
-          <span>
-            Enable web grounding for retrieval before syllabus parsing.
-          </span>
-        </label>
-      </section>
-
-      <div className="flex justify-end">
-        <Button variant="outline" type="button" onClick={saveSettings} disabled={isSaving}>
-          {isSaving ? <Loader2 className="animate-spin" /> : null}
-          Save Engine
-        </Button>
       </div>
     </div>
   );

@@ -469,40 +469,37 @@ export default function CourseDetailHeader({
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              {/* Enroll / Unenroll */}
-              <Button variant="outline" size="sm" type="button" onClick={handleToggleEnroll} disabled={isEnrolling}>
-                {isEnrolling ? <Loader2 className="animate-spin" /> :
-                enrolled ?
-                <X /> :
-
-                <Plus />
-                }
-                <span>{enrolled ? "Unenroll" : "Enroll"}</span>
-              </Button>
-
-              {/* Google Search */}
-              <Button variant="outline" size="icon-sm"
-              type="button"
-              onClick={() => window.open(searchHref, "_blank", "noopener,noreferrer")}
-              title="Search on Google"
-              aria-label="Search on Google">
-                
-                <GoogleIcon />
-              </Button>
-
-              {/* Edit */}
-              <Button variant="outline" size="icon-sm"
-              onClick={() => onToggleEdit?.()}
-              title="Edit Course Details"
-              aria-label="Edit Course Details">
-                
-                <PenSquare />
-              </Button>
-
-              {/* Delete */}
-              <Button variant="outline" size="icon-sm" type="button" onClick={handleDelete} disabled={isDeleting} title="Delete Course" aria-label="Delete Course">
-                {isDeleting ? <Loader2 className="animate-spin" /> : <Trash2 />}
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon-sm" type="button" title="More actions" aria-label="More actions">
+                    <ChevronDown />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem onClick={handleToggleEnroll} disabled={isEnrolling}>
+                      {isEnrolling ? <Loader2 className="h-3 w-3 animate-spin" /> : enrolled ? <X className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
+                      <span>{enrolled ? "Unenroll" : "Enroll"}</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => window.open(searchHref, "_blank", "noopener,noreferrer")}
+                      title="Search on Google"
+                      aria-label="Search on Google"
+                    >
+                      <GoogleIcon className="h-3.5 w-3.5" />
+                      <span>Google Search</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onToggleEdit?.()} title="Edit Course Details" aria-label="Edit Course Details">
+                      <PenSquare className="h-3 w-3" />
+                      <span>Edit</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleDelete} disabled={isDeleting} title="Delete Course" aria-label="Delete Course">
+                      {isDeleting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                      <span>Delete</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </>
           )}
         </div> : null}

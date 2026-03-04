@@ -62,7 +62,7 @@ const NAV_GROUPS: Array<{label: string;items: NavItem[];}> = [
 {
   label: "Intelligence",
   items: [
-  { id: "engine", label: "Engine Configuration", icon: Cpu },
+  { id: "engine", label: "Engine", icon: Cpu },
   { id: "course-intel", label: "Course Generation Logic", icon: Sparkles }]
 
 },
@@ -92,8 +92,8 @@ const ACTIVE_SECTION_STORAGE_KEY = "settings_active_section";
 
 const SECTION_META: Record<SectionId, {title: string;desc: string;}> = {
   engine: {
-    title: "Engine Configuration",
-    desc: "Configure AI providers, models and web grounding."
+    title: "Engine",
+    desc: "Control provider, default model, and grounded retrieval behavior."
   },
   "course-intel": {
     title: "Course Generation Logic",
@@ -200,10 +200,6 @@ export default function SettingsContainer({
     }
   };
 
-  const triggerEngineSync = () => {
-    window.dispatchEvent(new CustomEvent("cc:sync-engine"));
-  };
-
   // Prevent hydration mismatch by not rendering anything that depends on 'active'
   // until mounted if we were to change 'active' based on localStorage.
   // However, since we default to 'initialSection' or 'engine', we are safe to render.
@@ -288,11 +284,6 @@ export default function SettingsContainer({
             </h3>
             <p className="mt-1 text-sm text-muted-foreground">{meta.desc}</p>
           </div>
-          {active === "engine" ?
-          <Button variant="outline" type="button" onClick={triggerEngineSync}>
-              Sync Engine
-            </Button> :
-          null}
         </div>
 
         <Separator className="mb-3" />

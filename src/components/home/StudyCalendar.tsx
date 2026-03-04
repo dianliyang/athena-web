@@ -125,6 +125,8 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
   const [monthCursor, setMonthCursor] = useState(new Date(anchorToday.getFullYear(), anchorToday.getMonth(), 1));
   const [weekStart, setWeekStart] = useState(startOfWeek(anchorToday));
   const [selectedEventKey, setSelectedEventKey] = useState<string | null>(null);
+  const [openTodayPopoverKey, setOpenTodayPopoverKey] = useState<string | null>(null);
+  const [openWeekPopoverKey, setOpenWeekPopoverKey] = useState<string | null>(null);
   const [selectedSmallDateKey, setSelectedSmallDateKey] = useState<string>(() => formatDateKey(anchorToday));
 
   const weekdays =
@@ -228,7 +230,7 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
         <div className="flex h-full flex-col border-r border-[#f5f5f5] pr-2">
           <section className="min-h-0 rounded-lg p-2">
             <div className="flex h-12 items-center">
-              <h3 className="text-base font-semibold text-[#1f2937]">Today</h3>
+              <h3 className="text-xl font-semibold leading-none text-[#1f2937]">Today</h3>
             </div>
             <div className="max-h-56 overflow-auto pr-1" data-testid="today-events-list">
               {todayEvents.length > 0 ?
@@ -236,9 +238,11 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
                   {todayEvents.map((event, idx) =>
                 <div key={event.key}>
                       <Popover
-                    open={selectedEventKey === event.key}
+                    open={openTodayPopoverKey === event.key}
                     onOpenChange={(open) => {
-                      if (!open && selectedEventKey === event.key) setSelectedEventKey(null);
+                      if (!open && openTodayPopoverKey === event.key) {
+                        setOpenTodayPopoverKey(null);
+                      }
                     }}>
                         <PopoverTrigger asChild>
                           <Button
@@ -248,16 +252,18 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
                         onClick={() => {
                           setWeekStart(startOfWeek(new Date(event.date)));
                           setSelectedEventKey(event.key);
+                          setOpenTodayPopoverKey(event.key);
+                          setOpenWeekPopoverKey(null);
                         }}>
                             <Item size="sm" className="w-full px-0 py-0">
                               <ItemContent className="gap-0.5">
-                                <p className="text-[10px] text-[#64748b]">
+                                <p className="text-xs leading-5 text-[#475569]">
                                   {event.startTime.slice(0, 5)} - {event.endTime.slice(0, 5)}
                                 </p>
-                                <ItemTitle className="truncate text-[12px] font-semibold">
+                                <ItemTitle className="truncate text-sm leading-5 font-semibold text-[#0f172a]">
                                   {event.title}
                                 </ItemTitle>
-                                <p className="truncate text-[10px] text-[#475569]">
+                                <p className="truncate text-xs leading-5 text-[#334155]">
                                   {event.courseCode} · {event.kind}
                                 </p>
                               </ItemContent>
@@ -360,9 +366,9 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
 
         <section className="mt-4 lg:mt-0 bg-transparent overflow-hidden h-full min-h-0 relative flex flex-col">
           <div className="mb-2 flex h-12 items-center justify-between rounded-lg px-2">
-            <div>
-              <h2 className="text-base font-semibold text-[#0f172a]">{`Week ${weekNumber}`}</h2>
-              <p className="text-xs text-[#64748b]">{weekLabel}</p>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-semibold leading-none text-[#0f172a]">{`Week ${weekNumber}`}</h2>
+              <p className="text-sm text-[#64748b]">{weekLabel}</p>
             </div>
             <div className="flex items-center gap-1">
               <Button variant="outline"
@@ -465,9 +471,11 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
                         return (
                           <Popover
                             key={event.key}
-                            open={selectedEventKey === event.key}
+                            open={openWeekPopoverKey === event.key}
                             onOpenChange={(open) => {
-                              if (!open && selectedEventKey === event.key) setSelectedEventKey(null);
+                              if (!open && openWeekPopoverKey === event.key) {
+                                setOpenWeekPopoverKey(null);
+                              }
                             }}
                           >
                             <PopoverTrigger asChild>
@@ -478,7 +486,11 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
                               "bg-[#f8fafc] text-[#0f172a] hover:bg-[#eef2f7]"}`
                               }
                               type="button"
-                              onClick={() => setSelectedEventKey((prev) => prev === event.key ? null : event.key)}
+                              onClick={() => {
+                                setSelectedEventKey(event.key);
+                                setOpenWeekPopoverKey(event.key);
+                                setOpenTodayPopoverKey(null);
+                              }}
                               style={{ top, height }}>
                                 <div className="h-full w-full overflow-hidden">
                                   <p className={`truncate text-[10px] font-medium ${isSelected ? "text-[#d1d5db]" : "text-[#475569]"}`}>

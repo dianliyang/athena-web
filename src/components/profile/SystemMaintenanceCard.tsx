@@ -7,7 +7,8 @@ import { Loader2, Play, CheckCircle2, AlertCircle, RefreshCw } from "lucide-reac
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Toggle } from "@/components/ui/toggle";
 
 const ACTIVE_SECTION_STORAGE_KEY = "settings_active_section";
 
@@ -207,126 +208,176 @@ export default function SystemMaintenanceCard() {
 
   return (
     <div className="space-y-4">
-      <section className="space-y-2">
-        <h4 className="text-sm font-semibold">Target Institutions</h4>
-        <div className="flex flex-wrap gap-2">
-          {UNIVERSITIES.map((uni) => {
-            const selected = selectedUnis.includes(uni.id);
-            return (
-              <Button key={uni.id} variant="outline" type="button" onClick={() => toggleUni(uni.id)} disabled={isPending}>
-                {uni.name}
-                {selected ? <Badge variant="secondary">On</Badge> : null}
-              </Button>
-            );
-          })}
-        </div>
-      </section>
-
-      <Separator />
-
-      <section className="space-y-2">
-        <h4 className="text-sm font-semibold">Target Years</h4>
-        <div className="flex flex-wrap gap-2">
-          {yearOptions.map((year) => {
-            const selected = selectedYears.includes(year);
-            return (
-              <Button key={year} variant="outline" type="button" onClick={() => toggleYear(year)} disabled={isPending}>
-                {year}
-                {selected ? <Badge variant="secondary">On</Badge> : null}
-              </Button>
-            );
-          })}
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Runs all semesters for each selected year.
-        </p>
-      </section>
-
-      <Separator />
-
-      <section className="space-y-2">
-        <h4 className="text-sm font-semibold">Execution</h4>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" type="button" onClick={() => setExecutionMode("sequential")} disabled={isPending}>
-            One by one {executionMode === "sequential" ? <Badge variant="secondary">Active</Badge> : null}
-          </Button>
-          <Button variant="outline" type="button" onClick={() => setExecutionMode("concurrent")} disabled={isPending}>
-            Concurrent {executionMode === "concurrent" ? <Badge variant="secondary">Active</Badge> : null}
-          </Button>
-        </div>
-        <label className="inline-flex items-center gap-2 text-sm text-muted-foreground">
-          <Checkbox checked={forceUpdate} onCheckedChange={(checked) => setForceUpdate(checked === true)} disabled={isPending} />
-          Force update existing records
-        </label>
-      </section>
-
-      <div className="rounded-sm border p-3">
-        <div className="flex items-center justify-between gap-2">
-          <Button
-            variant="outline"
-            type="button"
-            onClick={handleRunScrapers}
-            disabled={isPending || selectedUnis.length === 0 || selectedYears.length === 0}
-          >
-            {isPending ? <Loader2 className="animate-spin" /> : <Play className="fill-current" />}
-            {isPending ? "Processing..." : "Run Sync"}
-          </Button>
-        </div>
-
-        {status.type !== "idle" ? (
-          <div className="mt-3 rounded-sm border p-3 text-sm">
-            <div className="flex items-center gap-2">
-              {status.type === "success" ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
-              <span>{status.message}</span>
-            </div>
-            {status.runs && status.runs.length > 0 ? (
-              <div className="mt-2 space-y-1 text-xs text-muted-foreground">
-                {status.runs.map((run) => (
-                  <div key={run.label} className="flex items-center justify-between gap-3">
-                    <span className="truncate">{run.label}</span>
-                    <span>{run.ok ? `${run.count} scraped` : "failed"}</span>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <Card>
+          <CardContent>
+            <p className="text-xs text-muted-foreground">Institutions</p>
+            <p className="mt-1 text-2xl font-semibold">{selectedUnis.length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent>
+            <p className="text-xs text-muted-foreground">Years</p>
+            <p className="mt-1 text-2xl font-semibold">{selectedYears.length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent>
+            <p className="text-xs text-muted-foreground">Execution Mode</p>
+            <p className="mt-1 text-base font-semibold capitalize">{executionMode}</p>
+          </CardContent>
+        </Card>
       </div>
 
-      <Separator />
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.35fr_0.65fr]">
+        <Card>
+          <CardHeader>
+            <CardTitle>Synchronization Controls</CardTitle>
+            <CardDescription>Choose targets and execution policy, then run sync.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <section className="space-y-2">
+              <h4 className="text-sm font-semibold">Target Institutions</h4>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {UNIVERSITIES.map((uni) => (
+                  <Toggle
+                    key={uni.id}
+                    variant="outline"
+                    pressed={selectedUnis.includes(uni.id)}
+                    onPressedChange={() => toggleUni(uni.id)}
+                    disabled={isPending}
+                    className="w-full data-[state=on]:border-black data-[state=on]:border-2"
+                  >
+                    {uni.name}
+                  </Toggle>
+                ))}
+              </div>
+            </section>
 
-      <section className="space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <h4 className="text-sm font-semibold">Recent Runs</h4>
-          <Button variant="outline" type="button" onClick={() => void loadRecentJobs()} disabled={jobsLoading}>
-            <RefreshCw className={jobsLoading ? "animate-spin" : ""} />
-            Refresh
-          </Button>
-        </div>
+            <section className="space-y-2">
+              <h4 className="text-sm font-semibold">Target Years</h4>
+              <div className="flex flex-wrap gap-2">
+                {yearOptions.map((year) => (
+                  <Toggle
+                    key={year}
+                    variant="outline"
+                    pressed={selectedYears.includes(year)}
+                    onPressedChange={() => toggleYear(year)}
+                    disabled={isPending}
+                    className="data-[state=on]:border-black data-[state=on]:border-2"
+                  >
+                    {year}
+                  </Toggle>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">Runs all semesters for each selected year.</p>
+            </section>
 
-        <div className="rounded-sm border">
-          {recentJobs.length === 0 ? (
-            <div className="p-3 text-sm text-muted-foreground">No scraper tasks yet.</div>
-          ) : (
-            <div className="divide-y">
-              {recentJobs.map((job) => (
-                <div key={job.id} className="p-3 text-sm">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-medium">
-                      {job.university.toUpperCase()} {job.semester ? `· ${job.semester.toUpperCase()}` : ""}
-                    </span>
-                    <Badge variant="secondary">{job.status}</Badge>
+            <section className="space-y-2">
+              <h4 className="text-sm font-semibold">Execution</h4>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <Toggle
+                  variant="outline"
+                  pressed={executionMode === "sequential"}
+                  onPressedChange={(pressed) => {
+                    if (pressed) setExecutionMode("sequential");
+                  }}
+                  disabled={isPending}
+                  className="w-full data-[state=on]:border-black data-[state=on]:border-2"
+                >
+                  One by one
+                </Toggle>
+                <Toggle
+                  variant="outline"
+                  pressed={executionMode === "concurrent"}
+                  onPressedChange={(pressed) => {
+                    if (pressed) setExecutionMode("concurrent");
+                  }}
+                  disabled={isPending}
+                  className="w-full data-[state=on]:border-black data-[state=on]:border-2"
+                >
+                  Concurrent
+                </Toggle>
+              </div>
+              <label className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+                <Checkbox checked={forceUpdate} onCheckedChange={(checked) => setForceUpdate(checked === true)} disabled={isPending} />
+                Force update existing records
+              </label>
+            </section>
+
+            <section className="space-y-3">
+              <Button
+                variant="outline"
+                type="button"
+                onClick={handleRunScrapers}
+                disabled={isPending || selectedUnis.length === 0 || selectedYears.length === 0}
+                className="w-full"
+              >
+                {isPending ? <Loader2 className="animate-spin" /> : <Play className="fill-current" />}
+                {isPending ? "Processing..." : "Run Sync"}
+              </Button>
+
+              {status.type !== "idle" ? (
+                <div className="rounded-sm border p-3 text-sm">
+                  <div className="flex items-center gap-2">
+                    {status.type === "success" ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+                    <span>{status.message}</span>
                   </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {job.job_type || "courses"} · {job.triggered_by || "manual"} · {job.course_count ?? 0} items · {job.duration_ms ? `${Math.round(job.duration_ms / 1000)}s` : "-"}
-                  </p>
-                  {job.error ? <p className="mt-1 text-xs text-destructive">{job.error}</p> : null}
+                  {status.runs && status.runs.length > 0 ? (
+                    <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                      {status.runs.map((run) => (
+                        <div key={run.label} className="flex items-center justify-between gap-3">
+                          <span className="truncate">{run.label}</span>
+                          <span>{run.ok ? `${run.count} scraped` : "failed"}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
-              ))}
-            </div>
-          )}
+              ) : null}
+            </section>
+          </CardContent>
+        </Card>
+
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <CardTitle>Recent Runs</CardTitle>
+                  <CardDescription>Latest scraper tasks and outcomes.</CardDescription>
+                </div>
+                <Button variant="ghost" size="sm" type="button" onClick={() => void loadRecentJobs()} disabled={jobsLoading}>
+                  <RefreshCw className={jobsLoading ? "animate-spin" : ""} />
+                  Refresh
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {recentJobs.length === 0 ? (
+                <div className="text-sm text-muted-foreground">No scraper tasks yet.</div>
+              ) : (
+                <div className="space-y-2">
+                  {recentJobs.map((job) => (
+                    <div key={job.id} className="text-sm">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium">
+                          {job.university.toUpperCase()} {job.semester ? `· ${job.semester.toUpperCase()}` : ""}
+                        </span>
+                        <Badge variant="secondary">{job.status}</Badge>
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {job.job_type || "courses"} · {job.triggered_by || "manual"} · {job.course_count ?? 0} items · {job.duration_ms ? `${Math.round(job.duration_ms / 1000)}s` : "-"}
+                      </p>
+                      {job.error ? <p className="mt-1 text-xs text-destructive">{job.error}</p> : null}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
-      </section>
+      </div>
     </div>
   );
 }

@@ -5,7 +5,8 @@ import { CheckSquare, Loader2, Sparkles } from "lucide-react";
 import { trackAiUsage } from "@/lib/ai/usage";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
 
 type PlannerResult = {
   track: string;
@@ -106,6 +107,8 @@ export default function AILearningPlanner() {
 
   return (
     <Card>
+      <CardContent>
+      <div className="space-y-3">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
           <h4 className="text-sm font-semibold text-[#222]">AI Learning Planner</h4>
@@ -226,6 +229,8 @@ export default function AILearningPlanner() {
           </Card>
         </div> :
       null}
+    </div>
+      </CardContent>
     </Card>);
 
 }

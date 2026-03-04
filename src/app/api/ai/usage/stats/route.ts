@@ -39,9 +39,11 @@ export async function GET() {
     .order("created_at", { ascending: false })
     .limit(2000);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("[usage-stats] ai_usage_logs query failed:", error.message);
+  }
 
-  const logs = (data || []) as UsageLog[];
+  const logs = error ? [] : ((data || []) as UsageLog[]);
 
   const totals = logs.reduce(
     (acc, l) => ({
@@ -98,9 +100,11 @@ export async function GET() {
     .order("created_at", { ascending: false })
     .limit(10);
 
-  if (recentResponsesError) return NextResponse.json({ error: recentResponsesError.message }, { status: 500 });
+  if (recentResponsesError) {
+    console.error("[usage-stats] ai_responses query failed:", recentResponsesError.message);
+  }
 
-  const recentResponses = (recentResponsesData || []) as RecentResponse[];
+  const recentResponses = recentResponsesError ? [] : ((recentResponsesData || []) as RecentResponse[]);
 
   return NextResponse.json(
     {
