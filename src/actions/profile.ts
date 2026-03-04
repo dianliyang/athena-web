@@ -19,10 +19,14 @@ export async function updateAiPreferences(input: {
     throw new Error("Invalid provider");
   }
 
-  const validModelSet = await getModelSetForProvider(input.provider as "gemini" | "perplexity" | "openai" | "vertex");
-  
-  if (!validModelSet.has(input.defaultModel)) {
-    throw new Error(`Invalid model for ${input.provider}: ${input.defaultModel}`);
+  const validModelSet = await getModelSetForProvider(
+    input.provider as "gemini" | "perplexity" | "openai" | "vertex",
+  );
+  const validModels = Array.from(validModelSet);
+  const requestedModel = String(input.defaultModel || "").trim();
+  const resolvedModel = validModelSet.has(requestedModel) ? requestedModel : (validModels[0] || "");
+  if (!resolvedModel) {
+    throw new Error(`No active model configured for provider: ${input.provider}`);
   }
   const supabase = await createClient();
   const now = new Date().toISOString();
@@ -32,7 +36,7 @@ export async function updateAiPreferences(input: {
       id: user.id,
       email: user.email ?? null,
       ai_provider: input.provider,
-      ai_default_model: input.defaultModel,
+      ai_default_model: resolvedModel,
       ai_web_search_enabled: input.webSearchEnabled,
       updated_at: now,
     },

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface ImportFormProps {
   dict: {
@@ -203,11 +204,11 @@ export default function ImportForm({ dict }: ImportFormProps) {
       ) : null}
 
       <form onSubmit={handleGlobalExecute} className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <section className="space-y-3 rounded-sm border p-4 lg:col-span-2">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold">Manual Import</h2>
-            <span className="text-xs text-muted-foreground">Required: University, Code, Title</span>
-          </div>
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-sm">Manual Import</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <Field label={dict.form_uni} required>
@@ -323,11 +324,15 @@ export default function ImportForm({ dict }: ImportFormProps) {
               )}
             </Button>
           </div>
-        </section>
+          </CardContent>
+        </Card>
 
-        <section className="space-y-3 rounded-sm border p-4">
-          <h2 className="text-sm font-semibold">{dict.bulk_title}</h2>
-          <p className="text-sm text-muted-foreground">{dict.bulk_desc}</p>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">{dict.bulk_title}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">{dict.bulk_desc}</p>
 
           <div
             onClick={() => fileInputRef.current?.click()}
@@ -345,19 +350,34 @@ export default function ImportForm({ dict }: ImportFormProps) {
             <p className="mt-1 text-xs text-muted-foreground">
               {stagedBulkData ? `${stagedBulkData.length} courses staged` : dict.bulk_or}
             </p>
-            <Input type="file" ref={fileInputRef} accept=".json,.csv" onChange={handleFileSelect} />
+            <div className="mt-3">
+              <Button variant="outline" type="button" onClick={() => fileInputRef.current?.click()}>
+                Select JSON/CSV
+              </Button>
+            </div>
+            <Input
+              className="sr-only"
+              type="file"
+              ref={fileInputRef}
+              accept=".json,.csv"
+              onChange={handleFileSelect}
+            />
           </div>
 
-          <div className="rounded-sm border p-3">
-            <p className="text-xs text-muted-foreground">Current mode</p>
-            <p className="mt-1 text-sm">{stagedBulkData ? `Bulk import (${stagedBulkData.length})` : "Manual import"}</p>
-          </div>
-        </section>
+            <div className="rounded-sm border p-3">
+              <p className="text-xs text-muted-foreground">Current mode</p>
+              <p className="mt-1 text-sm">{stagedBulkData ? `Bulk import (${stagedBulkData.length})` : "Manual import"}</p>
+            </div>
+          </CardContent>
+        </Card>
       </form>
 
-      <section className="space-y-3 rounded-sm border p-4">
-        <h2 className="text-sm font-semibold">{dict.protocol_title}</h2>
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">{dict.protocol_title}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">{dict.protocol_requirements}</p>
             <div className="rounded-sm border">
@@ -406,8 +426,9 @@ export default function ImportForm({ dict }: ImportFormProps) {
               </div>
             </div>
           </div>
-        </div>
-      </section>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

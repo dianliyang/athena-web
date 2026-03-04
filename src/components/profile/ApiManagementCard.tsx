@@ -13,16 +13,13 @@ type ApiKeyItem = {
   name: string;
   keyPrefix: string | null;
   isActive: boolean;
+  isReadOnly: boolean;
   requestsLimit: number | null;
   requestsUsed: number;
   lastUsedAt: string | null;
 };
 
-type DraftById = Record<number, { requestsLimit: string; isActive: boolean }>;
-
-function toLimitValue(limit: number | null): string {
-  return limit == null ? "" : String(limit);
-}
+type DraftById = Record<number, { isActive: boolean; isReadOnly: boolean }>;
 
 function toMaskedKey(prefix: string | null): string {
   if (!prefix) return "****";
@@ -40,6 +37,7 @@ export default function ApiManagementCard() {
 
   const [newName, setNewName] = useState("");
   const [newLimit, setNewLimit] = useState("");
+  const [newReadOnly, setNewReadOnly] = useState(false);
   const [nameError, setNameError] = useState(false);
 
   const load = async () => {
@@ -52,8 +50,8 @@ export default function ApiManagementCard() {
       const nextDrafts: DraftById = {};
       for (const item of nextItems) {
         nextDrafts[item.id] = {
-          requestsLimit: toLimitValue(item.requestsLimit),
           isActive: Boolean(item.isActive),
+          isReadOnly: Boolean(item.isReadOnly),
         };
       }
       setDrafts(nextDrafts);
@@ -112,7 +110,11 @@ export default function ApiManagementCard() {
       const response = await fetch("/api/settings/api-key", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newName.trim(), requestsLimit: limit }),
+        body: JSON.stringify({
+          name: newName.trim(),
+          requestsLimit: limit,
+          isReadOnly: newReadOnly,
+        }),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload?.error || "Failed to generate key");
@@ -122,6 +124,7 @@ export default function ApiManagementCard() {
       if (key) showSaved("New API key generated.");
       setNewName("");
       setNewLimit("");
+      setNewReadOnly(false);
       await load();
     } catch (error) {
       showSaved(error instanceof Error ? error.message : "Failed to generate key.");
@@ -130,18 +133,24 @@ export default function ApiManagementCard() {
     }
   };
 
-  const persistRow = async (id: number, draftOverride?: { requestsLimit: string; isActive: boolean }) => {
+  const persistRow = async (
+    id: number,
+    draftOverride?: { isActive: boolean; isReadOnly: boolean },
+  ) => {
     const draft = draftOverride ?? drafts[id];
     if (!draft) return;
 
     setWorkingId(id);
     setSaved(null);
     try {
-      const requestsLimit = parseLimit(draft.requestsLimit);
       const response = await fetch("/api/settings/api-key", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, isActive: draft.isActive, requestsLimit }),
+        body: JSON.stringify({
+          id,
+          isActive: draft.isActive,
+          isReadOnly: draft.isReadOnly,
+        }),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload?.error || "Failed to save");
@@ -197,12 +206,14 @@ export default function ApiManagementCard() {
       <Card>
         <CardHeader>
           <CardTitle>Create API Key</CardTitle>
-          <CardDescription>Create a new key and optionally set a request limit.</CardDescription>
+          <CardDescription>
+            Create a new key and optionally set a request limit. Leave blank for unlimited.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <section className="grid gap-3 sm:grid-cols-[1.5fr_1fr_auto] sm:items-end">
             <div className="space-y-1">
-              <label className="text-sm font-medium">Key Name</label>
+              <Badge variant="secondary">Key Name</Badge>
               <Input
                 value={newName}
                 onChange={(e) => {
@@ -214,7 +225,7 @@ export default function ApiManagementCard() {
               {nameError ? <p className="text-xs text-destructive">Name is required.</p> : null}
             </div>
             <div className="space-y-1">
-              <label className="text-sm font-medium">Request Limit</label>
+              <Badge variant="secondary">Request Limit</Badge>
               <Input
                 value={newLimit}
                 onChange={(e) => setNewLimit(e.target.value)}
@@ -222,7 +233,15 @@ export default function ApiManagementCard() {
                 min={1}
                 placeholder="Unlimited"
               />
+              <p className="text-xs text-muted-foreground">Integer {"\u2265"} 1. Empty means no limit.</p>
             </div>
+            <label className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+              <Checkbox
+                checked={newReadOnly}
+                onCheckedChange={(checked) => setNewReadOnly(checked === true)}
+              />
+              Read-only key
+            </label>
             <Button variant="outline" type="button" onClick={generateKey} disabled={isCreating}>
               {isCreating ? <Loader2 className="animate-spin" /> : <WandSparkles />}
               Generate Key
@@ -252,7 +271,9 @@ export default function ApiManagementCard() {
       <Card>
         <CardHeader>
           <CardTitle>API Keys</CardTitle>
-          <CardDescription>Manage status, usage limits, and lifecycle.</CardDescription>
+          <CardDescription>
+            Manage status, usage limits, and lifecycle. Update limit with an integer, or clear it for unlimited.
+          </CardDescription>
         </CardHeader>
         <CardContent>
         <div className="overflow-x-auto">
@@ -264,6 +285,7 @@ export default function ApiManagementCard() {
                 <th className="px-3 py-2 font-medium">Limit</th>
                 <th className="px-3 py-2 font-medium">Usage</th>
                 <th className="px-3 py-2 font-medium">Status</th>
+                <th className="px-3 py-2 font-medium">Mode</th>
                 <th className="px-3 py-2 font-medium">Last Used</th>
                 <th className="px-3 py-2 text-right font-medium">Actions</th>
               </tr>
@@ -271,21 +293,21 @@ export default function ApiManagementCard() {
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td className="px-3 py-3 text-muted-foreground" colSpan={7}>
+                  <td className="px-3 py-3 text-muted-foreground" colSpan={8}>
                     Loading...
                   </td>
                 </tr>
               ) : !hasRows ? (
                 <tr>
-                  <td className="px-3 py-3 text-muted-foreground" colSpan={7}>
+                  <td className="px-3 py-3 text-muted-foreground" colSpan={8}>
                     No API keys yet.
                   </td>
                 </tr>
               ) : (
                 items.map((item) => {
                   const fallbackDraft = {
-                    requestsLimit: toLimitValue(item.requestsLimit),
                     isActive: item.isActive,
+                    isReadOnly: item.isReadOnly,
                   };
                   const draft = drafts[item.id] || fallbackDraft;
                   const busy = workingId === item.id;
@@ -294,20 +316,7 @@ export default function ApiManagementCard() {
                       <td className="px-3 py-2">{item.name || "API Key"}</td>
                       <td className="px-3 py-2 text-muted-foreground">{toMaskedKey(item.keyPrefix)}</td>
                       <td className="px-3 py-2">
-                        <Input
-                          value={draft.requestsLimit}
-                          onChange={(e) =>
-                            setDrafts((prev) => {
-                              const current = prev[item.id] || fallbackDraft;
-                              return { ...prev, [item.id]: { ...current, requestsLimit: e.target.value } };
-                            })
-                          }
-                          onBlur={() => void persistRow(item.id)}
-                          type="number"
-                          min={1}
-                          disabled={busy}
-                          placeholder="Unlimited"
-                        />
+                        <span className="text-muted-foreground">{item.requestsLimit ?? "Unlimited"}</span>
                       </td>
                       <td className="px-3 py-2 text-muted-foreground">
                         {item.requestsUsed}
@@ -329,12 +338,28 @@ export default function ApiManagementCard() {
                           </Badge>
                         </label>
                       </td>
+                      <td className="px-3 py-2">
+                        <label className="inline-flex items-center gap-2 text-sm">
+                          <Checkbox
+                            checked={draft.isReadOnly}
+                            onCheckedChange={(checked) => {
+                              const nextDraft = { ...draft, isReadOnly: checked === true };
+                              setDrafts((prev) => ({ ...prev, [item.id]: nextDraft }));
+                              void persistRow(item.id, nextDraft);
+                            }}
+                            disabled={busy}
+                          />
+                          <Badge variant={draft.isReadOnly ? "secondary" : "outline"}>
+                            {draft.isReadOnly ? "Read-only" : "Read/Write"}
+                          </Badge>
+                        </label>
+                      </td>
                       <td className="px-3 py-2 text-xs text-muted-foreground">
                         {item.lastUsedAt ? new Date(item.lastUsedAt).toLocaleString() : "Never"}
                       </td>
                       <td className="px-3 py-2 text-right">
                         <Button
-                          variant="outline"
+                          variant="ghost"
                           type="button"
                           onClick={() => deleteRow(item.id)}
                           disabled={busy}

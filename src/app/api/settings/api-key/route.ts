@@ -13,6 +13,13 @@ function isMissingTableError(error: unknown): boolean {
   return code === "42P01" || (msg.includes("relation") && msg.includes("user_api_keys") && msg.includes("does not exist"));
 }
 
+function isMissingReadOnlyColumnError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const msg = String((error as { message?: unknown }).message || "").toLowerCase();
+  const code = String((error as { code?: unknown }).code || "");
+  return code === "PGRST204" && msg.includes("is_read_only");
+}
+
 async function getAuthedUserId() {
   const supabase = await createClient();
   const {
@@ -31,11 +38,22 @@ export async function GET() {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any;
-  const { data, error } = await db
+  let data: any = null; // eslint-disable-line @typescript-eslint/no-explicit-any
+  let error: any = null; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+  ({ data, error } = await db
     .from("user_api_keys")
-    .select("id, key_name, key_prefix, is_active, requests_limit, requests_used, last_used_at, created_at, updated_at")
+    .select("id, key_name, key_prefix, is_active, is_read_only, requests_limit, requests_used, last_used_at, created_at, updated_at")
     .eq("user_id", userId)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false }));
+
+  if (isMissingReadOnlyColumnError(error)) {
+    ({ data, error } = await db
+      .from("user_api_keys")
+      .select("id, key_name, key_prefix, is_active, requests_limit, requests_used, last_used_at, created_at, updated_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false }));
+  }
 
   if (error) {
     if (isMissingTableError(error)) {
@@ -50,6 +68,7 @@ export async function GET() {
       name: row.key_name ?? "API Key",
       keyPrefix: row.key_prefix ?? null,
       isActive: row.is_active ?? false,
+      isReadOnly: row.is_read_only ?? false,
       requestsLimit: row.requests_limit ?? null,
       requestsUsed: row.requests_used ?? 0,
       lastUsedAt: row.last_used_at ?? null,
@@ -72,12 +91,13 @@ export async function POST(request: NextRequest) {
   const requestsLimit = body?.requestsLimit == null || body?.requestsLimit === ""
     ? null
     : Number(body.requestsLimit);
+  const isReadOnly = body?.isReadOnly === true;
 
   if (requestsLimit != null && (!Number.isInteger(requestsLimit) || requestsLimit < 1)) {
     return NextResponse.json({ error: "requestsLimit must be an integer >= 1." }, { status: 400 });
   }
 
-  const rawKey = `ccmp_${randomBytes(20).toString("hex")}`;
+  const rawKey = randomBytes(32).toString("hex");
   const keyPrefix = rawKey.slice(0, 14);
   const keyHash = hashKey(rawKey);
   const now = new Date().toISOString();
@@ -92,18 +112,25 @@ export async function POST(request: NextRequest) {
       key_prefix: keyPrefix,
       key_hash: keyHash,
       is_active: true,
+      is_read_only: isReadOnly,
       requests_limit: requestsLimit,
       requests_used: 0,
       updated_at: now,
       last_rotated_at: now,
     })
-    .select("id, key_name, key_prefix, is_active, requests_limit, requests_used, last_used_at, created_at, updated_at")
+    .select("id, key_name, key_prefix, is_active, is_read_only, requests_limit, requests_used, last_used_at, created_at, updated_at")
     .single();
 
   if (error) {
     if (isMissingTableError(error)) {
       return NextResponse.json(
         { error: "API key table is not available yet. Run latest database migrations." },
+        { status: 503 }
+      );
+    }
+    if (isMissingReadOnlyColumnError(error)) {
+      return NextResponse.json(
+        { error: "Read-only mode is unavailable. Run latest database migrations." },
         { status: 503 }
       );
     }
@@ -117,6 +144,7 @@ export async function POST(request: NextRequest) {
       name: data.key_name,
       keyPrefix: data.key_prefix,
       isActive: data.is_active,
+      isReadOnly: data.is_read_only,
       requestsLimit: data.requests_limit,
       requestsUsed: data.requests_used,
       lastUsedAt: data.last_used_at,
@@ -142,19 +170,11 @@ export async function PATCH(request: NextRequest) {
   if (typeof body?.isActive === "boolean") {
     updatePayload.is_active = body.isActive;
   }
+  if (typeof body?.isReadOnly === "boolean") {
+    updatePayload.is_read_only = body.isReadOnly;
+  }
   if (typeof body?.name === "string") {
     updatePayload.key_name = body.name.trim().slice(0, 80) || "API Key";
-  }
-  if (Object.prototype.hasOwnProperty.call(body, "requestsLimit")) {
-    if (body.requestsLimit == null || body.requestsLimit === "") {
-      updatePayload.requests_limit = null;
-    } else {
-      const limit = Number(body.requestsLimit);
-      if (!Number.isInteger(limit) || limit < 1) {
-        return NextResponse.json({ error: "requestsLimit must be an integer >= 1." }, { status: 400 });
-      }
-      updatePayload.requests_limit = limit;
-    }
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -164,13 +184,19 @@ export async function PATCH(request: NextRequest) {
     .update(updatePayload)
     .eq("id", id)
     .eq("user_id", userId)
-    .select("id, key_name, key_prefix, is_active, requests_limit, requests_used, last_used_at, created_at, updated_at")
+    .select("id, key_name, key_prefix, is_active, is_read_only, requests_limit, requests_used, last_used_at, created_at, updated_at")
     .single();
 
   if (error) {
     if (isMissingTableError(error)) {
       return NextResponse.json(
         { error: "API key table is not available yet. Run latest database migrations." },
+        { status: 503 }
+      );
+    }
+    if (isMissingReadOnlyColumnError(error)) {
+      return NextResponse.json(
+        { error: "Read-only mode is unavailable. Run latest database migrations." },
         { status: 503 }
       );
     }
@@ -183,6 +209,7 @@ export async function PATCH(request: NextRequest) {
       name: data.key_name,
       keyPrefix: data.key_prefix,
       isActive: data.is_active,
+      isReadOnly: data.is_read_only,
       requestsLimit: data.requests_limit,
       requestsUsed: data.requests_used,
       lastUsedAt: data.last_used_at,

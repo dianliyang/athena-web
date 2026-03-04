@@ -89,7 +89,6 @@ export default function EngineSettingsPanel({
   initialWebSearchEnabled,
   modelCatalog,
 }: EngineSettingsPanelProps) {
-  const [backendModelCatalog, setBackendModelCatalog] = useState(modelCatalog);
   const [provider, setProvider] = useState<AIProvider>(normalizeProvider(initialProvider));
   const [defaultModel, setDefaultModel] = useState(initialModel);
   const [webSearchEnabled, setWebSearchEnabled] = useState(initialWebSearchEnabled);
@@ -112,11 +111,11 @@ export default function EngineSettingsPanel({
 
   const providerCatalogModels = useMemo(() => {
     return provider === "gemini"
-      ? backendModelCatalog.gemini
+      ? modelCatalog.gemini
       : provider === "openai"
-        ? backendModelCatalog.openai
-        : backendModelCatalog.perplexity;
-  }, [provider, backendModelCatalog]);
+        ? modelCatalog.openai
+        : modelCatalog.perplexity;
+  }, [provider, modelCatalog]);
 
   const availableModels = useMemo(() => {
     const source = [...providerCatalogModels, ...(customModels[provider] || [])];
@@ -136,35 +135,6 @@ export default function EngineSettingsPanel({
     if (saveState === "error") return "Save failed";
     return "Ready";
   }, [saveState, lastSavedAt]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const loadModelCatalog = async () => {
-      try {
-        const res = await fetch("/api/ai/models", { cache: "no-store" });
-        if (!res.ok) return;
-        const payload = (await res.json()) as {
-          modelCatalog?: {
-            perplexity?: string[];
-            gemini?: string[];
-            openai?: string[];
-          };
-        };
-        if (cancelled || !payload.modelCatalog) return;
-        setBackendModelCatalog((prev) => ({
-          perplexity: payload.modelCatalog?.perplexity || prev.perplexity || [],
-          gemini: payload.modelCatalog?.gemini || prev.gemini || [],
-          openai: payload.modelCatalog?.openai || prev.openai || [],
-        }));
-      } catch {
-        // keep initial server-provided catalog when request fails
-      }
-    };
-    loadModelCatalog();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     if (isFirstSyncRef.current) {
@@ -211,18 +181,18 @@ export default function EngineSettingsPanel({
   const applyPreset = (mode: "balanced" | "fast" | "quality") => {
     if (mode === "balanced") {
       setProvider("perplexity");
-      setDefaultModel(pickPreferredModel(backendModelCatalog.perplexity, ["sonar", "pro", "small"]));
+      setDefaultModel(pickPreferredModel(modelCatalog.perplexity, ["sonar", "pro", "small"]));
       setWebSearchEnabled(true);
       return;
     }
     if (mode === "fast") {
       setProvider("openai");
-      setDefaultModel(pickPreferredModel(backendModelCatalog.openai, ["mini", "nano", "4o-mini"]));
+      setDefaultModel(pickPreferredModel(modelCatalog.openai, ["mini", "nano", "4o-mini"]));
       setWebSearchEnabled(false);
       return;
     }
     setProvider("gemini");
-    setDefaultModel(pickPreferredModel(backendModelCatalog.gemini, ["pro", "2.0", "1.5"]));
+    setDefaultModel(pickPreferredModel(modelCatalog.gemini, ["pro", "2.0", "1.5"]));
     setWebSearchEnabled(true);
   };
 

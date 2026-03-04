@@ -105,7 +105,7 @@ function SidebarLinkItem({
         asChild
         isActive={active}
         tooltip={title}
-        className={active ? "bg-sidebar-accent font-semibold text-sidebar-foreground" : ""}
+        className={active ? "bg-sidebar-accent/90 font-semibold text-sidebar-foreground" : ""}
       >
         <Link
           href={href}

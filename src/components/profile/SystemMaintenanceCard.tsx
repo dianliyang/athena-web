@@ -246,7 +246,7 @@ export default function SystemMaintenanceCard() {
                     pressed={selectedUnis.includes(uni.id)}
                     onPressedChange={() => toggleUni(uni.id)}
                     disabled={isPending}
-                    className="w-full data-[state=on]:border-black data-[state=on]:border-2"
+                    className="w-full data-[state=on]:bg-transparent data-[state=on]:text-foreground data-[state=on]:border-black data-[state=on]:border-2"
                   >
                     {uni.name}
                   </Toggle>
@@ -264,7 +264,7 @@ export default function SystemMaintenanceCard() {
                     pressed={selectedYears.includes(year)}
                     onPressedChange={() => toggleYear(year)}
                     disabled={isPending}
-                    className="data-[state=on]:border-black data-[state=on]:border-2"
+                    className="data-[state=on]:bg-transparent data-[state=on]:text-foreground data-[state=on]:border-black data-[state=on]:border-2"
                   >
                     {year}
                   </Toggle>
@@ -283,7 +283,7 @@ export default function SystemMaintenanceCard() {
                     if (pressed) setExecutionMode("sequential");
                   }}
                   disabled={isPending}
-                  className="w-full data-[state=on]:border-black data-[state=on]:border-2"
+                  className="w-full data-[state=on]:bg-transparent data-[state=on]:text-foreground data-[state=on]:border-black data-[state=on]:border-2"
                 >
                   One by one
                 </Toggle>
@@ -294,7 +294,7 @@ export default function SystemMaintenanceCard() {
                     if (pressed) setExecutionMode("concurrent");
                   }}
                   disabled={isPending}
-                  className="w-full data-[state=on]:border-black data-[state=on]:border-2"
+                  className="w-full data-[state=on]:bg-transparent data-[state=on]:text-foreground data-[state=on]:border-black data-[state=on]:border-2"
                 >
                   Concurrent
                 </Toggle>
@@ -355,16 +355,24 @@ export default function SystemMaintenanceCard() {
             </CardHeader>
             <CardContent>
               {recentJobs.length === 0 ? (
-                <div className="text-sm text-muted-foreground">No scraper tasks yet.</div>
+                <div className="text-xs text-muted-foreground">No scraper tasks yet.</div>
               ) : (
                 <div className="space-y-2">
                   {recentJobs.map((job) => (
-                    <div key={job.id} className="text-sm">
+                    <div key={job.id} className="text-xs text-muted-foreground">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="font-medium">
+                        <span>
                           {job.university.toUpperCase()} {job.semester ? `· ${job.semester.toUpperCase()}` : ""}
                         </span>
-                        <Badge variant="secondary">{job.status}</Badge>
+                        <Badge
+                          variant={
+                            String(job.status || "").toLowerCase() === "failed"
+                              ? "destructive"
+                              : "secondary"
+                          }
+                        >
+                          {job.status}
+                        </Badge>
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground">
                         {job.job_type || "courses"} · {job.triggered_by || "manual"} · {job.course_count ?? 0} items · {job.duration_ms ? `${Math.round(job.duration_ms / 1000)}s` : "-"}
