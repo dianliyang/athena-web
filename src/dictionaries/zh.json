@@ -12,7 +12,7 @@
     "title_prefix": "一个简单的",
     "title_middle": "计算机课程",
     "title_highlight": "索引库",
-    "desc_1": "CodeCampus 是一个独立的开源项目，旨在将 MIT、Stanford 和 Berkeley 等名校的公开课程目录汇聚在一起，方便所有人搜索 and 查阅。",
+    "desc_1": "Flash 是一个独立的开源项目，旨在将 MIT、Stanford 和 Berkeley 等名校的公开课程目录汇聚在一起，方便所有人搜索 and 查阅。",
     "desc_2": "我们不提供课程视频，而是帮你整理散落在各处的教学大纲、先修要求和难度信息，助你更清晰地制定个人学习计划。",
     "stat_sources": "学校",
     "stat_nodes": "课程数量",
@@ -75,7 +75,7 @@
     "label": "收录了来自这些学府的公开目录"
   },
   "footer": {
-    "copyright": "© 2026 CodeCampus 课程库. 一个实用的学习工具."
+    "copyright": "© 2026 Flash 课程库. 一个实用的学习工具."
   },
   "navbar": {
     "mission": "关于",
@@ -261,7 +261,7 @@
       "submit_resend": "重新发送魔法链接",
       "submit_send": "发送魔法链接",
       "wrong_email": "邮箱填错了？",
-      "footer": "受 CodeCampus 安全协议保护。仅限授权访问。",
+      "footer": "受 Flash 安全协议保护。仅限授权访问。",
       "verify_title": "身份验证中",
       "verify_desc": "安全访问链接已发送至您的电子邮箱。请检查您的收件箱以建立会话。",
       "check_email": "请查收邮件",

@@ -26,15 +26,15 @@ export default function LandingNavbar({ dict }: { dict: any }) {
             <div className="flex items-center">
               <Link href="/" className="group flex items-center gap-2 md:gap-3">
                 <Image
-                  src="/code-campus-logo-bw.svg"
-                  alt="CodeCampus"
+                  src="/logo.svg"
+                  alt="Flash"
                   width={scrolled ? 28 : 36}
                   height={scrolled ? 28 : 36}
                   priority
                   className={`transition-[transform,width,height] duration-300 ${scrolled ? "w-7 h-7 scale-95" : "w-9 h-9 md:w-10 md:h-10 scale-100"} group-hover:scale-105`}
                 />
-                <span className={`text-lg md:text-xl font-bold tracking-tight text-slate-900 leading-none transition-[font-size,opacity,transform] duration-300 ${scrolled ? "text-base" : ""}`}>
-                  CodeCampus
+                <span className={`font-brand text-lg md:text-xl font-bold tracking-tight text-slate-900 leading-none transition-[font-size,opacity,transform] duration-300 ${scrolled ? "text-base" : ""}`}>
+                  Flash
                 </span>
               </Link>
             </div>

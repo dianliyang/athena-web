@@ -246,11 +246,11 @@ async function StudyPlanContent({
 
   return (
     <div className="h-full w-full flex flex-col gap-2">
-      <div className="py-2">
+      <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-[#1f1f1f]">
           {dict.navbar?.roadmap || "Roadmap"}
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           Review your active focus and upcoming study schedule.
         </p>
       </div>

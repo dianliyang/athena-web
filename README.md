@@ -1,6 +1,6 @@
-# CodeCampus
+# Flash
 
-CodeCampus is a comprehensive platform for students and learners, acting as a course aggregator that scrapes, organizes, and tracks university course data from top institutions like CMU, MIT, Stanford, and UC Berkeley, while also providing tools for personal study planning and progress tracking.
+Flash is a comprehensive platform for students and learners, acting as a course aggregator that scrapes, organizes, and tracks university course data from top institutions like CMU, MIT, Stanford, and UC Berkeley, while also providing tools for personal study planning and progress tracking.
 
 ## Features
 
@@ -98,8 +98,8 @@ public/
 ### 1. Clone and Install
 
 ```bash
-git clone https://github.com/dianliyang/code-campus.git
-cd code-campus
+git clone https://github.com/dianliyang/flash.git
+cd flash
 npm install
 ```
 
@@ -207,7 +207,7 @@ Copy `.env.example` to `.env.local` and fill in the values.
 
 ## PWA Support
 
-CodeCampus is a Progressive Web App:
+Flash is a Progressive Web App:
 
 - **Installable**: Add to home screen on mobile/desktop
 - **Offline**: Cached pages work without internet

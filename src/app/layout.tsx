@@ -16,8 +16,8 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: "CodeCampus | CS Course Aggregator",
-    template: "%s | CodeCampus",
+    default: "Flash | Smart Learning Platform",
+    template: "%s | Flash",
   },
   description: "Find the best computer science courses from top universities.",
   robots: { index: true, follow: true },
@@ -29,12 +29,12 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "CodeCampus",
+    title: "Flash",
   },
   openGraph: {
     type: "website",
-    siteName: "CodeCampus",
-    title: "CodeCampus | CS Course Aggregator",
+    siteName: "Flash",
+    title: "Flash | Smart Learning Platform",
     description: "Find the best computer science courses from top universities.",
   },
 };

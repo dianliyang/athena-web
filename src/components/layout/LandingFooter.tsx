@@ -9,8 +9,8 @@ export default function LandingFooter({ dict, lang }: { dict: any; lang: Locale 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <Image
-            src="/code-campus-logo-bw.svg"
-            alt="CodeCampus"
+            src="/logo.svg"
+            alt="Flash"
             width={20}
             height={20}
           />

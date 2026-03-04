@@ -35,8 +35,8 @@ describe("Landing navbar branding and transition", () => {
       />,
     );
 
-    const logo = await screen.findByAltText("CodeCampus");
-    expect((logo as HTMLImageElement).getAttribute("src")).toContain("/code-campus-logo-bw.svg");
+    const logo = await screen.findByAltText("Flash");
+    expect((logo as HTMLImageElement).getAttribute("src")).toContain("/logo.svg");
   });
 
   test("floating wrapper switches to scrolled shell on scroll", () => {

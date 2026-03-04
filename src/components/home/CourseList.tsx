@@ -10,7 +10,7 @@ import { Check, Loader2, UserPlus } from "lucide-react";
 import {
   toggleCourseEnrollmentAction,
 } from "@/actions/courses";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -24,24 +24,7 @@ import {
 import UniversityIcon from "@/components/common/UniversityIcon";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { ButtonGroup } from "@/components/ui/button-group";
 import { Separator } from "@/components/ui/separator";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 interface CourseListProps {
   initialCourses: Course[];
@@ -67,7 +50,6 @@ export default function CourseList({
   filterSemesters,
 }: CourseListProps) {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [enrolledIds, setEnrolledIds] = useState<number[]>(initialEnrolledIds);
   const [courses, setCourses] = useState<Course[]>(initialCourses);
@@ -77,6 +59,7 @@ export default function CourseList({
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const { showToast } = useAppToast();
   const observerTarget = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [selectedCourseIds, setSelectedCourseIds] = useState<number[]>([]);
   const [actionLoadingIds, setActionLoadingIds] = useState<
     Record<number, boolean>
@@ -196,7 +179,7 @@ export default function CourseList({
   const effectiveViewMode: "list" | "grid" = isMobileViewport ? "grid" : viewMode;
 
   useEffect(() => {
-    if (effectiveViewMode !== "grid" || page >= totalPages) return;
+    if (page >= totalPages) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -204,7 +187,11 @@ export default function CourseList({
           loadMore();
         }
       },
-      { threshold: 0, rootMargin: "0px 0px 320px 0px" },
+      {
+        threshold: 0,
+        root: scrollContainerRef.current,
+        rootMargin: "0px 0px 320px 0px",
+      },
     );
 
     if (observerTarget.current) {
@@ -212,24 +199,8 @@ export default function CourseList({
     }
 
     return () => observer.disconnect();
-  }, [effectiveViewMode, loadMore, isLoading, page, totalPages]);
+  }, [loadMore, isLoading, page, totalPages, effectiveViewMode]);
   const refParams = searchParams.toString();
-  const createPageHref = (nextPage: number) => {
-    const next = new URLSearchParams(searchParams.toString());
-    next.set("page", String(nextPage));
-    return `/courses?${next.toString()}`;
-  };
-  const createPerPageHref = (nextPerPage: number) => {
-    const next = new URLSearchParams(searchParams.toString());
-    next.set("perPage", String(nextPerPage));
-    next.set("page", "1");
-    return `/courses?${next.toString()}`;
-  };
-  const pageNumbers = Array.from(
-    new Set([1, currentPage - 1, currentPage, currentPage + 1, totalPages]),
-  )
-    .filter((p) => p >= 1 && p <= totalPages)
-    .sort((a, b) => a - b);
 
   const toggleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -281,7 +252,7 @@ export default function CourseList({
       <Separator />
 
       {effectiveViewMode === "list" ? (
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-y-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -404,20 +375,38 @@ export default function CourseList({
               })}
             </TableBody>
           </Table>
+          <div ref={observerTarget} className="py-4 flex justify-center">
+            {isLoading && (
+              <Loader2 className="w-5 h-5 text-slate-500 animate-spin" />
+            )}
+            {!isLoading && page >= totalPages && courses.length > 0 && (
+              <span className="text-xs text-slate-400">End of catalog</span>
+            )}
+          </div>
         </div>
       ) : (
-        <div className="min-h-0 flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 py-3">
-          {courses.map((course, idx) => (
-            <CourseCard
-              key={course.id}
-              course={course}
-              isInitialEnrolled={enrolledIds.includes(course.id)}
-              onEnrollToggle={fetchEnrolled}
-              onHide={handleHide}
-              viewMode="grid"
-              rowIndex={idx}
-            />
-          ))}
+        <div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-y-auto py-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {courses.map((course, idx) => (
+              <CourseCard
+                key={course.id}
+                course={course}
+                isInitialEnrolled={enrolledIds.includes(course.id)}
+                onEnrollToggle={fetchEnrolled}
+                onHide={handleHide}
+                viewMode="grid"
+                rowIndex={idx}
+              />
+            ))}
+          </div>
+          <div ref={observerTarget} className="py-4 flex justify-center">
+            {isLoading && (
+              <Loader2 className="w-5 h-5 text-slate-500 animate-spin" />
+            )}
+            {!isLoading && page >= totalPages && courses.length > 0 && (
+              <span className="text-xs text-slate-400">End of catalog</span>
+            )}
+          </div>
         </div>
       )}
 
@@ -431,78 +420,6 @@ export default function CourseList({
           </p>
         </div>
       )}
-
-      {effectiveViewMode === "grid" ? (
-      <div ref={observerTarget} className="py-4 flex justify-center">
-        {isLoading && (
-          <Loader2 className="w-5 h-5 text-slate-500 animate-spin" />
-        )}
-        {!isLoading && page >= totalPages && courses.length > 0 && (
-          <span className="text-xs text-slate-400">End of catalog</span>
-        )}
-      </div>
-      ) : null}
-
-      {effectiveViewMode === "list" ? (
-      <div className="hidden md:flex flex-nowrap items-center justify-between gap-2 rounded-md border px-2 py-2">
-        {totalPages > 1 ? (
-          <p className="text-xs text-muted-foreground">
-            Page {currentPage} of {Math.max(totalPages, 1)}
-          </p>
-        ) : <div />}
-        <div className="flex flex-nowrap items-center gap-2">
-          <Select
-            value={String(perPage)}
-            onValueChange={(value) => {
-              const href = createPerPageHref(Number(value));
-              router.push(href, { scroll: false });
-            }}
-          >
-            <SelectTrigger id="select-rows-per-page">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent align="start">
-              <SelectItem value="12">12</SelectItem>
-              <SelectItem value="24">24</SelectItem>
-              <SelectItem value="48">48</SelectItem>
-            </SelectContent>
-          </Select>
-          <ButtonGroup className="shrink-0">
-          <Pagination className="mx-0 w-auto">
-            <PaginationContent className="gap-0.5">
-              <PaginationItem>
-                <PaginationPrevious
-                  href={createPageHref(Math.max(1, currentPage - 1))}
-                  className="h-8 px-2"
-                />
-              </PaginationItem>
-              {pageNumbers.map((p, i) => (
-                <PaginationItem key={p}>
-                  {i > 0 && p - pageNumbers[i - 1] > 1 ? (
-                    <PaginationEllipsis />
-                  ) : null}
-                  <PaginationLink
-                    href={createPageHref(p)}
-                    isActive={p === currentPage}
-                    size="sm"
-                    className="h-8 min-w-8 px-2"
-                  >
-                    {p}
-                  </PaginationLink>
-                </PaginationItem>
-              ))}
-              <PaginationItem>
-                <PaginationNext
-                  href={createPageHref(Math.min(totalPages, currentPage + 1))}
-                  className="h-8 px-2"
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
-          </ButtonGroup>
-        </div>
-      </div>
-      ) : null}
     </main>
   );
 }

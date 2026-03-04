@@ -42,7 +42,7 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        source: "/code-campus-logo-bw.svg",
+        source: "/logo.svg",
         headers: [
           {
             key: "Cache-Control",
@@ -62,7 +62,7 @@ const nextConfigWithSentry = withSentryConfig(nextConfig, {
 
   org: "oili",
 
-  project: "code-campus",
+  project: "flash",
 
   // Only print logs for uploading source maps in CI
   silent: !process.env.CI,

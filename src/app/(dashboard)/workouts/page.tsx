@@ -141,6 +141,16 @@ status: string[],
 selectedCategory: string)
 {
   const supabase = await createClient();
+  const normalizeCategory = (value: string) => {
+    const trimmed = (value || "").trim();
+    if (
+      trimmed.toLowerCase().includes("semester fee") ||
+      trimmed.toLowerCase().includes("semestergebühr")
+    ) {
+      return "Semester Fee";
+    }
+    return trimmed;
+  };
 
   let supabaseQuery = supabase.
   from('workouts').
@@ -157,11 +167,6 @@ selectedCategory: string)
     supabaseQuery = supabaseQuery.textSearch('search_vector', formattedQuery, {
       config: 'english'
     });
-  }
-
-  if (categories.length > 0) {
-    // Check both category and category_en
-    supabaseQuery = supabaseQuery.or(`category.in.(${categories.join(',')}),category_en.in.(${categories.join(',')})`);
   }
 
   if (days.length > 0) {
@@ -188,13 +193,20 @@ selectedCategory: string)
     return { items: [], total: 0, categoryGroups: [], selectedCategory: "" };
   }
 
-  const allItems = aggregateWorkoutsByName((data || []).map((row: any) => mapWorkoutFromRow(row))); // eslint-disable-line @typescript-eslint/no-explicit-any
+  const allItemsRaw = aggregateWorkoutsByName((data || []).map((row: any) => mapWorkoutFromRow(row))); // eslint-disable-line @typescript-eslint/no-explicit-any
+  const normalizedCategoryFilters = new Set(
+    categories.map((value) => normalizeCategory(value)).filter(Boolean)
+  );
+  const allItems =
+    normalizedCategoryFilters.size > 0
+      ? allItemsRaw.filter((w) => {
+          const key = normalizeCategory((w.categoryEn || w.category || "Other").trim());
+          return normalizedCategoryFilters.has(key);
+        })
+      : allItemsRaw;
   const grouped = new Map<string, typeof allItems>();
   allItems.forEach((w) => {
-    let key = (w.categoryEn || w.category || "Other").trim();
-    if (key.toLowerCase().includes("semester fee") || key.toLowerCase().includes("semestergebühr")) {
-      key = "Semester Fee";
-    }
+    const key = normalizeCategory((w.categoryEn || w.category || "Other").trim());
     const arr = grouped.get(key) || [];
     arr.push(w);
     grouped.set(key, arr);
@@ -220,8 +232,9 @@ selectedCategory: string)
     return a.category.localeCompare(b.category);
   });
 
-  const activeCategory = selectedCategory && grouped.has(selectedCategory) ?
-  selectedCategory :
+  const normalizedSelectedCategory = normalizeCategory(selectedCategory);
+  const activeCategory = normalizedSelectedCategory && grouped.has(normalizedSelectedCategory) ?
+  normalizedSelectedCategory :
   categoryGroups[0]?.category || "";
   const items = activeCategory ? grouped.get(activeCategory) || [] : [];
 

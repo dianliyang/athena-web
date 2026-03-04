@@ -1,4 +1,4 @@
--- Initial schema migration for CodeCampus
+-- Initial schema migration for Flash
 
 -- Enable necessary extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";

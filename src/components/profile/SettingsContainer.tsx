@@ -20,6 +20,7 @@ import {
   getSettingsSectionFromPathname } from
 "./settings-route";
 import { Button } from "@/components/ui/button";import { Card } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 
 const AISettingsCard = dynamic(() => import("./AISettingsCard"), {
   ssr: false
@@ -277,12 +278,12 @@ export default function SettingsContainer({
         }
 
         {/* Section header */}
-        <div className={`mb-3 shrink-0 flex items-start justify-between gap-3 ${active === "identity" ? "py-2" : ""}`}>
+        <div className="mb-3 shrink-0 flex items-start justify-between gap-3">
           <div>
-            <h3 className={active === "identity" ? "text-2xl font-semibold tracking-tight text-[#1f1f1f]" : "text-base font-semibold text-[#1f1f1f]"}>
+            <h3 className="text-2xl font-semibold tracking-tight text-[#1f1f1f]">
               {meta.title}
             </h3>
-            <p className="text-xs text-[#7a7a7a] mt-0.5">{meta.desc}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{meta.desc}</p>
           </div>
           {active === "engine" ?
           <Button variant="outline" type="button" onClick={triggerEngineSync}>
@@ -290,6 +291,8 @@ export default function SettingsContainer({
             </Button> :
           null}
         </div>
+
+        <Separator className="mb-3" />
 
         {AI_SECTIONS.includes(active) ?
         <div className="flex-1 min-h-0 flex flex-col">
@@ -320,7 +323,7 @@ export default function SettingsContainer({
 
         {/* Account (Identity + Danger Zone) */}
         <div className={active === "identity" ? "flex-1 min-h-0" : "hidden"}>
-          <div className="space-y-4">
+          <div className="space-y-3">
             <SecurityIdentitySection
               view="identity"
               provider={user.app_metadata.provider} />

@@ -42,7 +42,7 @@ vi.mock("@/lib/dictionary", () => ({
     },
     navbar: {},
     footer: {
-      copyright: "© 2026 CodeCampus Catalog",
+      copyright: "© 2026 Flash Catalog",
     },
   })),
 }));

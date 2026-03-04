@@ -34,7 +34,7 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
   const isLoginPage = pathname === "/login";
-  const publicPaths = ["/", "/courses", "/workouts", "/projects-seminars", "/study-plan", "/study-schedule", "/login", "/auth/callback"];
+  const publicPaths = ["/", "/login", "/auth/callback", "/auth/verify-request", "/offline"];
   const isPublicPage = publicPaths.includes(pathname) || pathname.startsWith("/_next") || pathname.includes(".");
 
   // Redirect to login if not authenticated and trying to access a private page

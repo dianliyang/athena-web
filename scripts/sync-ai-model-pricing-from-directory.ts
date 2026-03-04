@@ -79,7 +79,7 @@ async function main() {
 
   const res = await fetch(endpoint, {
     headers: {
-      "user-agent": "Mozilla/5.0 CodeCampus Pricing Sync",
+      "user-agent": "Mozilla/5.0 Flash Pricing Sync",
       accept: "text/html",
       "cache-control": "no-cache",
       pragma: "no-cache",

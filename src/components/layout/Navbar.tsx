@@ -18,15 +18,15 @@ export default async function Navbar({ dict }: {dict: Dictionary['navbar'];}) {
             <Link href="/" className="group flex items-center gap-2">
               <div className="relative w-7 h-7 transition-transform duration-300 group-hover:rotate-12 group-hover:scale-105">
                 <Image
-                  src="/code-campus-logo-bw.svg"
-                  alt="CodeCampus"
+                  src="/logo.svg"
+                  alt="Flash"
                   fill
                   priority
                   sizes="32px"
                   className="object-contain" />
                 
               </div>
-              <span className="text-sm lg:text-base font-bold tracking-tight text-gray-900 leading-none">CodeCampus</span>
+              <span className="font-brand text-sm lg:text-base font-bold tracking-tight text-gray-900 leading-none">Flash</span>
             </Link>
           </div>
 

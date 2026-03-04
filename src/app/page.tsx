@@ -6,81 +6,77 @@ import { getDictionary } from "@/lib/dictionary";
 import { ArrowRight, Brain, Wrench, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import UniversityIcon from "@/components/common/UniversityIcon";
-import { Button } from "@/components/ui/button";import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 
 export const revalidate = 60;
 
 export default async function Home() {
   const lang = await getLanguage();
   const dict = await getDictionary(lang);
-  const featureCards = [
-  {
-    icon: Zap,
-    title: dict.features.universal_index.title,
-    description: dict.features.universal_index.desc
-  },
-  {
-    icon: Wrench,
-    title: dict.features.progress_analytics.title,
-    description: dict.features.progress_analytics.desc
-  },
-  {
-    icon: Brain,
-    title: dict.features.gap_analysis.title,
-    description: dict.features.gap_analysis.desc
-  }];
 
+  const featureCards = [
+    {
+      icon: Zap,
+      title: dict.features.universal_index.title,
+      description: dict.features.universal_index.desc,
+    },
+    {
+      icon: Wrench,
+      title: dict.features.progress_analytics.title,
+      description: dict.features.progress_analytics.desc,
+    },
+    {
+      icon: Brain,
+      title: dict.features.gap_analysis.title,
+      description: dict.features.gap_analysis.desc,
+    },
+  ];
 
   const curriculumItems = [
-  {
-    number: "01",
-    title: dict.features.universal_index.title,
-    description: dict.features.universal_index.desc,
-    tag: "Catalog"
-  },
-  {
-    number: "02",
-    title: dict.features.progress_analytics.title,
-    description: dict.features.progress_analytics.desc,
-    tag: "Progress"
-  },
-  {
-    number: "03",
-    title: dict.features.gap_analysis.title,
-    description: dict.features.gap_analysis.desc,
-    tag: "Planning"
-  },
-  {
-    number: "04",
-    title: dict.mission.label,
-    description: dict.mission.desc_1,
-    tag: "Overview"
-  }];
-
+    {
+      number: "01",
+      title: dict.features.universal_index.title,
+      description: dict.features.universal_index.desc,
+      tag: "Catalog",
+    },
+    {
+      number: "02",
+      title: dict.features.progress_analytics.title,
+      description: dict.features.progress_analytics.desc,
+      tag: "Progress",
+    },
+    {
+      number: "03",
+      title: dict.features.gap_analysis.title,
+      description: dict.features.gap_analysis.desc,
+      tag: "Planning",
+    },
+  ];
 
   const universities = ["MIT", "Stanford", "UC Berkeley", "CMU"] as const;
 
   return (
-    <div className="flex flex-col bg-white text-slate-900">
+    <div className="min-h-screen bg-background text-foreground">
       <LandingNavbar dict={dict.navbar} />
 
-      <header id="hero" className="pt-28 pb-20 border-b border-slate-200 bg-white">
-        <div className="max-w-5xl mx-auto px-6">
-          <Badge variant="outline" className="mb-7 bg-slate-100 border-slate-200 text-slate-600 px-3 py-1 text-xs">
+      <header id="hero" className="border-b">
+        <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
+          <Badge variant="secondary" className="mb-6">
             {dict.hero.system_status}
           </Badge>
 
-          <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight leading-[1.04] mb-6 bg-gradient-to-br from-slate-950 to-slate-500 bg-clip-text text-transparent">
+          <h1 className="max-w-4xl text-4xl font-semibold tracking-tight sm:text-5xl lg:text-6xl">
             {dict.hero.title_prefix}
             <br />
             {dict.hero.title_highlight} {dict.hero.title_suffix}
           </h1>
 
-          <p className="max-w-2xl text-lg text-slate-600 leading-relaxed mb-8">
+          <p className="mt-5 max-w-2xl text-base text-muted-foreground sm:text-lg">
             {dict.hero.description}
           </p>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="mt-8 flex flex-wrap items-center gap-3">
             <Button variant="outline" asChild>
               <Link href="/courses">
                 {dict.hero.cta}
@@ -88,69 +84,74 @@ export default async function Home() {
               </Link>
             </Button>
             <Button variant="outline" asChild>
-              <Link href="#features">View Curriculum</Link>
+              <Link href="#features">View Features</Link>
             </Button>
           </div>
         </div>
       </header>
 
-      <Card id="mission">
-        <div className="max-w-5xl mx-auto px-6">
-          <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-10">{dict.mission.label}</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {featureCards.map((feature) =>
-            <Card
-              key={feature.title}>
-              
-              
-                <feature.icon className="w-5 h-5 text-slate-700 mb-4" />
-                <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
-                <p className="text-sm text-slate-600 leading-relaxed">{feature.description}</p>
-              </Card>
-            )}
+      <section id="mission" className="border-b">
+        <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:px-8">
+          <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            {dict.mission.label}
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground sm:text-base">
+            {dict.mission.desc_1}
+          </p>
+
+          <div className="mt-8 grid grid-cols-1 gap-3 md:grid-cols-3">
+            {featureCards.map((feature) => (
+              <div key={feature.title} className="rounded-sm border p-4">
+                <feature.icon className="mb-3 h-5 w-5" />
+                <h3 className="text-base font-semibold">{feature.title}</h3>
+                <p className="mt-1 text-sm text-muted-foreground">{feature.description}</p>
+              </div>
+            ))}
           </div>
         </div>
-      </Card>
+      </section>
 
-      <Card id="features">
-        <div className="max-w-5xl mx-auto px-6">
-          <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-8">The Curriculum</h2>
-          <div>
-            {curriculumItems.map((item) =>
-            <Card
-              key={item.number}>
-              
-              
-                <div className="flex gap-4 sm:gap-6">
-                  <span className="font-mono text-sm text-slate-400">{item.number}</span>
-                  <div>
-                    <h3 className="font-semibold text-slate-900">{item.title}</h3>
-                    <p className="text-sm text-slate-600 mt-1 max-w-2xl">{item.description}</p>
+      <section id="features" className="border-b">
+        <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:px-8">
+          <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">How It Works</h2>
+
+          <div className="mt-8 space-y-3">
+            {curriculumItems.map((item) => (
+              <div key={item.number} className="rounded-sm border p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground">Step {item.number}</p>
+                    <h3 className="mt-1 text-base font-semibold">{item.title}</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">{item.description}</p>
                   </div>
+                  <Badge variant="outline">{item.tag}</Badge>
                 </div>
-                <Badge variant="outline" className="w-fit border-slate-300 px-2 py-1 text-xs text-slate-600">
-                  {item.tag}
-                </Badge>
-              </Card>
-            )}
+              </div>
+            ))}
           </div>
         </div>
-      </Card>
+      </section>
 
-      <Card id="universities">
-        <div className="max-w-5xl mx-auto px-6">
-          <p className="text-center text-xs font-medium tracking-wide uppercase text-slate-500 mb-10">
+      <section id="universities">
+        <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:px-8">
+          <p className="text-center text-xs font-medium uppercase tracking-wide text-muted-foreground">
             {dict.universities.label}
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-8 sm:gap-12">
-            {universities.map((uni) =>
-            <UniversityIcon key={uni} name={uni} size={48} className="grayscale hover:grayscale-0 opacity-80 hover:opacity-100 transition-all duration-300" />
-            )}
+          <Separator className="my-6" />
+          <div className="flex flex-wrap items-center justify-center gap-8">
+            {universities.map((uni) => (
+              <UniversityIcon
+                key={uni}
+                name={uni}
+                size={48}
+                className="border border-border"
+              />
+            ))}
           </div>
         </div>
-      </Card>
+      </section>
 
       <LandingFooter dict={dict.footer} lang={lang} />
-    </div>);
-
+    </div>
+  );
 }

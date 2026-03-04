@@ -46,22 +46,22 @@ export default async function LoginPage({ searchParams }: PageProps) {
   }
 
   return (
-    <div className="min-h-screen grid grid-cols-1 lg:grid-cols-2 bg-white overflow-y-auto lg:overflow-hidden">
+    <div className="min-h-screen grid grid-cols-1 bg-background lg:grid-cols-2 overflow-y-auto lg:overflow-hidden">
       {/* Left Side: Immersive Branding & Data Visualization */}
-      <div className="hidden lg:flex flex-col justify-between bg-gray-950 p-16 relative overflow-hidden h-full">
+      <div className="relative hidden h-full flex-col justify-between overflow-hidden border-r bg-foreground p-16 lg:flex">
         <div className="relative z-10">
           <Link href="/" className="flex items-center gap-3 w-fit">
             <Image
-              src="/code-campus-logo-bw.svg"
-              alt="CodeCampus"
+              src="/logo.svg"
+              alt="Flash"
               width={48}
               height={48}
               priority
               className="w-12 h-12 brightness-200"
             />
             <div className="flex flex-col -space-y-1.5">
-              <span className="text-2xl font-bold tracking-tight text-white">
-                CodeCampus
+              <span className="font-brand text-2xl font-bold tracking-tight text-background">
+                Flash
               </span>
               <span className="text-xs font-medium text-brand-blue">
                 {dict.navbar.global_network}
@@ -78,31 +78,31 @@ export default async function LoginPage({ searchParams }: PageProps) {
         </div>
 
         <div className="relative z-10 max-w-md">
-          <h2 className="text-4xl font-bold text-white tracking-tight mb-6 leading-none">
+          <h2 className="mb-6 text-4xl font-semibold tracking-tight text-background leading-none">
             {dict.dashboard.login.title.split(" ")[0]} <br />{" "}
             {dict.dashboard.login.title.split(" ").slice(1).join(" ")}{" "}
             <span className="text-brand-blue">CS</span>.
           </h2>
-          <p className="text-gray-400 font-medium leading-relaxed">
+          <p className="font-medium leading-relaxed text-background/70">
             {dict.hero.description}
           </p>
         </div>
 
         <div className="relative z-10">
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-background/60">
             {dict.footer.copyright}
           </p>
         </div>
       </div>
 
       {/* Right Side: Authentication Form */}
-      <div className="flex items-center justify-center p-6 sm:p-12 md:p-16 min-h-screen lg:min-h-0">
+      <div className="flex min-h-screen items-center justify-center p-6 sm:p-12 md:p-16 lg:min-h-0">
         <div className="w-full max-w-md flex flex-col justify-center">
           {/* Mobile Logo Only */}
           <div className="lg:hidden flex justify-center mb-8">
             <Image
-              src="/code-campus-logo-bw.svg"
-              alt="CodeCampus"
+              src="/logo.svg"
+              alt="Flash"
               width={64}
               height={64}
               priority

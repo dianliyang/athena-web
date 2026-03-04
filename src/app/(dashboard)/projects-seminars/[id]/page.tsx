@@ -2,10 +2,13 @@ import { notFound } from "next/navigation";
 import { ExternalLink } from "lucide-react";
 import { createClient, getUser } from "@/lib/supabase/server";
 import ProjectSeminarContentsPanel from "@/components/projects-seminars/ProjectSeminarContentsPanel";
-import ProjectSeminarEnrollButton from "@/components/projects-seminars/ProjectSeminarEnrollButton";import { Card } from "@/components/ui/card";
+import ProjectSeminarEnrollButton from "@/components/projects-seminars/ProjectSeminarEnrollButton";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 
 interface PageProps {
-  params: Promise<{id: string;}>;
+  params: Promise<{ id: string }>;
 }
 
 function normalizeUrl(url: string): string {
@@ -50,19 +53,23 @@ export default async function ProjectsSeminarsDetailPage({ params }: PageProps) 
   const { id } = await params;
   const [supabase, user] = await Promise.all([createClient(), getUser()]);
 
-  const { data: modernData, error: modernError } = await supabase.
-  from("projects_seminars").
-  select("id, title, course_code, category, credit, url, latest_semester, university, description, contents, department, prerequisites, schedule, instructors, related_links, details").
-  eq("id", Number(id)).
-  single();
+  const { data: modernData, error: modernError } = await supabase
+    .from("projects_seminars")
+    .select(
+      "id, title, course_code, category, credit, url, latest_semester, university, description, contents, department, prerequisites, schedule, instructors, related_links, details",
+    )
+    .eq("id", Number(id))
+    .single();
 
   let data: Record<string, unknown> | null = modernData as Record<string, unknown> | null;
   if (modernError || !modernData) {
-    const { data: legacyData, error: legacyError } = await supabase.
-    from("projects_seminars").
-    select("id, title, course_code, category, credit, url, latest_semester, university, description, instructors, details").
-    eq("id", Number(id)).
-    single();
+    const { data: legacyData, error: legacyError } = await supabase
+      .from("projects_seminars")
+      .select(
+        "id, title, course_code, category, credit, url, latest_semester, university, description, instructors, details",
+      )
+      .eq("id", Number(id))
+      .single();
     if (legacyError || !legacyData) notFound();
     data = legacyData as Record<string, unknown>;
   }
@@ -70,182 +77,178 @@ export default async function ProjectsSeminarsDetailPage({ params }: PageProps) 
 
   let isEnrolled = false;
   if (user) {
-    const { data: enrollment } = await supabase.
-    from("user_projects_seminars").
-    select("project_seminar_id").
-    eq("user_id", user.id).
-    eq("project_seminar_id", Number(data.id)).
-    maybeSingle();
+    const { data: enrollment } = await supabase
+      .from("user_projects_seminars")
+      .select("project_seminar_id")
+      .eq("user_id", user.id)
+      .eq("project_seminar_id", Number(data.id))
+      .maybeSingle();
     isEnrolled = Boolean(enrollment);
   }
 
   const row = data as Record<string, unknown>;
   const details =
-  row.details && typeof row.details === "object" && !Array.isArray(row.details) ?
-  row.details as Record<string, unknown> :
-  {};
-  const latestSemester = (row.latest_semester || {}) as {term?: string;year?: number;};
+    row.details && typeof row.details === "object" && !Array.isArray(row.details)
+      ? (row.details as Record<string, unknown>)
+      : {};
+  const latestSemester = (row.latest_semester || {}) as { term?: string; year?: number };
   const semesterLabel = latestSemester.term && latestSemester.year ? `${latestSemester.term} ${latestSemester.year}` : "-";
   const department =
-  typeof row.department === "string" && row.department.trim() ||
-  typeof details.department === "string" && details.department.trim() ||
-  "-";
+    ((typeof row.department === "string" && row.department.trim()) ||
+      (typeof details.department === "string" && details.department.trim()) ||
+      "-") as string;
   const prereqOrg =
-  typeof row.prerequisites === "string" && row.prerequisites.trim() ||
-  typeof details.prerequisites === "string" && details.prerequisites.trim() ||
-  typeof details.prerequisites_organisational_information === "string" &&
-  details.prerequisites_organisational_information.trim() ||
-  "-";
+    ((typeof row.prerequisites === "string" && row.prerequisites.trim()) ||
+      (typeof details.prerequisites === "string" && details.prerequisites.trim()) ||
+      (typeof details.prerequisites_organisational_information === "string" &&
+        details.prerequisites_organisational_information.trim()) ||
+      "-") as string;
   const contents =
-  typeof row.contents === "string" && row.contents.trim() ||
-  typeof row.description === "string" && row.description.trim() ||
-  typeof details.contents === "string" && details.contents.trim() ||
-  "-";
+    ((typeof row.contents === "string" && row.contents.trim()) ||
+      (typeof row.description === "string" && row.description.trim()) ||
+      (typeof details.contents === "string" && details.contents.trim()) ||
+      "-") as string;
   const contentLinks = extractContentLinks(contents);
   const schedule =
-  row.schedule && typeof row.schedule === "object" && !Array.isArray(row.schedule) ?
-  row.schedule as Record<string, string[]> :
-  details.schedule && typeof details.schedule === "object" && !Array.isArray(details.schedule) ?
-  details.schedule as Record<string, string[]> :
-  {};
+    row.schedule && typeof row.schedule === "object" && !Array.isArray(row.schedule)
+      ? (row.schedule as Record<string, string[]>)
+      : details.schedule && typeof details.schedule === "object" && !Array.isArray(details.schedule)
+        ? (details.schedule as Record<string, string[]>)
+        : {};
   const scheduleRows = Object.entries(schedule).flatMap(([kind, values]) =>
-  (values || []).map((line) => ({ kind, line }))
+    (values || []).map((line) => ({ kind, line })),
   );
-  const savedRelatedLinks = Array.isArray(row.related_links) ?
-  row.related_links.filter((value): value is string => typeof value === "string" && value.trim().length > 0) :
-  Array.isArray(details.resources) ?
-  details.resources.filter((value): value is string => typeof value === "string" && value.trim().length > 0) :
-  [];
+  const savedRelatedLinks = Array.isArray(row.related_links)
+    ? row.related_links.filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+    : Array.isArray(details.resources)
+      ? details.resources.filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+      : [];
   const relatedLinks = Array.from(
     new Set(
       [typeof row.url === "string" ? row.url : "", ...savedRelatedLinks, ...contentLinks].filter(
-        (value): value is string => Boolean(value)
-      )
-    )
+        (value): value is string => Boolean(value),
+      ),
+    ),
   );
 
   return (
-    <div className="space-y-4">
-      <Card>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <div className="h-full overflow-hidden px-4 py-4">
+      <header className="sticky top-0 z-10 border-b bg-background">
+        <div className="flex items-start justify-between gap-4 py-3">
           <div className="min-w-0">
-            <p className="text-xs text-[#777]">{String(row.course_code || "")} · {String(row.university || "")}</p>
-            <h1 className="mt-1 text-[28px] md:text-[32px] font-semibold text-[#1f1f1f] tracking-tight leading-tight break-words">{String(row.title || "")}</h1>
+            <h1 className="break-words text-3xl font-semibold tracking-tight text-foreground">
+              {String(row.title || "")}
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {String(row.university || "")} {String(row.course_code || "")}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <ProjectSeminarEnrollButton projectSeminarId={Number(row.id)} initialEnrolled={isEnrolled} />
+            {typeof row.url === "string" && row.url ? (
+              <Button variant="outline" asChild>
+                <a href={row.url} target="_blank" rel="noreferrer">
+                  Open
+                  <ExternalLink />
+                </a>
+              </Button>
+            ) : null}
           </div>
         </div>
-      </Card>
+      </header>
 
-      <section className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <Card>
-          <ProjectSeminarContentsPanel projectSeminarId={Number(row.id)} initialContents={contents} />
+      <div className="grid h-[calc(100%-92px)] grid-cols-1 overflow-hidden lg:grid-cols-12">
+        <section className="min-h-0 overflow-y-auto py-4 lg:col-span-8 lg:pr-4">
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight">Description</h2>
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{contents}</p>
+            </div>
 
-          <div>
-            <h2 className="text-base font-semibold text-[#2a2a2a] mb-2">Prerequisites / Organisational information</h2>
-            <p className="text-sm text-[#444] whitespace-pre-wrap leading-relaxed">{prereqOrg}</p>
-          </div>
+            <Separator />
 
-          <div>
-            <h2 className="text-base font-semibold text-[#2a2a2a] mb-2">Schedule</h2>
-            {scheduleRows.length > 0 ?
-            <Card>
-                {scheduleRows.map((row, idx) =>
-              <p key={`${row.kind}-${idx}`} className="text-sm text-[#333] leading-relaxed">
-                    <span className="text-[11px] uppercase tracking-wide text-[#7a7a7a] mr-2">{row.kind}</span>
-                    {row.line}
-                  </p>
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight">Prerequisites</h2>
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{prereqOrg}</p>
+            </div>
+
+            <Separator />
+
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight">Schedule</h2>
+              {scheduleRows.length > 0 ? (
+                <div className="mt-2 space-y-2">
+                  {scheduleRows.map((scheduleRow, idx) => (
+                    <p key={`${scheduleRow.kind}-${idx}`} className="text-sm text-muted-foreground">
+                      <span className="mr-2 text-xs font-medium uppercase tracking-wide text-foreground">
+                        {scheduleRow.kind}
+                      </span>
+                      {scheduleRow.line}
+                    </p>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-sm text-muted-foreground">-</p>
               )}
-              </Card> :
-
-            <p className="text-sm text-[#777]">-</p>
-            }
+            </div>
           </div>
-        </Card>
+        </section>
 
-        <aside className="lg:col-span-4 space-y-4">
-          <div className="sticky top-0 space-y-4">
-            <Card>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-[#666]">Your Status</span>
-                <span className={`text-xs font-medium px-2 py-0.5 border ${isEnrolled ? "bg-green-50 text-green-700 border-green-100" : "bg-[#f3f3f3] text-[#666] border-[#e5e5e5]"}`}>
-                  {isEnrolled ? "Enrolled" : "Not Enrolled"}
-                </span>
-              </div>
-              <ProjectSeminarEnrollButton projectSeminarId={Number(row.id)} initialEnrolled={isEnrolled} />
-              {typeof row.url === "string" && row.url ?
-              <a
-                href={row.url}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex h-8 items-center justify-center w-full gap-2 border border-[#d3d3d3] bg-white px-2.5 text-[13px] font-medium text-[#3b3b3b] hover:bg-[#f8f8f8] transition-colors">
-                
-                  <span>Visit Course Page</span>
-                  <ExternalLink className="w-3.5 h-3.5 text-[#777]" />
-                </a> :
-              null}
-            </Card>
-
-            <Card>
-              <h2 className="text-base font-semibold text-[#2a2a2a] mb-3">Facts</h2>
-              <dl className="space-y-3 text-sm">
-                <div className="flex justify-between gap-3">
-                  <dt className="text-[#666]">Category</dt>
-                  <dd className="text-right text-[#222]">{String(row.category || "-")}</dd>
+        <aside className="min-h-0 overflow-y-auto border-l py-4 lg:col-span-4 lg:pl-4">
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold tracking-tight">Seminar Facts</h3>
+              <dl className="mt-3 space-y-2 text-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-muted-foreground">Category</dt>
+                  <dd>{String(row.category || "-")}</dd>
                 </div>
-                <div className="flex justify-between gap-3">
-                  <dt className="text-[#666]">Department</dt>
-                  <dd className="text-right text-[#222]">{department}</dd>
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-muted-foreground">Department</dt>
+                  <dd>{department}</dd>
                 </div>
-                <div className="flex justify-between gap-3">
-                  <dt className="text-[#666]">Credit</dt>
-                  <dd className="text-right text-[#222]">{row.credit as number | null ?? "-"}</dd>
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-muted-foreground">Credit</dt>
+                  <dd>{(row.credit as number | null) ?? "-"}</dd>
                 </div>
-                <div className="flex justify-between gap-3">
-                  <dt className="text-[#666]">Semester</dt>
-                  <dd className="text-right text-[#222]">{semesterLabel}</dd>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <dt className="text-[#666]">Instructors</dt>
-                  <dd className="text-[#222]">
-                    {(Array.isArray(row.instructors) ? row.instructors : []).length > 0 ?
-                    <ul className="list-disc pl-4 space-y-1">
-                        {(Array.isArray(row.instructors) ? row.instructors : []).map((name, idx) =>
-                      <li key={`${String(name)}-${idx}`}>{String(name)}</li>
-                      )}
-                      </ul> :
-
-                    "-"
-                    }
-                  </dd>
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-muted-foreground">Semester</dt>
+                  <dd>{semesterLabel}</dd>
                 </div>
               </dl>
-            </Card>
+              <div className="mt-3">
+                <Badge variant="secondary">{isEnrolled ? "Enrolled" : "Not Enrolled"}</Badge>
+              </div>
+            </div>
 
-            <Card>
-              <h3 className="text-base font-semibold text-[#2a2a2a] mb-2">Related Links</h3>
-              {relatedLinks.length > 0 ?
-              <ul className="space-y-2">
-                  {relatedLinks.map((link, idx) =>
-                <li key={`${link}-${idx}`}>
+            <Separator />
+
+            <div>
+              <h3 className="text-lg font-semibold tracking-tight">Related Links</h3>
+              {relatedLinks.length > 0 ? (
+                <ul className="mt-3 space-y-2">
+                  {relatedLinks.map((link, idx) => (
+                    <li key={`${link}-${idx}`}>
                       <a
-                    href={link}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="group flex items-center justify-between gap-2 border border-[#e7e7e7] bg-white px-2.5 py-2 text-sm text-[#2e5fa8] hover:border-[#d7d7d7] hover:bg-[#fbfbfb] transition-colors"
-                    title={link}>
-                    
+                        href={link}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center justify-between gap-2 rounded-sm border px-3 py-2 text-sm text-foreground"
+                        title={link}
+                      >
                         <span className="truncate">{getLinkLabel(link)}</span>
-                        <ExternalLink className="h-3.5 w-3.5 shrink-0 text-[#6a6a6a] group-hover:text-[#333]" />
+                        <ExternalLink className="h-4 w-4 shrink-0" />
                       </a>
                     </li>
-                )}
-                </ul> :
-
-              <p className="text-sm text-[#777]">-</p>
-              }
-            </Card>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-2 text-sm text-muted-foreground">-</p>
+              )}
+            </div>
           </div>
         </aside>
-      </section>
-    </div>);
-
+      </div>
+    </div>
+  );
 }

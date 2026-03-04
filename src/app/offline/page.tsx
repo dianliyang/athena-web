@@ -9,8 +9,8 @@ export default function OfflinePage() {
     <div className="min-h-screen bg-white flex flex-col items-center justify-center p-8">
       <div className="max-w-md text-center">
         <Image
-          src="/code-campus-logo-bw.svg"
-          alt="CodeCampus"
+          src="/logo.svg"
+          alt="Flash"
           width={64}
           height={64}
           className="mx-auto mb-8"

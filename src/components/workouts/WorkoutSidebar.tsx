@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Dictionary } from "@/lib/dictionary";
 import { ChevronDown, ChevronUp, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface FilterOption {
   name: string;
@@ -109,10 +109,9 @@ export default function WorkoutSidebar({
                   className="flex items-center justify-between group cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
-                    <Input
-                      type="checkbox"
+                    <Checkbox
                       checked={selectedCategories.includes(cat.name)}
-                      onChange={() =>
+                      onCheckedChange={() =>
                         updateParams(
                           "categories",
                           handleToggle(selectedCategories, cat.name),
@@ -163,10 +162,9 @@ export default function WorkoutSidebar({
                   key={day}
                   className="flex items-center gap-3 group cursor-pointer"
                 >
-                  <Input
-                    type="checkbox"
+                  <Checkbox
                     checked={selectedDays.includes(day)}
-                    onChange={() =>
+                    onCheckedChange={() =>
                       updateParams("days", handleToggle(selectedDays, day))
                     }
                   />
@@ -207,10 +205,9 @@ export default function WorkoutSidebar({
                     className="flex items-center justify-between group cursor-pointer"
                   >
                     <div className="flex items-center gap-3">
-                      <Input
-                        type="checkbox"
+                      <Checkbox
                         checked={selectedStatuses.includes(s.name)}
-                        onChange={() =>
+                        onCheckedChange={() =>
                           updateParams(
                             "status",
                             handleToggle(selectedStatuses, s.name),

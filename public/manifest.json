@@ -1,6 +1,6 @@
 {
-  "name": "CodeCampus",
-  "short_name": "CodeCampus",
+  "name": "Flash",
+  "short_name": "Flash",
   "description": "Find the best computer science courses from top universities",
   "start_url": "/",
   "display": "standalone",

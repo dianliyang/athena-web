@@ -482,7 +482,7 @@ async function fetchUrlTextSnippet(url: string, timeoutMs = 8000): Promise<strin
       signal: controller.signal,
       cache: "no-store",
       headers: {
-        "User-Agent": "CodeCampusBot/1.0 (+course-intel)",
+        "User-Agent": "FlashBot/1.0 (+course-intel)",
       },
     });
     if (!res.ok) return null;
@@ -501,7 +501,7 @@ async function fetchUrlTextSnippet(url: string, timeoutMs = 8000): Promise<strin
           signal: controller.signal,
           cache: "no-store",
           headers: {
-            "User-Agent": "CodeCampusBot/1.0 (+course-intel)",
+            "User-Agent": "FlashBot/1.0 (+course-intel)",
           },
         });
         if (!jsRes.ok) continue;
@@ -532,7 +532,7 @@ async function fetchWeekSignalsForUrl(url: string, timeoutMs = 8000): Promise<We
       signal: controller.signal,
       cache: "no-store",
       headers: {
-        "User-Agent": "CodeCampusBot/1.0 (+course-intel)",
+        "User-Agent": "FlashBot/1.0 (+course-intel)",
       },
     });
     if (!res.ok) return [];
@@ -548,7 +548,7 @@ async function fetchWeekSignalsForUrl(url: string, timeoutMs = 8000): Promise<We
           signal: controller.signal,
           cache: "no-store",
           headers: {
-            "User-Agent": "CodeCampusBot/1.0 (+course-intel)",
+            "User-Agent": "FlashBot/1.0 (+course-intel)",
           },
         });
         if (!jsRes.ok) continue;
@@ -592,7 +592,7 @@ async function fetchGradingSignalsForUrl(url: string, timeoutMs = 8000): Promise
       signal: controller.signal,
       cache: "no-store",
       headers: {
-        "User-Agent": "CodeCampusBot/1.0 (+course-intel)",
+        "User-Agent": "FlashBot/1.0 (+course-intel)",
       },
     });
     if (!res.ok) return [];
@@ -608,7 +608,7 @@ async function fetchGradingSignalsForUrl(url: string, timeoutMs = 8000): Promise
           signal: controller.signal,
           cache: "no-store",
           headers: {
-            "User-Agent": "CodeCampusBot/1.0 (+course-intel)",
+            "User-Agent": "FlashBot/1.0 (+course-intel)",
           },
         });
         if (!jsRes.ok) continue;
@@ -1113,7 +1113,7 @@ async function fetchDeterministicSignalsForUrl(url: string, timeoutMs = 10000): 
       signal: controller.signal,
       cache: "no-store",
       headers: {
-        "User-Agent": "CodeCampusBot/1.0 (+course-intel)",
+        "User-Agent": "FlashBot/1.0 (+course-intel)",
       },
     });
     if (!res.ok) return { scheduleRows: [], gradingSignals: [], extraResources: [] };
@@ -1987,7 +1987,7 @@ async function discoverImportantCourseLinks(seedUrls: string[], timeoutMs = 9000
         signal: controller.signal,
         cache: "no-store",
         headers: {
-          "User-Agent": "CodeCampusBot/1.0 (+course-intel)",
+          "User-Agent": "FlashBot/1.0 (+course-intel)",
         },
       });
 

@@ -1,7 +1,7 @@
 export const externalApiOpenApiSpec = {
   openapi: "3.0.3",
   info: {
-    title: "CodeCampus External API",
+    title: "Flash External API",
     version: "1.0.0",
     description: "External API for course retrieval, updates, and sync operations.",
   },

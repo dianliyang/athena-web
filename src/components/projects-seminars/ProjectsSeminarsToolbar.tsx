@@ -109,13 +109,13 @@ export default function ProjectsSeminarsToolbar({
               Filters
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-[320px] p-3">
-            <DropdownMenuLabel className="px-0 text-[11px] uppercase tracking-wide text-[#7a7a7a]">
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>
               Category
             </DropdownMenuLabel>
-            <div className="max-h-40 space-y-1 overflow-y-auto pr-1">
+            <div className="max-h-40 space-y-1 overflow-y-auto">
               {categories.map((name) => (
-                <label key={name} className="flex items-center gap-2 text-[13px] text-[#444]">
+                <label key={name} className="flex items-center gap-2 text-sm">
                   <Checkbox
                     checked={selectedCategories.includes(name)}
                     onCheckedChange={() =>
@@ -129,12 +129,12 @@ export default function ProjectsSeminarsToolbar({
               ))}
             </div>
             <DropdownMenuSeparator className="my-2" />
-            <DropdownMenuLabel className="px-0 text-[11px] uppercase tracking-wide text-[#7a7a7a]">
+            <DropdownMenuLabel>
               Semesters
             </DropdownMenuLabel>
-            <div className="max-h-40 space-y-1 overflow-y-auto pr-1">
+            <div className="max-h-40 space-y-1 overflow-y-auto">
               {semesters.map((name) => (
-                <label key={name} className="flex items-center gap-2 text-[13px] text-[#444]">
+                <label key={name} className="flex items-center gap-2 text-sm">
                   <Checkbox
                     checked={selectedSemesters.includes(name)}
                     onCheckedChange={() =>
