@@ -31,7 +31,6 @@ interface EnrolledProjectSeminar {
   courseCode: string;
   university: string;
   category: string;
-  description: string | null;
   url: string | null;
   semesterLabel: string;
   status: string;
@@ -77,7 +76,7 @@ async function StudyPlanContent({
   supabase.
   from('courses').
   select(`
-        id, university, course_code, title, units, credit, url, description, details, is_hidden,
+        id, university, course_code, title, units, credit, url, details, is_hidden,
         uc:user_courses!inner(status, progress, updated_at, gpa, score),
         semesters:course_semesters(semesters(term, year)),
         course_assignments(id),
@@ -111,7 +110,7 @@ async function StudyPlanContent({
   supabase.
   from('projects_seminars').
   select(`
-        id, university, course_code, title, category, url, latest_semester, description,
+        id, university, course_code, title, category, url, latest_semester,
         ups:user_projects_seminars!inner(status, progress, updated_at)
       `).
   eq('user_projects_seminars.user_id', userId).
@@ -310,17 +309,17 @@ function ActiveProjectSeminarTrack({ item }: {item: EnrolledProjectSeminar;}) {
           
           <div className="flex-1 min-w-0 space-y-1">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[9px] text-stone-400 uppercase tracking-[0.2em] font-bold" style={{ fontFamily: "var(--font-landing-mono)" }}>
+              <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">
                 {item.courseCode || "P&S"}
               </span>
-              <Badge variant="secondary" className="h-4 text-[8px] uppercase px-1.5 font-bold tracking-wider shrink-0" style={{ fontFamily: "var(--font-landing-mono)" }}>
+              <Badge variant="secondary" className="h-4 text-[9px] uppercase px-1.5 font-bold shrink-0">
                 {item.category || "Project/Seminar"}
               </Badge>
             </div>
-            <CardTitle className="text-[17px] font-medium tracking-tight text-stone-900 leading-tight line-clamp-2" style={{ fontFamily: "var(--font-landing-serif)" }}>
+            <CardTitle className="text-base font-bold tracking-tight text-[#1f1f1f] leading-tight line-clamp-2">
               <Link href={`/projects-seminars/${item.id}`} className="hover:text-black transition-colors">{item.title}</Link>
             </CardTitle>
-            <div className="text-[10px] text-stone-500 font-medium uppercase tracking-widest" style={{ fontFamily: "var(--font-landing-mono)" }}>
+            <div className="text-[11px] text-muted-foreground font-medium">
               {item.university}
             </div>
           </div>
@@ -329,41 +328,36 @@ function ActiveProjectSeminarTrack({ item }: {item: EnrolledProjectSeminar;}) {
 
       <CardContent className="flex-1 flex flex-col gap-4 p-4 pt-4">
         <div className="space-y-3">
-          <div className="flex items-center gap-2 text-[11px] text-stone-600 bg-stone-50 p-2 rounded-md border border-stone-100/50" style={{ fontFamily: "var(--font-landing-mono)" }}>
-            <span className="font-semibold uppercase">{item.semesterLabel}</span>
+          <div className="flex items-center gap-2 text-[12px] text-stone-600 bg-stone-50 p-2 rounded-md border border-stone-100/50">
+            <span className="font-semibold">{item.semesterLabel}</span>
           </div>
-          {item.description && (
-            <p className="text-[12px] text-stone-500 line-clamp-2 leading-relaxed" style={{ fontFamily: "var(--font-landing-sans)" }}>
-              {item.description}
-            </p>
-          )}
         </div>
 
         <div className="mt-auto space-y-2">
           <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider">
-            <span className="text-stone-400 text-[9px] tracking-[0.15em]" style={{ fontFamily: "var(--font-landing-mono)" }}>Status</span>
-            <span className="text-stone-900 text-[10px] font-bold uppercase" style={{ fontFamily: "var(--font-landing-mono)" }}>In Progress</span>
+            <span className="text-muted-foreground text-[10px]">Status</span>
+            <span className="text-[#1f1f1f] text-[10px]">In Progress</span>
           </div>
           <div className="flex items-center gap-1 h-1.5 w-full bg-stone-100 rounded-full overflow-hidden">
-            <div className="h-full w-1/2 bg-stone-900 rounded-full" />
+            <div className="h-full w-1/2 bg-[#1f1f1f] rounded-full" />
           </div>
         </div>
       </CardContent>
 
-      <CardFooter className="pt-0 border-t border-stone-100 bg-stone-50/50 flex items-center justify-between gap-2 py-3 px-4 mt-auto">
+      <CardFooter className="pt-0 border-t border-stone-100 bg-gray-50/30 flex items-center justify-between gap-2 py-3 px-4 mt-auto">
         <div className="flex items-center gap-1.5">
           {Array.from({ length: 7 }).map((_, idx) => (
             <span key={idx} className="h-2 w-2 rounded-full bg-stone-200" />
           ))}
         </div>
         <div className="flex gap-1">
-          <Button variant="outline" size="icon-sm" className="h-8 w-8 rounded-none border-stone-200 hover:bg-stone-100" asChild>
+          <Button variant="outline" size="icon-sm" className="h-8 w-8 rounded-md border-stone-200 hover:bg-white shadow-none" asChild>
             <Link href={`/projects-seminars/${item.id}`}>
               <ExternalLink className="h-3.5 w-3.5 text-stone-600" />
             </Link>
           </Button>
           {item.url ? (
-            <Button variant="outline" size="icon-sm" className="h-8 w-8 rounded-none border-stone-200 hover:bg-stone-100" asChild>
+            <Button variant="outline" size="icon-sm" className="h-8 w-8 rounded-md border-stone-200 hover:bg-white shadow-none" asChild>
               <a href={item.url} target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="h-3.5 w-3.5 text-stone-600" />
               </a>
