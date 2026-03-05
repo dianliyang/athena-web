@@ -218,7 +218,7 @@ export async function sendStudyReminderEmail(data: StudyReminderEmailData) {
       return { success: false, error };
     }
 
-    console.log(`✅ Study reminder sent to ${recipientEmail}`, emailData);
+    console.log(`✅ Study reminder sent to ${recipientEmail} (id=${emailData?.id || "n/a"})`);
     return { success: true, id: emailData?.id };
   } catch (error) {
     console.error(`❌ Failed to send email to ${recipientEmail}:`, error);
