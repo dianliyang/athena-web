@@ -703,7 +703,7 @@ export async function confirmGeneratedStudyPlans(courseId: number, selectedPlans
   }
 
   revalidatePath(`/courses/${courseId}`);
-  revalidatePath("/study-plan");
+  revalidatePath("/roadmap");
   return { created: toInsert.length, selected: selectedPlans.length };
 }
 
@@ -1083,7 +1083,7 @@ export async function updateCourseFull(courseId: number, input: UpdateCourseFull
   if (didChange) {
     revalidatePath(`/courses/${courseId}`);
     revalidatePath("/courses");
-    revalidatePath("/study-plan");
+    revalidatePath("/roadmap");
   }
 }
 
@@ -1706,7 +1706,7 @@ export async function toggleCourseEnrollmentAction(courseId: number, isEnrolled:
   }
 
   revalidatePath('/courses');
-  revalidatePath('/study-plan');
+  revalidatePath('/roadmap');
 }
 
 export async function fetchCoursesAction({

@@ -8,7 +8,7 @@ import {
   updateAiPreferences,
   updateAiPromptTemplates,
   upsertAiModelPricing } from
-"@/actions/profile";
+"@/actions/identity";
 import { AI_PROVIDERS, type AIProvider } from "@/lib/ai/models-client";
 import { useAppToast } from "@/components/common/AppToastProvider";
 import { Save, Loader2, BarChart2, Sparkles, Trash2, CheckCircle2, AlertTriangle, Plus } from "lucide-react";

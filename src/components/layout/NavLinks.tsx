@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMemo, useState, useEffect, useRef } from "react";
 import { Dictionary } from "@/lib/dictionary";
-import { Info, Network, Layers, BookOpen, MapPin, UserCog, Dumbbell, Settings, type LucideIcon } from "lucide-react";
+import { Info, Network, Layers, BookOpen, MapPin, UserCog, Dumbbell, Settings, Sparkles, CalendarDays, type LucideIcon } from "lucide-react";
 
 export default function NavLinks({ 
   variant = "light", 
@@ -32,9 +32,11 @@ export default function NavLinks({
     }
     return [
       { name: dict?.courses || "Courses", href: "/courses", icon: BookOpen },
-      { name: dict?.roadmap || "Study Roadmap", href: "/study-plan", icon: MapPin },
+      { name: dict?.roadmap || "Roadmap", href: "/roadmap", icon: MapPin },
+      { name: dict?.assist || "Assist", href: "/assist", icon: Sparkles },
+      { name: dict?.calendar || "Calendar", href: "/calendar", icon: CalendarDays },
       { name: dict?.workouts || "Workouts", href: "/workouts", icon: Dumbbell },
-      { name: dict?.identity || "Identity", href: "/profile", icon: UserCog },
+      { name: dict?.identity || "Identity", href: "/identity", icon: UserCog },
       { name: dict?.settings || "Settings", href: "/settings", icon: Settings }
     ];
   }, [mode, dict]);

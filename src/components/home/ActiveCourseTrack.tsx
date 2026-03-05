@@ -21,7 +21,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import {
   Popover,
   PopoverContent,
@@ -149,8 +149,6 @@ export default function ActiveCourseTrack({
   };
 
   const weekdaysShort = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const focusSegments = 20;
-  const activeFocusSegments = Math.round(progress / 100 * focusSegments);
   const scheduleSummary = useMemo(() => {
     if (!localPlan) return null;
     const dayIndexes = [...(localPlan.days_of_week || [])].sort((a, b) => a - b);
@@ -169,10 +167,29 @@ export default function ActiveCourseTrack({
   const roadmapSubdomain = course.subdomain || course.fields?.[0] || "";
 
   return (
-    <Card className="gap-0 overflow-hidden p-0">
-      <CardContent className="p-0">
-        <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto]">
-          <div
+    <Card className="h-full flex flex-col overflow-hidden border-[#efefef] hover:border-[#dfdfdf] transition-all duration-200 shadow-sm hover:shadow-md">
+      <CardHeader className="space-y-4 p-4 pb-0">
+        <div className="flex items-start justify-between gap-2">
+          <UniversityIcon
+            name={course.university}
+            size={36}
+            className="shrink-0 bg-gray-50 border border-gray-100 p-1.5 rounded-md"
+          />
+          <div className="flex flex-col items-end gap-1.5">
+            {roadmapSubdomain ? (
+              <Badge variant="secondary" className="max-w-[120px] truncate text-[10px] uppercase font-bold tracking-wider">
+                {roadmapSubdomain}
+              </Badge>
+            ) : null}
+            {course.aiPlanSummary?.days ? (
+              <Badge variant="outline" className="text-[9px] border-emerald-100 bg-emerald-50/50 text-emerald-700">
+                AI Plan Ready
+              </Badge>
+            ) : null}
+          </div>
+        </div>
+
+        <div 
           role="link"
           tabIndex={0}
           onClick={handleCardNavigation}
@@ -182,201 +199,153 @@ export default function ActiveCourseTrack({
               handleCardNavigation();
             }
           }}
-          className="cursor-pointer space-y-2 p-3"
+          className="cursor-pointer space-y-1"
         >
-          <div className="flex min-w-0 items-start gap-2">
-            <div className="flex min-w-0 flex-1 items-center gap-2">
-              <UniversityIcon
-                name={course.university}
-                size={32}
-                className="shrink-0 bg-gray-50 border border-gray-100" />
+          <span className="block text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
+            {course.courseCode} · {course.university}
+          </span>
+          <CardTitle className="text-lg font-bold tracking-tight text-[#1f1f1f] leading-tight line-clamp-2 hover:text-black transition-colors">
+            <Link href={detailHref}>{course.title}</Link>
+          </CardTitle>
+          
+          {localPlan ? (
+            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground pt-1">
+              <Clock className="h-3 w-3" />
+              <span>{localPlan.start_time.slice(0, 5)} - {localPlan.end_time.slice(0, 5)}</span>
+            </div>
+          ) : (
+            <p className="text-[11px] italic text-muted-foreground pt-1">No schedule defined</p>
+          )}
+        </div>
+      </CardHeader>
 
-              <div className="min-w-0">
-                <span className="block truncate text-[11px] text-muted-foreground">{course.university} · {course.courseCode}</span>
-                <h3 className="truncate text-base font-semibold tracking-tight">
-                  <Link href={detailHref}>{course.title}</Link>
-                </h3>
-              </div>
-            </div>
-            <div className="ml-auto flex max-w-[60%] shrink-0 flex-wrap items-center justify-end gap-1.5">
-              {course.aiPlanSummary?.days ?
-              <Badge variant="secondary">
-                  {course.aiPlanSummary.nextDate ?
-                `AI Plan ${course.aiPlanSummary.nextDate}` :
-                "AI Plan Ready"}
-                  {course.aiPlanSummary.nextFocus ?
-                ` · ${course.aiPlanSummary.nextFocus}` :
-                ""}
-                </Badge> :
-              null}
-              {localPlan ?
-              <>
-                  <HoverCard openDelay={60} closeDelay={80}>
-                    <HoverCardTrigger asChild>
-                      <div className="inline-flex items-center gap-2 text-[11px] text-muted-foreground leading-none">
-                        <span className="inline-flex items-center gap-1">
-                          <Clock className="h-3.5 w-3.5" />
-                          {localPlan.start_time.slice(0, 5)} - {localPlan.end_time.slice(0, 5)}
-                        </span>
-                        <span>
-                          {new Date(localPlan.start_date).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric"
-                        })}
-                          {" "}to{" "}
-                          {new Date(localPlan.end_date).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric"
-                        })}
-                        </span>
-                      </div>
-                    </HoverCardTrigger>
-                    {scheduleSummary ?
-                    <HoverCardContent className="w-auto">
-                        <p className="text-xs">
-                          {scheduleSummary.daysPerWeek} day{scheduleSummary.daysPerWeek === 1 ? "" : "s"}/week
-                          {scheduleSummary.totalDays ? ` · ${scheduleSummary.totalDays} days total` : ""}
-                        </p>
-                      </HoverCardContent> :
-                    null}
-                  </HoverCard>
-                  {roadmapSubdomain ? (
-                    <Badge variant="secondary">{roadmapSubdomain}</Badge>
-                  ) : null}
-                </> :
-              <p className="text-[11px] italic text-muted-foreground leading-none">No schedule defined</p>}
-            </div>
+      <CardContent className="flex flex-1 flex-col p-4 pt-6">
+        <div className="mt-auto space-y-2">
+          <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider">
+            <span className="text-muted-foreground text-[10px]">Completion</span>
+            <span className="text-[#1f1f1f]">{progress}%</span>
           </div>
-
-          <div className="flex items-center gap-2">
-            <div className="flex flex-1 items-center gap-1">
-              {Array.from({ length: focusSegments }).map((_, index) =>
+          <div className="flex items-center gap-1 h-1.5 w-full">
+            {Array.from({ length: 15 }).map((_, index) => (
               <span
                 key={index}
-                className={`h-1 flex-1 transition-colors ${
-                index < activeFocusSegments ?
-                "bg-black" :
-                "bg-muted"}`
-                } />
-
-              )}
-            </div>
-            <p className="w-9 text-right text-sm font-semibold tracking-tight">{progress}%</p>
-          </div>
-          </div>
-          <div
-            data-no-card-nav="true"
-            className="self-stretch flex flex-col justify-between items-end p-2">
-            <ButtonGroup className="ml-auto">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" type="button">
-                    {isAiUpdating ?
-                    <Loader2 className="animate-spin" /> :
-
-                    <Sparkles />
-                    }
-                    <span className="uppercase">{aiSourceMode}</span>
-                    <ChevronDown />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuGroup>
-                    <DropdownMenuLabel>AI Sync Mode</DropdownMenuLabel>
-                    {(["auto", "existing", "fresh"] as AiSyncSourceMode[]).map((mode) =>
-                    <DropdownMenuItem
-                      key={mode}
-                      onClick={() => {
-                        setAiSourceMode(mode);
-                        try {
-                          window.localStorage.setItem(
-                            AI_SYNC_MODE_STORAGE_KEY,
-                            mode
-                          );
-                        } catch {
-                          // Ignore localStorage errors.
-                        }
-                      }}>
-                      {mode.charAt(0).toUpperCase() + mode.slice(1)}
-                      {aiSourceMode === mode ?
-                      <DropdownMenuShortcut>
-                          <Check className="size-4 text-foreground" />
-                        </DropdownMenuShortcut> :
-                      null}
-                    </DropdownMenuItem>
-                    )}
-                  </DropdownMenuGroup>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuGroup>
-                    <DropdownMenuItem onClick={handleAiSync} disabled={isAiUpdating}>
-                      
-                      {isAiUpdating ?
-                      <Loader2 className="w-3 h-3 animate-spin" /> :
-
-                      <Sparkles className="w-3 h-3" />
-                      }
-                      Run AI Sync
-                    </DropdownMenuItem>
-                  </DropdownMenuGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              <Button variant="outline" size="sm" asChild>
-                <Link
-                  href={detailHref}
-                  title="Open course"
-                  aria-label="Open course">
-                  
-                  <ExternalLink />
-                </Link>
-              </Button>
-
-              <Popover open={showAddPlanModal} onOpenChange={setShowAddPlanModal}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    type="button">
-                    {localPlan ? <CalendarCheck /> : <CalendarPlus />}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent align="end" className="w-auto p-0">
-                  <AddPlanModal
-                    mode="inline"
-                    isOpen={showAddPlanModal}
-                    onClose={() => setShowAddPlanModal(false)}
-                    onSuccess={(saved) => setLocalPlan(saved)}
-                    course={{ id: course.id, title: course.title }}
-                    existingPlan={localPlan}
-                  />
-                </PopoverContent>
-              </Popover>
-            </ButtonGroup>
-            {localPlan ?
-            <HoverCard openDelay={60} closeDelay={80}>
-                <HoverCardTrigger asChild>
-                  <div className="h-5 flex items-center justify-end gap-1.5" aria-label="Study days">
-                    {Array.from({ length: 7 }).map((_, idx) =>
-                    <span
-                      key={`study-day-dot-bottom-${idx}`}
-                      className={`h-2.5 w-2.5 rounded-full ${
-                      localPlan.days_of_week.includes(idx) ? "bg-black" : "bg-muted"}`
-                      } />
-                    )}
-                  </div>
-                </HoverCardTrigger>
-                {scheduleSummary ?
-              <HoverCardContent className="w-auto">
-                    <p className="text-xs">
-                      {scheduleSummary.dayText || "No days selected"}
-                    </p>
-                  </HoverCardContent> :
-              null}
-              </HoverCard> :
-            null}
+                className={`h-full flex-1 rounded-full transition-all duration-300 ${
+                  index < Math.round((progress / 100) * 15)
+                    ? "bg-black"
+                    : "bg-gray-100"
+                }`}
+              />
+            ))}
           </div>
         </div>
       </CardContent>
-    </Card>);
 
+      <CardFooter className="p-4 pt-0 border-t border-[#f5f5f5] mt-auto">
+        <div className="flex items-center justify-between gap-2 w-full pt-4">
+          {localPlan ? (
+            <HoverCard openDelay={60} closeDelay={80}>
+              <HoverCardTrigger asChild>
+                <div className="flex items-center gap-1" aria-label="Study days">
+                  {Array.from({ length: 7 }).map((_, idx) => (
+                    <span
+                      key={`study-day-dot-${idx}`}
+                      className={`h-2 w-2 rounded-full transition-colors ${
+                        localPlan.days_of_week.includes(idx) ? "bg-black" : "bg-gray-200"
+                      }`}
+                    />
+                  ))}
+                </div>
+              </HoverCardTrigger>
+              {scheduleSummary ? (
+                <HoverCardContent className="w-auto p-2">
+                  <p className="text-[10px] font-medium">
+                    {scheduleSummary.dayText || "No days selected"}
+                  </p>
+                </HoverCardContent>
+              ) : null}
+            </HoverCard>
+          ) : (
+            <div className="flex items-center gap-1">
+              {Array.from({ length: 7 }).map((_, idx) => (
+                <span key={idx} className="h-2 w-2 rounded-full bg-gray-100" />
+              ))}
+            </div>
+          )}
+
+          <ButtonGroup>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon-sm" className="h-8 w-8" type="button">
+                  {isAiUpdating ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3.5 w-3.5" />
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel className="text-[10px] uppercase font-bold text-muted-foreground px-2 py-1.5">
+                    Sync Mode: {aiSourceMode}
+                  </DropdownMenuLabel>
+                  {(["auto", "existing", "fresh"] as AiSyncSourceMode[]).map((mode) => (
+                    <DropdownMenuItem
+                      key={mode}
+                      className="text-xs"
+                      onClick={() => {
+                        setAiSourceMode(mode);
+                        try {
+                          window.localStorage.setItem(AI_SYNC_MODE_STORAGE_KEY, mode);
+                        } catch {}
+                      }}
+                    >
+                      {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                      {aiSourceMode === mode ? (
+                        <DropdownMenuShortcut>
+                          <Check className="h-3 w-3" />
+                        </DropdownMenuShortcut>
+                      ) : null}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleAiSync} disabled={isAiUpdating} className="text-xs">
+                  {isAiUpdating ? (
+                    <Loader2 className="h-3 w-3 animate-spin mr-2" />
+                  ) : (
+                    <Sparkles className="h-3 w-3 mr-2 text-amber-500 fill-amber-500" />
+                  )}
+                  Run Intelligence Sync
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Popover open={showAddPlanModal} onOpenChange={setShowAddPlanModal}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="icon-sm" className="h-8 w-8" type="button">
+                  {localPlan ? <CalendarCheck className="h-3.5 w-3.5" /> : <CalendarPlus className="h-3.5 w-3.5" />}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-auto p-0 border-none shadow-xl">
+                <AddPlanModal
+                  mode="inline"
+                  isOpen={showAddPlanModal}
+                  onClose={() => setShowAddPlanModal(false)}
+                  onSuccess={(saved) => setLocalPlan(saved)}
+                  course={{ id: course.id, title: course.title }}
+                  existingPlan={localPlan}
+                />
+              </PopoverContent>
+            </Popover>
+
+            <Button variant="outline" size="icon-sm" className="h-8 w-8" asChild>
+              <Link href={detailHref} title="Open course" aria-label="Open course">
+                <ExternalLink className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </ButtonGroup>
+        </div>
+      </CardFooter>
+    </Card>
+  );
 }

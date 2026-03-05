@@ -85,12 +85,12 @@
     "hub": "资源中心",
     "courses": "课程目录",
     "projects_seminars": "研/项",
-    "roadmap": "学习路线",
-    "smart_planner": "智能规划",
-    "schedule": "课程表",
+    "roadmap": "路线图",
+    "assist": "助手",
+    "calendar": "日历",
     "workouts": "运动",
     "command": "主控台",
-    "identity": "个人身份",
+    "identity": "身份",
     "settings": "设置",
     "settings_engine": "引擎",
     "settings_intelligence": "智能配置",
@@ -162,7 +162,7 @@
       "view_details": "详情"
     },
     "roadmap": {
-      "title": "修读路线",
+      "title": "修读路线图",
       "header_total": "总课程数",
       "header_mastered": "已掌握",
       "header_efficiency": "核心效率",
@@ -202,7 +202,7 @@
       "calendar_weekdays": ["日", "一", "二", "三", "四", "五", "六"],
       "calendar_months": ["一月", "二月", "三月", "四月", "五月", "六月", "七月", "八月", "九月", "十月", "十一月", "十二月"]
     },
-    "profile": {
+    "identity": {
       "user_level": "专业度",
       "user_not_found": "未找到用户信息。",
       "level_short": "等级",
@@ -241,7 +241,7 @@
       "delete_desc": "从系统中永久移除您的账户并擦除所有学习数据。",
       "delete_btn": "删除我的账户",
       "delete_confirm_title": "危险操作",
-      "delete_confirm_desc": "这将永久删除您的个人资料和所有课程进度。此操作无法撤销。",
+      "delete_confirm_desc": "这将永久删除您的个人身份和所有课程进度。此操作无法撤销。",
       "delete_confirm_btn": "确认删除",
       "delete_cancel_btn": "取消"
     },

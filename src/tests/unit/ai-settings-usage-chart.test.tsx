@@ -2,7 +2,7 @@ import React from "react";
 import { describe, expect, test, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 
-vi.mock("@/actions/profile", () => ({
+vi.mock("@/actions/identity", () => ({
   updateAiPreferences: vi.fn(async () => undefined),
   updateAiPromptTemplates: vi.fn(async () => undefined),
 }));
@@ -66,7 +66,7 @@ describe("AI settings usage chart", () => {
       })) as unknown as typeof fetch
     );
 
-    const { default: AISettingsCard } = await import("@/components/profile/AISettingsCard");
+    const { default: AISettingsCard } = await import("@/components/identity/AISettingsCard");
 
     render(
       <AISettingsCard

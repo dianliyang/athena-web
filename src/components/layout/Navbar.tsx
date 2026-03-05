@@ -35,7 +35,7 @@ export default async function Navbar({ dict }: {dict: Dictionary['navbar'];}) {
             <NavLinks dict={dict} />
 
             <Card>
-              <Link href="/profile" className="flex items-center gap-3 group">
+              <Link href="/identity" className="flex items-center gap-3 group">
                 <div className="flex flex-col items-end -space-y-0.5">
                   <span className="text-sm font-medium text-slate-900">
                     {user?.user_metadata?.full_name || user?.email?.split('@')[0] || dict?.guest_user || "Guest User"}

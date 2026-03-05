@@ -34,7 +34,7 @@ export async function POST(request: Request) {
         
       if (error) throw error;
       revalidatePath('/courses');
-      revalidatePath('/study-plan');
+      revalidatePath('/roadmap');
       return NextResponse.json({ success: true, message: "Enrolled successfully" });
     }
 
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
         
       if (error) throw error;
       revalidatePath('/courses');
-      revalidatePath('/study-plan');
+      revalidatePath('/roadmap');
       return NextResponse.json({ success: true, message: "Unenrolled successfully" });
     }
 
@@ -101,8 +101,8 @@ export async function POST(request: Request) {
         }
       }
 
-      revalidatePath('/study-plan');
-      revalidatePath('/profile');
+      revalidatePath('/roadmap');
+      revalidatePath('/identity');
       return NextResponse.json({ success: true, message: "Progress updated" });
     }
 

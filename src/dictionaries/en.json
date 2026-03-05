@@ -76,8 +76,8 @@
     "courses": "Courses",
     "projects_seminars": "S&P",
     "roadmap": "Roadmap",
-    "smart_planner": "Smart Planer",
-    "schedule": "Schedule",
+    "assist": "Assist",
+    "calendar": "Calendar",
     "workouts": "Workouts",
     "command": "Command",
     "identity": "Identity",
@@ -192,7 +192,7 @@
       "calendar_weekdays": ["S", "M", "T", "W", "T", "F", "S"],
       "calendar_months": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
     },
-    "profile": {
+    "identity": {
       "user_level": "Expertise",
       "user_not_found": "User profile not found.",
       "level_short": "Lvl",
@@ -231,7 +231,7 @@
       "delete_desc": "Permanently remove your account and erase all study data from the Athena system.",
       "delete_btn": "Delete My Account",
       "delete_confirm_title": "Dangerous Action",
-      "delete_confirm_desc": "This will permanently delete your profile and all course progress. This cannot be undone.",
+      "delete_confirm_desc": "This will permanently delete your identity and all course progress. This cannot be undone.",
       "delete_confirm_btn": "Confirm Deletion",
       "delete_cancel_btn": "Cancel"
     },

@@ -62,10 +62,10 @@ interface LeftRailProps {
 }
 
 const commandNavItems = [
-  { href: "/study-plan", key: "studyPlan", icon: Map },
-  { href: "/smart-planner", key: "smartPlanner", icon: Sparkles },
-  { href: "/study-schedule", key: "studySchedule", icon: CalendarDays },
-  { href: "/profile", key: "identity", icon: User },
+  { href: "/roadmap", key: "studyPlan", icon: Map },
+  { href: "/assist", key: "smartPlanner", icon: Sparkles },
+  { href: "/calendar", key: "studySchedule", icon: CalendarDays },
+  { href: "/identity", key: "identity", icon: User },
 ] as const;
 
 const hubNavItems = [
@@ -159,7 +159,7 @@ export default function LeftRail({ labels }: LeftRailProps) {
                     title={title}
                     icon={item.icon}
                     active={active}
-                    trailingSpin={item.href === "/study-plan" && hasActive}
+                    trailingSpin={item.href === "/roadmap" && hasActive}
                   />
                 );
               })}

@@ -761,7 +761,7 @@ export default function CourseDetailContent({
     setSavingPlanIndex(index);
     try {
       if (plan.id) {
-        const res = await fetch("/api/study-plans/update", {
+        const res = await fetch("/api/roadmaps/update", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

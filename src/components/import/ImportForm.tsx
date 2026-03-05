@@ -101,7 +101,7 @@ export default function ImportForm({ dict }: ImportFormProps) {
           credit: "",
           department: "",
         });
-        setTimeout(() => router.push("/study-plan"), 2000);
+        setTimeout(() => router.push("/roadmap"), 2000);
       } else {
         setMessage({ type: "error", text: data.error + (data.details ? `: ${data.details}` : "") || "Error" });
       }
@@ -128,7 +128,7 @@ export default function ImportForm({ dict }: ImportFormProps) {
         setStagedBulkData(null);
         setStagedFileName("");
         if (fileInputRef.current) fileInputRef.current.value = "";
-        setTimeout(() => router.push("/study-plan"), 2000);
+        setTimeout(() => router.push("/roadmap"), 2000);
       } else {
         setMessage({ type: "error", text: data.error + (data.details ? `: ${data.details}` : "") || "Bulk Error" });
       }

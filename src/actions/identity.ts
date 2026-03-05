@@ -75,7 +75,7 @@ export async function updateAiPreferences(input: {
     throw new Error("Failed to update AI settings");
   }
 
-  revalidatePath("/profile");
+  revalidatePath("/identity");
   revalidatePath("/settings");
   invalidateCachedProfileSettings(user.id);
 }

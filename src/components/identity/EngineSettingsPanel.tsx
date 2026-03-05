@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { Globe, Sparkles, X } from "lucide-react";
 import { AI_PROVIDERS, type AIProvider } from "@/lib/ai/models-client";
-import { updateAiPreferences } from "@/actions/profile";
+import { updateAiPreferences } from "@/actions/identity";
 import { useAppToast } from "@/components/common/AppToastProvider";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";

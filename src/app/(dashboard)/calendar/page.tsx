@@ -18,7 +18,7 @@ export default async function StudySchedulePage() {
   if (!user) {
     return (
       <div className="flex flex-col items-center justify-center py-16">
-        <p className="text-gray-500 font-mono uppercase tracking-widest">{dict.dashboard.profile.user_not_found}</p>
+        <p className="text-gray-500 font-mono uppercase tracking-widest">{dict.dashboard.identity.user_not_found}</p>
         <Button variant="outline" asChild><Link href="/login">{dict.dashboard.login.title}</Link></Button>
       </div>
     );

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getSettingsPathForSection, getSettingsSectionFromPathname } from "@/components/profile/settings-route";
+import { getSettingsPathForSection, getSettingsSectionFromPathname } from "@/components/identity/settings-route";
 
 describe("settings route mapping", () => {
   it("maps usage route to usage section", () => {

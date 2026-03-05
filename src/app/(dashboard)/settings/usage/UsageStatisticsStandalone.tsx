@@ -15,7 +15,7 @@ export default async function UsageStatisticsStandalone() {
   if (!user) {
     return (
       <div className="p-10 text-center">
-        <p>{dict.dashboard.profile.user_not_found}</p>
+        <p>{dict.dashboard.identity.user_not_found}</p>
         <Button variant="outline" asChild>
           <Link href="/login">{dict.dashboard.login.title}</Link>
         </Button>

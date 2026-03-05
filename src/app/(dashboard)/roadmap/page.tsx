@@ -11,7 +11,7 @@ import { calculateAttendance } from "@/lib/attendance";
 import { ExternalLink, Ghost } from "lucide-react";
 import CourseIntelSyncWindow from "@/components/home/CourseIntelSyncWindow";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
 export const dynamic = "force-dynamic";
@@ -48,7 +48,7 @@ export default async function StudyPlanPage() {
   if (!user) {
     return (
       <div className="flex flex-col items-center justify-center py-16">
-        <p className="text-gray-500 font-mono uppercase tracking-widest">{dict.dashboard.profile.user_not_found}</p>
+        <p className="text-gray-500 font-mono uppercase tracking-widest">{dict.dashboard.identity.user_not_found}</p>
         <Button variant="outline" asChild><Link href="/login">{dict.dashboard.login.title}</Link></Button>
       </div>);
 
@@ -260,7 +260,7 @@ async function StudyPlanContent({
       <CourseIntelSyncWindow />
 
       <section>
-        <div className="flex flex-col gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {inProgress.length > 0 && inProgress.map((course) =>
           <ActiveCourseTrack
             key={`course-${course.id}`}
@@ -272,10 +272,10 @@ async function StudyPlanContent({
           {inProgressProjectsSeminars.length > 0 && inProgressProjectsSeminars.map((item) =>
           <ActiveProjectSeminarTrack key={`project-seminar-${item.id}`} item={item} />
           )}
-          {inProgress.length === 0 && inProgressProjectsSeminars.length === 0 &&
-          <p className="text-sm text-muted-foreground">{dict.dashboard.roadmap.no_active}</p>
-          }
         </div>
+        {inProgress.length === 0 && inProgressProjectsSeminars.length === 0 &&
+          <p className="text-sm text-muted-foreground mt-4">{dict.dashboard.roadmap.no_active}</p>
+        }
       </section>
 
       {enrolledCourses.length === 0 && enrolledProjectsSeminars.length === 0 &&
@@ -298,50 +298,70 @@ async function StudyPlanContent({
 
 function ActiveProjectSeminarTrack({ item }: {item: EnrolledProjectSeminar;}) {
   return (
-    <Card>
-      <div className="flex items-start justify-between gap-1.5 p-2">
-        <div className="flex items-start gap-1.5 min-w-0">
+    <Card className="h-full flex flex-col overflow-hidden border-[#efefef] hover:border-[#dfdfdf] transition-all duration-200 shadow-sm hover:shadow-md">
+      <CardHeader className="space-y-4 p-4 pb-0">
+        {/* Top: Icon and Category */}
+        <div className="flex items-start justify-between gap-2">
           <UniversityIcon
             name={item.university}
-            size={28}
-            className="flex-shrink-0 bg-gray-50 border border-gray-100 p-1" />
+            size={36}
+            className="shrink-0 bg-gray-50 border border-gray-100 p-1.5 rounded-md" />
           
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5 mb-0.5">
-              <span className="text-[11px] font-medium text-[#4d4d4d] leading-none">{item.university}</span>
-              <span className="w-0.5 h-0.5 bg-gray-200"></span>
-              <span className="text-[11px] text-[#9a9a9a]">{item.courseCode}</span>
-            </div>
-            <h3 className="text-sm font-semibold text-[#1f1f1f] tracking-tight leading-tight line-clamp-1">
-              <Link href={`/projects-seminars/${item.id}`}>{item.title}</Link>
-            </h3>
-          </div>
+          <Badge variant="secondary" className="max-w-[120px] truncate text-[10px] uppercase font-bold tracking-wider">
+            {item.category || "Project/Seminar"}
+          </Badge>
         </div>
 
-        <Badge className="items-center border-[#e5e5e5] bg-[#f8f8f8] px-2 py-0.5 text-[10px] font-medium text-[#555]">
-          {item.category || "Project/Seminar"}
-        </Badge>
-      </div>
-
-      <div className="grid grid-cols-2 gap-1.5 border-t p-2">
-        <div>
-          <p className="text-[9px] uppercase tracking-wider text-[#9a9a9a]">Semester</p>
-          <p className="text-[11px] text-[#2f2f2f]">{item.semesterLabel}</p>
-        </div>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-[9px] uppercase tracking-wider text-[#9a9a9a]">Status</p>
-            <p className="text-[11px] text-[#2f2f2f]">In Progress</p>
+        {/* Info Section */}
+        <div className="space-y-1">
+          <span className="block text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
+            {item.courseCode || "P&S"} · {item.university}
+          </span>
+          <CardTitle className="text-lg font-bold tracking-tight text-[#1f1f1f] leading-tight line-clamp-2 hover:text-black transition-colors">
+            <Link href={`/projects-seminars/${item.id}`}>{item.title}</Link>
+          </CardTitle>
+          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground pt-1">
+            <span>{item.semesterLabel}</span>
           </div>
-          {item.url ? (
-            <Button variant="outline" size="sm" asChild>
-              <a href={item.url} target="_blank" rel="noopener noreferrer" aria-label="Open seminar">
-                <ExternalLink />
-              </a>
+        </div>
+      </CardHeader>
+
+      <CardContent className="flex flex-1 flex-col p-4 pt-6">
+        {/* Progress Section */}
+        <div className="mt-auto space-y-2">
+          <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider">
+            <span className="text-muted-foreground text-[10px]">Status</span>
+            <span className="text-[#1f1f1f]">In Progress</span>
+          </div>
+          <div className="flex items-center gap-1 h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+            <div className="h-full w-1/2 bg-black rounded-full" />
+          </div>
+        </div>
+      </CardContent>
+
+      <CardFooter className="p-4 pt-0 border-t border-[#f5f5f5] mt-auto">
+        <div className="flex items-center justify-between gap-2 w-full pt-4">
+          <div className="flex items-center gap-1">
+            {Array.from({ length: 7 }).map((_, idx) => (
+              <span key={idx} className="h-2 w-2 rounded-full bg-gray-100" />
+            ))}
+          </div>
+          <div className="flex gap-1">
+            <Button variant="outline" size="icon-sm" className="h-8 w-8" asChild>
+              <Link href={`/projects-seminars/${item.id}`}>
+                <ExternalLink className="h-3.5 w-3.5" />
+              </Link>
             </Button>
-          ) : null}
+            {item.url ? (
+              <Button variant="outline" size="icon-sm" className="h-8 w-8" asChild>
+                <a href={item.url} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              </Button>
+            ) : null}
+          </div>
         </div>
-      </div>
+      </CardFooter>
     </Card>);
 
 }

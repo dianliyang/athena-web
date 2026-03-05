@@ -4,12 +4,12 @@ import { getDictionary } from "@/lib/dictionary";
 import { Badge } from "@/components/ui/badge";
 import RoadmapAchievementsSection from "@/components/home/RoadmapAchievementsSection";
 import { Course } from "@/types";
-import CourseStatusChart from "@/components/profile/CourseStatusChart";
-import LearningProfileChart from "@/components/profile/LearningProfileChart";
+import CourseStatusChart from "@/components/identity/CourseStatusChart";
+import LearningProfileChart from "@/components/identity/LearningProfileChart";
 
 export const dynamic = "force-dynamic";
 
-export default async function ProfilePage() {
+export default async function IdentityPage() {
   const [user, lang, supabase] = await Promise.all([getUser(), getLanguage(), createClient()]);
   type CompletedAchievement = Course & {
     gpa?: number;
@@ -42,7 +42,7 @@ export default async function ProfilePage() {
   Promise.resolve({ data: null, error: null })]
   );
 
-  if (!user) return <div className="p-10 text-center">{dict.dashboard.profile.user_not_found}</div>;
+  if (!user) return <div className="p-10 text-center">{dict.dashboard.identity.user_not_found}</div>;
 
   const email = user.email;
   const name = user.user_metadata?.full_name || email?.split("@")[0] || "User";
@@ -150,7 +150,7 @@ export default async function ProfilePage() {
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Identity</h1>
         <p className="text-sm text-muted-foreground">
-          Manage your learning profile, progress signals, and achievements.
+          Manage your learning identity, progress signals, and achievements.
         </p>
       </div>
       <div className="flex flex-col gap-4">
@@ -176,19 +176,19 @@ export default async function ProfilePage() {
 
           <div className="flex items-center gap-2">
             <Badge>LVL {Math.floor(completedCount / 2) + 1}</Badge>
-            <Badge variant="secondary">{dict.dashboard.profile.user_level}</Badge>
+            <Badge variant="secondary">{dict.dashboard.identity.user_level}</Badge>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2">
-          <h2 className="text-base font-semibold text-[#1f1f1f]">Learning Profile</h2>
-          <p className="text-xs text-[#7a7a7a] mt-1 mb-3">{dict.dashboard.profile.neural_map}</p>
+          <h2 className="text-base font-semibold text-[#1f1f1f]">Learning Identity</h2>
+          <p className="text-xs text-[#7a7a7a] mt-1 mb-3">{dict.dashboard.identity.neural_map}</p>
           <LearningProfileChart
             data={allFieldStats}
-            unitLabel={dict.dashboard.profile.units}
-            emptyText={dict.dashboard.profile.no_data}
+            unitLabel={dict.dashboard.identity.units}
+            emptyText={dict.dashboard.identity.no_data}
           />
         </div>
 
@@ -197,7 +197,7 @@ export default async function ProfilePage() {
           <p className="text-xs text-[#7a7a7a] mt-1 mb-3">Enrollment distribution</p>
           <CourseStatusChart
             data={recentStatuses}
-            emptyText={dict.dashboard.profile.no_data}
+            emptyText={dict.dashboard.identity.no_data}
             recentUpdates30={recentUpdates30}
             inProgressCount={inProgressCount}
             stalledCount={stalledCount}

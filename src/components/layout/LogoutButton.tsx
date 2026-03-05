@@ -26,7 +26,7 @@ export default function LogoutButton({ showLabel, dict, fullWidth, className }: 
         type="button"
       >
         <LogOut className="transition-colors group-hover:text-red-600" />
-        <span>{dict?.dashboard.profile.sign_out || "Sign Out"}</span>
+        <span>{dict?.dashboard.identity.sign_out || "Sign Out"}</span>
       </Button>
     );
   }

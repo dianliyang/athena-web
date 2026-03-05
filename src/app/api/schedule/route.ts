@@ -101,7 +101,7 @@ export async function POST(request: Request) {
         if (insertError) throw insertError;
       }
 
-      revalidatePath('/study-plan');
+      revalidatePath('/roadmap');
       return NextResponse.json({ success: true, message: `Generated plans for ${userCourses.length} courses` });
     }
 
@@ -153,7 +153,7 @@ export async function POST(request: Request) {
         .single();
 
       if (error) throw error;
-      revalidatePath('/study-plan');
+      revalidatePath('/roadmap');
       return NextResponse.json(inserted);
     }
 
@@ -184,7 +184,7 @@ export async function POST(request: Request) {
         .single();
 
       if (error) throw error;
-      revalidatePath('/study-plan');
+      revalidatePath('/roadmap');
       return NextResponse.json(updated);
     }
 
@@ -200,7 +200,7 @@ export async function POST(request: Request) {
         .eq('user_id', userId);
 
       if (error) throw error;
-      revalidatePath('/study-plan');
+      revalidatePath('/roadmap');
       return NextResponse.json({ success: true, message: "Plan removed" });
     }
 
@@ -238,7 +238,7 @@ export async function POST(request: Request) {
         if (error) throw error;
       }
 
-      revalidatePath('/study-plan');
+      revalidatePath('/roadmap');
       return NextResponse.json({ success: true, message: "Completion toggled" });
     }
 

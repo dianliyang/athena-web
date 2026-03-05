@@ -186,7 +186,7 @@ export async function sendStudyReminderEmail(data: StudyReminderEmailData) {
           `).join("")}
         </div>
 
-        <a href="${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/study-plan" class="cta">Open Athena</a>
+        <a href="${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/roadmap" class="cta">Open Athena</a>
 
         <div class="note">
           Consistency compounds. Even partial completion keeps your execution momentum alive.
