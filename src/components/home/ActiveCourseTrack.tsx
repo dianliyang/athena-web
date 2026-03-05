@@ -171,18 +171,7 @@ export default function ActiveCourseTrack({
         </div>
       </CardHeader>
 
-      <CardContent className="flex-1 flex flex-col justify-end px-3 py-2 gap-2">
-        <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider text-stone-400">
-          <Clock className="h-3 w-3 shrink-0" />
-          {localPlan ? (
-            <span className="text-stone-600">
-              {localPlan.start_time.slice(0, 5)} - {localPlan.end_time.slice(0, 5)}
-            </span>
-          ) : (
-            <span className="italic opacity-70">No schedule</span>
-          )}
-        </div>
-
+      <CardContent className="flex-1 flex flex-col justify-end px-3 py-2 gap-3">
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground text-[9px] uppercase font-bold tracking-widest">Progress</span>
@@ -198,36 +187,49 @@ export default function ActiveCourseTrack({
       </CardContent>
 
       <CardFooter className="p-3 pt-2 border-t border-stone-50 bg-gray-50/20 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-1.5">
-          {localPlan ? (
-            <HoverCard openDelay={60} closeDelay={80}>
-              <HoverCardTrigger asChild>
-                <div className="flex items-center gap-1.5" aria-label="Study days">
-                  {Array.from({ length: 7 }).map((_, idx) => (
-                    <span
-                      key={`study-day-dot-${idx}`}
-                      className={`h-2 w-2 rounded-full transition-colors ${
-                        localPlan.days_of_week.includes(idx) ? "bg-[#1f1f1f]" : "bg-stone-200"
-                      }`}
-                    />
-                  ))}
-                </div>
-              </HoverCardTrigger>
-              {scheduleSummary && (
-                <HoverCardContent className="w-auto p-2">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-stone-600">
-                    {scheduleSummary.dayText || "No days selected"}
-                  </p>
-                </HoverCardContent>
-              )}
-            </HoverCard>
-          ) : (
-            <div className="flex items-center gap-1.5">
-              {Array.from({ length: 7 }).map((_, idx) => (
-                <span key={idx} className="h-2 w-2 rounded-full bg-stone-200" />
-              ))}
-            </div>
-          )}
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-1.5 shrink-0">
+            {localPlan ? (
+              <HoverCard openDelay={60} closeDelay={80}>
+                <HoverCardTrigger asChild>
+                  <div className="flex items-center gap-1.25" aria-label="Study days">
+                    {Array.from({ length: 7 }).map((_, idx) => (
+                      <span
+                        key={`study-day-dot-${idx}`}
+                        className={`h-1.5 w-1.5 rounded-full transition-colors ${
+                          localPlan.days_of_week.includes(idx) ? "bg-[#1f1f1f]" : "bg-stone-200"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </HoverCardTrigger>
+                {scheduleSummary && (
+                  <HoverCardContent className="w-auto p-2">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-stone-600">
+                      {scheduleSummary.dayText || "No days selected"}
+                    </p>
+                  </HoverCardContent>
+                )}
+              </HoverCard>
+            ) : (
+              <div className="flex items-center gap-1.25">
+                {Array.from({ length: 7 }).map((_, idx) => (
+                  <span key={idx} className="h-1.5 w-1.5 rounded-full bg-stone-200" />
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1 text-[10px] uppercase font-bold tracking-wider text-stone-400 min-w-0">
+            <Clock className="h-3 w-3 shrink-0" />
+            {localPlan ? (
+              <span className="text-stone-600 truncate">
+                {localPlan.start_time.slice(0, 5)} - {localPlan.end_time.slice(0, 5)}
+              </span>
+            ) : (
+              <span className="italic opacity-70 truncate">No schedule</span>
+            )}
+          </div>
         </div>
 
         <ButtonGroup className="shrink-0">
@@ -257,7 +259,7 @@ export default function ActiveCourseTrack({
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleAiSync} disabled={isAiUpdating}>
-                {isAiUpdating ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Sparkles className="h-3 w-3 mr-2" />}
+                {isAiUpdating ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Sparkles className="h-3.5 w-3.5 mr-2" />}
                 Run Intelligence
               </DropdownMenuItem>
             </DropdownMenuContent>
