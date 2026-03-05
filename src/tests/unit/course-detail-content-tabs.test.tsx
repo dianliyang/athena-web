@@ -11,11 +11,21 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => mockSearchParams,
 }));
 
+vi.mock("next/image", () => ({
+  default: (props: React.ImgHTMLAttributes<HTMLImageElement>) => <img {...props} />,
+}));
+
 vi.mock("@/actions/courses", () => ({
   confirmGeneratedStudyPlans: vi.fn(),
   previewStudyPlansFromCourseSchedule: vi.fn(),
   toggleCourseEnrollmentAction: vi.fn(),
   updateCourseResources: vi.fn(),
+}));
+
+vi.mock("@/components/common/AppToastProvider", () => ({
+  useAppToast: () => ({
+    showToast: vi.fn(),
+  }),
 }));
 
 const baseCourse: Course = {

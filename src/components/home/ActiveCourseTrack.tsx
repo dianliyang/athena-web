@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { differenceInCalendarDays, format, parseISO } from "date-fns";
 import { Course } from "@/types";
 import Link from "next/link";
 import UniversityIcon from "@/components/common/UniversityIcon";
@@ -133,6 +134,24 @@ export default function ActiveCourseTrack({
     const dayText = dayIndexes.map((idx) => weekdaysShort[idx]).join(", ");
     return { dayText };
   }, [localPlan]);
+  const planMeta = useMemo(() => {
+    if (!localPlan?.start_date || !localPlan?.end_date) return null;
+
+    try {
+      const startDate = parseISO(localPlan.start_date);
+      const endDate = parseISO(localPlan.end_date);
+      if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return null;
+
+      const inclusiveDays = Math.max(1, differenceInCalendarDays(endDate, startDate) + 1);
+      return {
+        startLabel: format(startDate, "MMM d, yyyy"),
+        endLabel: format(endDate, "MMM d, yyyy"),
+        totalLabel: `${inclusiveDays} ${inclusiveDays === 1 ? "day" : "days"}`
+      };
+    } catch {
+      return null;
+    }
+  }, [localPlan]);
 
   const roadmapSubdomain = course.subdomain || course.fields?.[0] || "";
   const progressSegments = 10;
@@ -208,49 +227,60 @@ export default function ActiveCourseTrack({
       </CardContent>
 
       <CardFooter className="p-2.5 pt-1.5 border-t border-stone-50 bg-gray-50/20 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="flex items-center gap-1.5 shrink-0">
-            {localPlan ? (
-              <HoverCard openDelay={60} closeDelay={80}>
-                <HoverCardTrigger asChild>
-                  <div className="flex items-center gap-1.25" aria-label="Study days">
-                    {Array.from({ length: 7 }).map((_, idx) => (
-                      <span
-                        key={`study-day-dot-${idx}`}
-                        className={`h-1.5 w-1.5 rounded-full transition-colors ${
-                          localPlan.days_of_week.includes(idx) ? "bg-[#1f1f1f]" : "bg-stone-200"
-                        }`}
-                      />
-                    ))}
-                  </div>
-                </HoverCardTrigger>
-                {scheduleSummary && (
-                  <HoverCardContent className="w-auto p-2">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-stone-600">
-                      {scheduleSummary.dayText || "No days selected"}
-                    </p>
-                  </HoverCardContent>
-                )}
-              </HoverCard>
-            ) : (
-              <div className="flex items-center gap-1.25">
+        <div className="min-w-0 flex-1">
+          {localPlan && planMeta ? (
+            <div className="flex items-start gap-3 min-w-0">
+              <div className="flex items-center gap-1.5 shrink-0">
+                <HoverCard openDelay={60} closeDelay={80}>
+                  <HoverCardTrigger asChild>
+                    <div className="flex items-center gap-1.25" aria-label="Study days">
+                      {Array.from({ length: 7 }).map((_, idx) => (
+                        <span
+                          key={`study-day-dot-${idx}`}
+                          className={`h-1.5 w-1.5 rounded-full transition-colors ${
+                            localPlan.days_of_week.includes(idx) ? "bg-[#1f1f1f]" : "bg-stone-200"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </HoverCardTrigger>
+                  {scheduleSummary && (
+                    <HoverCardContent className="w-auto p-2">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-stone-600">
+                        {scheduleSummary.dayText || "No days selected"}
+                      </p>
+                    </HoverCardContent>
+                  )}
+                </HoverCard>
+              </div>
+              <div className="grid min-w-0 flex-1 grid-cols-3 gap-2">
+                <div className="min-w-0">
+                  <div className="text-[9px] uppercase font-bold tracking-widest text-stone-400">Start</div>
+                  <div className="truncate text-[10px] font-semibold text-stone-700">{planMeta.startLabel}</div>
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[9px] uppercase font-bold tracking-widest text-stone-400">End</div>
+                  <div className="truncate text-[10px] font-semibold text-stone-700">{planMeta.endLabel}</div>
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[9px] uppercase font-bold tracking-widest text-stone-400">Total</div>
+                  <div className="truncate text-[10px] font-semibold text-stone-700">{planMeta.totalLabel}</div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex items-center gap-1.25 shrink-0">
                 {Array.from({ length: 7 }).map((_, idx) => (
                   <span key={idx} className="h-1.5 w-1.5 rounded-full bg-stone-200" />
                 ))}
               </div>
-            )}
-          </div>
-
-          <div className="flex items-center gap-1 text-[10px] uppercase font-bold tracking-wider text-stone-400 min-w-0">
-            <Clock className="h-3 w-3 shrink-0" />
-            {localPlan ? (
-              <span className="text-stone-600 truncate">
-                {localPlan.start_time.slice(0, 5)} - {localPlan.end_time.slice(0, 5)}
-              </span>
-            ) : (
-              <span className="italic opacity-70 truncate">No schedule</span>
-            )}
-          </div>
+              <div className="flex items-center gap-1 text-[10px] uppercase font-bold tracking-wider text-stone-400 min-w-0">
+                <Clock className="h-3 w-3 shrink-0" />
+                <span className="italic opacity-70 truncate">No schedule</span>
+              </div>
+            </div>
+          )}
         </div>
 
         <ButtonGroup className="shrink-0">

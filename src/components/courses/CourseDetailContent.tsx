@@ -37,7 +37,6 @@ import {
   Trash2,
   Users,
   WandSparkles,
-  ExternalLink,
   X,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -262,21 +261,125 @@ function getThirdPartyPreviewImageUrl(url: string): string | null {
   return `https://image.thum.io/get/width/900/crop/560/noanimate/${encodeURIComponent(previewable)}`;
 }
 
-function getFaviconUrl(url: string): string | null {
-  const previewable = getPreviewableUrl(url);
-  if (!previewable) return null;
-  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(previewable)}&sz=64`;
-}
-
-function getPreviewPath(url: string): string {
-  const previewable = getPreviewableUrl(url);
-  if (!previewable) return "";
-  try {
-    const parsed = new URL(previewable);
-    return parsed.pathname && parsed.pathname !== "/" ? parsed.pathname : "Homepage";
-  } catch {
-    return "";
-  }
+export function ResourcePreviewHoverCard({
+  url,
+  previewData,
+  previewLoading,
+  previewBlocked,
+  copied,
+  onOpenChange,
+  onPreviewBlocked,
+  onCopy,
+}: {
+  url: string;
+  previewData: LinkPreviewData | null | undefined;
+  previewLoading: boolean;
+  previewBlocked: boolean;
+  copied: boolean;
+  onOpenChange?: (open: boolean) => void;
+  onPreviewBlocked: () => void;
+  onCopy: () => void;
+}) {
+  return (
+    <HoverCard openDelay={120} closeDelay={80} onOpenChange={onOpenChange}>
+      <HoverCardTrigger asChild>
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          className="text-sm font-medium text-[#335b9a] hover:underline flex items-center gap-2 break-all flex-1 min-w-0"
+        >
+          <Globe className="w-4 h-4 shrink-0 text-[#778fb8]" />
+          {url}
+        </a>
+      </HoverCardTrigger>
+      <HoverCardContent className="w-[420px] p-0">
+        <div className="flex items-start justify-between gap-3 px-3 py-2 border-b">
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground truncate">
+              Website Preview
+            </p>
+            <p className="text-xs font-medium truncate">
+              {url}
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            type="button"
+            className="shrink-0"
+            onClick={onCopy}
+            title="Copy resource URL"
+            aria-label="Copy resource URL"
+          >
+            {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+          </Button>
+        </div>
+        {previewLoading ? (
+          <div className="px-3 py-3 text-xs text-muted-foreground flex items-center gap-2">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            Loading preview…
+          </div>
+        ) : previewData?.title || previewData?.description || previewData?.image ? (
+          <div className="p-3 space-y-2">
+            {previewData?.image ? (
+              <Image
+                src={previewData.image}
+                alt={`Preview ${url}`}
+                className="h-40 w-full rounded-md object-cover border"
+                width={900}
+                height={560}
+                unoptimized
+              />
+            ) : null}
+            <div className="space-y-1">
+              <p className="text-xs font-semibold leading-snug line-clamp-2">
+                {previewData?.title || getPreviewHost(url)}
+              </p>
+              {previewData?.description ? (
+                <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-3">
+                  {previewData.description}
+                </p>
+              ) : null}
+              <p className="text-[11px] text-muted-foreground truncate">
+                {(previewData?.siteName || getPreviewHost(url)).replace(/^www\./, "")}
+              </p>
+            </div>
+          </div>
+        ) : getPreviewableUrl(url) && !previewBlocked ? (
+          <>
+            <Image
+              src={getThirdPartyPreviewImageUrl(url) || ""}
+              alt={`Preview ${url}`}
+              className="h-56 w-full object-cover"
+              width={900}
+              height={560}
+              unoptimized
+              onError={onPreviewBlocked}
+            />
+            <div className="px-3 py-2 border-t text-[11px] text-muted-foreground">
+              Host:{" "}
+              <span className="font-medium text-foreground">
+                {getPreviewHost(url)}
+              </span>
+            </div>
+          </>
+        ) : (
+          <div className="px-3 py-2 text-xs space-y-1.5">
+            <p className="text-muted-foreground">
+              Host:{" "}
+              <span className="font-medium text-foreground">
+                {getPreviewHost(url)}
+              </span>
+            </p>
+            <p className="text-muted-foreground">
+              This site blocks embedded previews (X-Frame-Options/CSP). Open the link in a new tab.
+            </p>
+          </div>
+        )}
+      </HoverCardContent>
+    </HoverCard>
+  );
 }
 
 export default function CourseDetailContent({
@@ -779,6 +882,20 @@ export default function CourseDetailContent({
       setLocalResources(previous);
     } finally {
       setRemovingUrlIndex(null);
+    }
+  };
+
+  const handleCopyResourceUrl = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedResourceUrl(url);
+      toast.success("Resource URL copied", { position: "bottom-right" });
+      window.setTimeout(() => {
+        setCopiedResourceUrl((current) => (current === url ? null : current));
+      }, 1200);
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to copy resource URL", { position: "bottom-right" });
     }
   };
 
@@ -1888,138 +2005,25 @@ export default function CourseDetailContent({
                         key={`${url}-${i}`}
                         className="flex items-center gap-2"
                       >
-                        <HoverCard openDelay={120} closeDelay={80} onOpenChange={(open) => {
-                          if (open) void ensureLinkPreview(url);
-                        }}>
-                          <HoverCardTrigger asChild>
-                            <a
-                              href={url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-sm font-medium text-[#335b9a] hover:underline flex items-center gap-2 break-all flex-1 min-w-0"
-                            >
-                              <Globe className="w-4 h-4 shrink-0 text-[#778fb8]" />
-                              {url}
-                            </a>
-                          </HoverCardTrigger>
-                          <HoverCardContent className="w-[420px] p-0">
-                            <div className="px-3 py-2 border-b">
-                              <p className="text-xs text-muted-foreground truncate">
-                                Website Preview
-                              </p>
-                              <p className="text-xs font-medium truncate">
-                                {url}
-                              </p>
-                            </div>
-                            {resourceLinkPreviewLoading[url] ? (
-                              <div className="px-3 py-3 text-xs text-muted-foreground flex items-center gap-2">
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                Loading preview…
-                              </div>
-                            ) : resourceLinkPreviews[url]?.title || resourceLinkPreviews[url]?.description || resourceLinkPreviews[url]?.image ? (
-                              <div className="p-3 space-y-2">
-                                {resourceLinkPreviews[url]?.image ? (
-                                  <Image
-                                    src={resourceLinkPreviews[url]?.image || ""}
-                                    alt={`Preview ${url}`}
-                                    className="h-40 w-full rounded-md object-cover border"
-                                    width={900}
-                                    height={560}
-                                    unoptimized
-                                  />
-                                ) : null}
-                                <div className="space-y-1">
-                                  <p className="text-xs font-semibold leading-snug line-clamp-2">
-                                    {resourceLinkPreviews[url]?.title || getPreviewHost(url)}
-                                  </p>
-                                  {resourceLinkPreviews[url]?.description ? (
-                                    <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-3">
-                                      {resourceLinkPreviews[url]?.description}
-                                    </p>
-                                  ) : null}
-                                  <p className="text-[11px] text-muted-foreground truncate">
-                                    {(resourceLinkPreviews[url]?.siteName || getPreviewHost(url)).replace(/^www\./, "")}
-                                  </p>
-                                </div>
-                              </div>
-                            ) : getPreviewableUrl(url) &&
-                            resourcePreviewState[url] !== "blocked" ? (
-                              <>
-                                <Image
-                                  src={getThirdPartyPreviewImageUrl(url) || ""}
-                                  alt={`Preview ${url}`}
-                                  className="h-56 w-full object-cover"
-                                  width={900}
-                                  height={560}
-                                  unoptimized
-                                  onError={() =>
-                                    setResourcePreviewState((prev) => ({
-                                      ...prev,
-                                      [url]: "blocked",
-                                    }))
-                                  }
-                                />
-                                <div className="px-3 py-2 border-t text-[11px] text-muted-foreground">
-                                  Host:{" "}
-                                  <span className="font-medium text-foreground">
-                                    {getPreviewHost(url)}
-                                  </span>
-                                </div>
-                              </>
-                            ) : (
-                              <div className="px-3 py-2 text-xs space-y-2">
-                                <div className="flex items-start gap-2 rounded-md border border-stone-200 bg-stone-50/70 p-2">
-                                  {getFaviconUrl(url) ? (
-                                    <Image
-                                      src={getFaviconUrl(url) || ""}
-                                      alt="Site icon"
-                                      width={18}
-                                      height={18}
-                                      unoptimized
-                                      className="mt-0.5 rounded-sm"
-                                    />
-                                  ) : (
-                                    <Globe className="h-4 w-4 mt-0.5 text-stone-500" />
-                                  )}
-                                  <div className="min-w-0 flex-1 space-y-0.5">
-                                    <p className="font-semibold text-foreground truncate">{getPreviewHost(url)}</p>
-                                    <p className="text-muted-foreground truncate">{getPreviewPath(url)}</p>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-7 text-[11px]"
-                                    onClick={() => window.open(url, "_blank", "noopener,noreferrer")}
-                                  >
-                                    <ExternalLink className="h-3 w-3 mr-1" />
-                                    Open
-                                  </Button>
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-7 text-[11px]"
-                                    onClick={async () => {
-                                      try {
-                                        await navigator.clipboard.writeText(url);
-                                        setCopiedResourceUrl(url);
-                                        setTimeout(() => setCopiedResourceUrl((prev) => (prev === url ? null : prev)), 1200);
-                                      } catch {
-                                        // ignore clipboard failures
-                                      }
-                                    }}
-                                  >
-                                    <Copy className="h-3 w-3 mr-1" />
-                                    {copiedResourceUrl === url ? "Copied" : "Copy"}
-                                  </Button>
-                                </div>
-                              </div>
-                            )}
-                          </HoverCardContent>
-                        </HoverCard>
+                        <ResourcePreviewHoverCard
+                          url={url}
+                          previewData={resourceLinkPreviews[url]}
+                          previewLoading={Boolean(resourceLinkPreviewLoading[url])}
+                          previewBlocked={resourcePreviewState[url] === "blocked"}
+                          copied={copiedResourceUrl === url}
+                          onOpenChange={(open) => {
+                            if (open) void ensureLinkPreview(url);
+                          }}
+                          onPreviewBlocked={() =>
+                            setResourcePreviewState((prev) => ({
+                              ...prev,
+                              [url]: "blocked",
+                            }))
+                          }
+                          onCopy={() => {
+                            void handleCopyResourceUrl(url);
+                          }}
+                        />
                         <Button
                           variant="ghost"
                           size="icon-sm"
