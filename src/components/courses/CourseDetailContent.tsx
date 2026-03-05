@@ -118,6 +118,14 @@ type PlanCalendarEvent = {
   meta: string;
 };
 
+type LinkPreviewData = {
+  url: string;
+  title: string | null;
+  description: string | null;
+  image: string | null;
+  siteName: string | null;
+};
+
 function parseIsoDate(value: string): Date | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
   const parsed = new Date(`${value}T00:00:00Z`);
@@ -313,6 +321,12 @@ export default function CourseDetailContent({
   const [removingUrlIndex, setRemovingUrlIndex] = useState<number | null>(null);
   const [resourcePreviewState, setResourcePreviewState] = useState<
     Record<string, "blocked">
+  >({});
+  const [resourceLinkPreviews, setResourceLinkPreviews] = useState<
+    Record<string, LinkPreviewData | null>
+  >({});
+  const [resourceLinkPreviewLoading, setResourceLinkPreviewLoading] = useState<
+    Record<string, boolean>
   >({});
   const [copiedResourceUrl, setCopiedResourceUrl] = useState<string | null>(null);
   const [showAllResources, setShowAllResources] = useState(false);
@@ -732,6 +746,23 @@ export default function CourseDetailContent({
       setShowAddUrl(true);
     } finally {
       setIsAddingUrl(false);
+    }
+  };
+
+  const ensureLinkPreview = async (url: string) => {
+    if (!getPreviewableUrl(url)) return;
+    if (resourceLinkPreviews[url] !== undefined || resourceLinkPreviewLoading[url]) return;
+
+    setResourceLinkPreviewLoading((prev) => ({ ...prev, [url]: true }));
+    try {
+      const res = await fetch(`/api/link-preview?url=${encodeURIComponent(url)}`);
+      if (!res.ok) throw new Error("Preview request failed");
+      const data = (await res.json()) as LinkPreviewData;
+      setResourceLinkPreviews((prev) => ({ ...prev, [url]: data }));
+    } catch {
+      setResourceLinkPreviews((prev) => ({ ...prev, [url]: null }));
+    } finally {
+      setResourceLinkPreviewLoading((prev) => ({ ...prev, [url]: false }));
     }
   };
 
@@ -1852,7 +1883,9 @@ export default function CourseDetailContent({
                         key={`${url}-${i}`}
                         className="flex items-center gap-2"
                       >
-                        <HoverCard openDelay={120} closeDelay={80}>
+                        <HoverCard openDelay={120} closeDelay={80} onOpenChange={(open) => {
+                          if (open) void ensureLinkPreview(url);
+                        }}>
                           <HoverCardTrigger asChild>
                             <a
                               href={url}
@@ -1873,7 +1906,38 @@ export default function CourseDetailContent({
                                 {url}
                               </p>
                             </div>
-                            {getPreviewableUrl(url) &&
+                            {resourceLinkPreviewLoading[url] ? (
+                              <div className="px-3 py-3 text-xs text-muted-foreground flex items-center gap-2">
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                Loading preview…
+                              </div>
+                            ) : resourceLinkPreviews[url]?.title || resourceLinkPreviews[url]?.description || resourceLinkPreviews[url]?.image ? (
+                              <div className="p-3 space-y-2">
+                                {resourceLinkPreviews[url]?.image ? (
+                                  <Image
+                                    src={resourceLinkPreviews[url]?.image || ""}
+                                    alt={`Preview ${url}`}
+                                    className="h-40 w-full rounded-md object-cover border"
+                                    width={900}
+                                    height={560}
+                                    unoptimized
+                                  />
+                                ) : null}
+                                <div className="space-y-1">
+                                  <p className="text-xs font-semibold leading-snug line-clamp-2">
+                                    {resourceLinkPreviews[url]?.title || getPreviewHost(url)}
+                                  </p>
+                                  {resourceLinkPreviews[url]?.description ? (
+                                    <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-3">
+                                      {resourceLinkPreviews[url]?.description}
+                                    </p>
+                                  ) : null}
+                                  <p className="text-[11px] text-muted-foreground truncate">
+                                    {(resourceLinkPreviews[url]?.siteName || getPreviewHost(url)).replace(/^www\./, "")}
+                                  </p>
+                                </div>
+                              </div>
+                            ) : getPreviewableUrl(url) &&
                             resourcePreviewState[url] !== "blocked" ? (
                               <>
                                 <Image
