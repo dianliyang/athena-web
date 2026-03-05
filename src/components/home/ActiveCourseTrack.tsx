@@ -140,14 +140,14 @@ export default function ActiveCourseTrack({
 
   return (
     <Card className="h-full flex flex-col border-[#efefef] hover:border-[#dfdfdf] transition-all duration-200 shadow-sm hover:shadow-md overflow-hidden bg-white text-[#1f1f1f]">
-      <CardHeader className="p-3 pb-2">
+      <CardHeader className="p-3 pb-1.5">
         <div className="flex items-start gap-3">
           <UniversityIcon
             name={course.university}
             size={38}
             className="shrink-0 bg-white border border-stone-100 p-1.5 rounded-lg shadow-sm"
           />
-          <div className="flex-1 min-w-0 space-y-0.5">
+          <div className="flex-1 min-w-0 space-y-0">
             <div className="flex items-center justify-between gap-2">
               <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">
                 {course.courseCode}
@@ -163,7 +163,7 @@ export default function ActiveCourseTrack({
                 )}
               </div>
             </div>
-            <CardTitle className="text-base font-bold tracking-tight leading-tight line-clamp-2">
+            <CardTitle className="text-lg font-extrabold tracking-tight leading-tight line-clamp-2">
               <Link href={detailHref} className="hover:text-black transition-colors">{course.title}</Link>
             </CardTitle>
             <div className="text-[11px] text-muted-foreground font-medium">
@@ -173,8 +173,8 @@ export default function ActiveCourseTrack({
         </div>
       </CardHeader>
 
-      <CardContent className="flex-1 flex flex-col justify-end px-3 py-2 gap-3">
-        <div className="space-y-1.5">
+      <CardContent className="flex-1 flex flex-col justify-end px-3 py-1.5 gap-2">
+        <div className="space-y-1">
           <div className="flex items-end justify-between">
             <span className="text-muted-foreground text-[9px] uppercase font-bold tracking-widest">Progress</span>
             <span className="text-[#1f1f1f] text-xs font-extrabold">{progress}%</span>
@@ -191,14 +191,14 @@ export default function ActiveCourseTrack({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 text-[10px]">
-          <div className="rounded-md border border-stone-100 bg-stone-50/60 px-2 py-1.5 min-w-0">
+          <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+          <div className="rounded-md border border-stone-100 bg-stone-50/60 px-2 py-1 min-w-0">
             <p className="text-[9px] uppercase tracking-widest text-stone-500 font-bold">Next Focus</p>
             <p className="mt-0.5 truncate font-semibold text-stone-800" title={course.aiPlanSummary?.nextFocus || "No AI plan"}>
               {course.aiPlanSummary?.nextFocus || "No AI plan"}
             </p>
           </div>
-          <div className="rounded-md border border-stone-100 bg-stone-50/60 px-2 py-1.5 min-w-0">
+          <div className="rounded-md border border-stone-100 bg-stone-50/60 px-2 py-1 min-w-0">
             <p className="text-[9px] uppercase tracking-widest text-stone-500 font-bold">Next Date</p>
             <p className="mt-0.5 truncate font-semibold text-stone-800">
               {course.aiPlanSummary?.nextDate || "Not set"}
@@ -207,7 +207,7 @@ export default function ActiveCourseTrack({
         </div>
       </CardContent>
 
-      <CardFooter className="p-3 pt-2 border-t border-stone-50 bg-gray-50/20 flex items-center justify-between gap-4">
+      <CardFooter className="p-2.5 pt-1.5 border-t border-stone-50 bg-gray-50/20 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <div className="flex items-center gap-1.5 shrink-0">
             {localPlan ? (
