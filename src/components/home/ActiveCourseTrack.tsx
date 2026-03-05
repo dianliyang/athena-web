@@ -135,6 +135,8 @@ export default function ActiveCourseTrack({
   }, [localPlan]);
 
   const roadmapSubdomain = course.subdomain || course.fields?.[0] || "";
+  const progressSegments = 10;
+  const filledSegments = Math.max(0, Math.min(progressSegments, Math.round(progress / (100 / progressSegments))));
 
   return (
     <Card className="h-full flex flex-col border-[#efefef] hover:border-[#dfdfdf] transition-all duration-200 shadow-sm hover:shadow-md overflow-hidden bg-white text-[#1f1f1f]">
@@ -177,11 +179,15 @@ export default function ActiveCourseTrack({
             <span className="text-muted-foreground text-[9px] uppercase font-bold tracking-widest">Progress</span>
             <span className="text-[#1f1f1f] text-xs font-extrabold">{progress}%</span>
           </div>
-          <div className="h-1.5 w-full bg-stone-100 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-[#1f1f1f] rounded-full transition-all duration-500 ease-out" 
-              style={{ width: `${progress}%` }}
-            />
+          <div className="grid grid-cols-10 gap-1" aria-label={`Progress ${progress}%`}>
+            {Array.from({ length: progressSegments }).map((_, idx) => (
+              <span
+                key={`progress-segment-${idx}`}
+                className={`h-1.5 rounded-[2px] transition-colors ${
+                  idx < filledSegments ? "bg-[#1f1f1f]" : "bg-stone-200"
+                }`}
+              />
+            ))}
           </div>
         </div>
 
