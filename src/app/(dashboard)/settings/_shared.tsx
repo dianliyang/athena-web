@@ -65,7 +65,6 @@ export async function renderSettingsPage(initialSection?: SectionId) {
     <div className="h-full">
       <SettingsContainer
         key={`settings-${initialSection || "engine"}`}
-        user={user}
         profile={profile}
         initialSection={initialSection}
         aiDefaults={{ modelCatalog }}

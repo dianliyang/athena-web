@@ -128,11 +128,25 @@ export default function ActiveCourseTrack({
   };
 
   const weekdaysShort = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const formatTimeLabel = (time?: string) => {
+    if (!time) return "Not set";
+    const [hoursText = "0", minutesText = "00"] = time.split(":");
+    const hours = Number(hoursText);
+    const minutes = Number(minutesText);
+    if (Number.isNaN(hours) || Number.isNaN(minutes)) return time;
+    const suffix = hours >= 12 ? "PM" : "AM";
+    const twelveHour = hours % 12 || 12;
+    return `${twelveHour}:${minutes.toString().padStart(2, "0")} ${suffix}`;
+  };
   const scheduleSummary = useMemo(() => {
     if (!localPlan) return null;
     const dayIndexes = [...(localPlan.days_of_week || [])].sort((a, b) => a - b);
     const dayText = dayIndexes.map((idx) => weekdaysShort[idx]).join(", ");
-    return { dayText };
+    return {
+      dayText,
+      startTimeLabel: formatTimeLabel(localPlan.start_time),
+      endTimeLabel: formatTimeLabel(localPlan.end_time)
+    };
   }, [localPlan]);
   const planMeta = useMemo(() => {
     if (!localPlan?.start_date || !localPlan?.end_date) return null;
@@ -146,7 +160,8 @@ export default function ActiveCourseTrack({
       return {
         startLabel: format(startDate, "MMM d, yyyy"),
         endLabel: format(endDate, "MMM d, yyyy"),
-        totalLabel: `${inclusiveDays} ${inclusiveDays === 1 ? "day" : "days"}`
+        totalLabel: String(inclusiveDays),
+        totalSuffix: inclusiveDays === 1 ? "day" : "days"
       };
     } catch {
       return null;
@@ -154,45 +169,105 @@ export default function ActiveCourseTrack({
   }, [localPlan]);
 
   const roadmapSubdomain = course.subdomain || course.fields?.[0] || "";
+  const primarySemester = course.semesters?.[0] || "";
   const progressSegments = 10;
   const filledSegments = Math.max(0, Math.min(progressSegments, Math.round(progress / (100 / progressSegments))));
 
   return (
     <Card className="h-full flex flex-col border-[#efefef] hover:border-[#dfdfdf] transition-all duration-200 shadow-sm hover:shadow-md overflow-hidden bg-white text-[#1f1f1f]">
       <CardHeader className="p-3 pb-1.5">
-        <div className="flex items-start gap-3">
-          <UniversityIcon
-            name={course.university}
-            size={38}
-            className="shrink-0 bg-white border border-stone-100 p-1.5 rounded-lg shadow-sm"
-          />
-          <div className="flex-1 min-w-0 space-y-0">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">
-                {course.courseCode}
-              </span>
-              <div className="flex items-center gap-1 shrink-0">
+        <div className="space-y-2">
+          <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3">
+            <UniversityIcon
+              name={course.university}
+              size={38}
+              className="shrink-0"
+            />
+            <div className="min-w-0 pt-0.5">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] uppercase tracking-widest text-muted-foreground">
+                <span className="font-semibold">{course.university}</span>
+                <span className="font-semibold text-stone-400">•</span>
+                <span className="font-semibold">{course.courseCode}</span>
                 {course.aiPlanSummary?.days ? (
                   <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" title="AI Ready" />
                 ) : null}
-                {roadmapSubdomain && (
+                {roadmapSubdomain ? (
                   <Badge variant="secondary" className="h-4 text-[9px] uppercase px-1.5 font-bold shrink-0">
                     {roadmapSubdomain}
                   </Badge>
-                )}
+                ) : null}
               </div>
+              {primarySemester ? (
+                <div className="mt-1 text-[11px] font-medium text-stone-500">
+                  {primarySemester}
+                </div>
+              ) : null}
             </div>
-            <CardTitle className="text-lg font-extrabold tracking-tight leading-tight line-clamp-2">
-              <Link href={detailHref} className="hover:text-black transition-colors">{course.title}</Link>
-            </CardTitle>
-            <div className="text-[11px] text-muted-foreground font-medium">
-              {course.university}
-            </div>
+            <ButtonGroup className="shrink-0 justify-end">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon-sm" className="h-7 w-7 shadow-none" type="button">
+                    {isAiUpdating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel>Sync Mode</DropdownMenuLabel>
+                    {(["auto", "existing", "fresh"] as AiSyncSourceMode[]).map((mode) => (
+                      <DropdownMenuItem
+                        key={mode}
+                        onClick={() => {
+                          setAiSourceMode(mode);
+                          try { window.localStorage.setItem(AI_SYNC_MODE_STORAGE_KEY, mode); } catch { /* ignore */ }
+                        }}
+                      >
+                        {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                        {aiSourceMode === mode ? (
+                          <DropdownMenuShortcut><Check className="h-3 w-3" /></DropdownMenuShortcut>
+                        ) : null}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleAiSync} disabled={isAiUpdating}>
+                    {isAiUpdating ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Sparkles className="h-3.5 w-3.5 mr-2" />}
+                    Run Intelligence
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <Popover open={showAddPlanModal} onOpenChange={setShowAddPlanModal}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="icon-sm" className="h-7 w-7 shadow-none" type="button">
+                    {localPlan ? <CalendarCheck className="h-3.5 w-3.5" /> : <CalendarPlus className="h-3.5 w-3.5" />}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-auto p-0 border-none shadow-xl">
+                  <AddPlanModal
+                    mode="inline"
+                    isOpen={showAddPlanModal}
+                    onClose={() => setShowAddPlanModal(false)}
+                    onSuccess={(saved) => setLocalPlan(saved)}
+                    course={{ id: course.id, title: course.title }}
+                    existingPlan={localPlan}
+                  />
+                </PopoverContent>
+              </Popover>
+
+              <Button variant="outline" size="icon-sm" className="h-7 w-7 shadow-none" asChild>
+                <Link href={detailHref} title="Open course">
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </Link>
+              </Button>
+            </ButtonGroup>
           </div>
+          <CardTitle className="text-[15px] font-semibold tracking-tight leading-snug line-clamp-2">
+            <Link href={detailHref} className="hover:text-black transition-colors">{course.title}</Link>
+          </CardTitle>
         </div>
       </CardHeader>
 
-      <CardContent className="flex-1 flex flex-col justify-end px-3 py-1.5 gap-2">
+      <CardContent className="flex-1 flex flex-col justify-end px-3 py-1 gap-1.5">
         <div className="space-y-1">
           <div className="flex items-end justify-between">
             <span className="text-muted-foreground text-[9px] uppercase font-bold tracking-widest">Progress</span>
@@ -209,137 +284,66 @@ export default function ActiveCourseTrack({
             ))}
           </div>
         </div>
-
-          <div className="grid grid-cols-2 gap-1.5 text-[10px]">
-          <div className="rounded-md border border-stone-100 bg-stone-50/60 px-2 py-1 min-w-0">
-            <p className="text-[9px] uppercase tracking-widest text-stone-500 font-bold">Next Focus</p>
-            <p className="mt-0.5 truncate font-semibold text-stone-800" title={course.aiPlanSummary?.nextFocus || "No AI plan"}>
-              {course.aiPlanSummary?.nextFocus || "No AI plan"}
-            </p>
-          </div>
-          <div className="rounded-md border border-stone-100 bg-stone-50/60 px-2 py-1 min-w-0">
-            <p className="text-[9px] uppercase tracking-widest text-stone-500 font-bold">Next Date</p>
-            <p className="mt-0.5 truncate font-semibold text-stone-800">
-              {course.aiPlanSummary?.nextDate || "Not set"}
-            </p>
-          </div>
-        </div>
       </CardContent>
 
-      <CardFooter className="p-2.5 pt-1.5 border-t border-stone-50 bg-gray-50/20 flex items-center justify-between gap-3">
-        <div className="min-w-0 flex-1">
+      <CardFooter className="border-t border-stone-50 bg-gray-50/20 px-3 py-1.5">
+        <div className="min-w-0">
           {localPlan && planMeta ? (
-            <div className="flex items-start gap-3 min-w-0">
-              <div className="flex items-center gap-1.5 shrink-0">
-                <HoverCard openDelay={60} closeDelay={80}>
-                  <HoverCardTrigger asChild>
-                    <div className="flex items-center gap-1.25" aria-label="Study days">
-                      {Array.from({ length: 7 }).map((_, idx) => (
-                        <span
-                          key={`study-day-dot-${idx}`}
-                          className={`h-1.5 w-1.5 rounded-full transition-colors ${
-                            localPlan.days_of_week.includes(idx) ? "bg-[#1f1f1f]" : "bg-stone-200"
-                          }`}
-                        />
-                      ))}
-                    </div>
-                  </HoverCardTrigger>
-                  {scheduleSummary && (
-                    <HoverCardContent className="w-auto p-2">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-stone-600">
-                        {scheduleSummary.dayText || "No days selected"}
-                      </p>
-                    </HoverCardContent>
-                  )}
-                </HoverCard>
+            <div className="space-y-1.5 text-[10px] text-stone-700">
+              <div className="flex items-center justify-between gap-3">
+                <span className="min-w-0">{`${scheduleSummary?.startTimeLabel || "Not set"} - ${scheduleSummary?.endTimeLabel || "Not set"}`}</span>
+                <span className="shrink-0 flex items-center gap-1.25" aria-label="Study days">
+                  <HoverCard openDelay={60} closeDelay={80}>
+                    <HoverCardTrigger asChild>
+                      <span className="flex items-center gap-1.25">
+                        {Array.from({ length: 7 }).map((_, idx) => (
+                          <span
+                            key={`study-day-dot-${idx}`}
+                            className={`h-1.5 w-1.5 rounded-full transition-colors ${
+                              localPlan.days_of_week.includes(idx) ? "bg-[#1f1f1f]" : "bg-stone-200"
+                            }`}
+                          />
+                        ))}
+                      </span>
+                    </HoverCardTrigger>
+                    {scheduleSummary ? (
+                      <HoverCardContent className="w-auto p-2">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-stone-600">
+                          {scheduleSummary.dayText || "No days selected"}
+                        </p>
+                      </HoverCardContent>
+                    ) : null}
+                  </HoverCard>
+                </span>
               </div>
-              <div className="grid min-w-0 flex-1 grid-cols-3 gap-2">
-                <div className="min-w-0">
-                  <div className="text-[9px] uppercase font-bold tracking-widest text-stone-400">Start</div>
-                  <div className="truncate text-[10px] font-semibold text-stone-700">{planMeta.startLabel}</div>
-                </div>
-                <div className="min-w-0">
-                  <div className="text-[9px] uppercase font-bold tracking-widest text-stone-400">End</div>
-                  <div className="truncate text-[10px] font-semibold text-stone-700">{planMeta.endLabel}</div>
-                </div>
-                <div className="min-w-0">
-                  <div className="text-[9px] uppercase font-bold tracking-widest text-stone-400">Total</div>
-                  <div className="truncate text-[10px] font-semibold text-stone-700">{planMeta.totalLabel}</div>
-                </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="min-w-0">{`${planMeta.startLabel} - ${planMeta.endLabel}`}</span>
+                <span className="shrink-0">
+                  <span className="font-semibold">{planMeta.totalLabel}</span>
+                  <span className="ml-1 text-stone-400">{planMeta.totalSuffix}</span>
+                </span>
               </div>
             </div>
           ) : (
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="flex items-center gap-1.25 shrink-0">
-                {Array.from({ length: 7 }).map((_, idx) => (
-                  <span key={idx} className="h-1.5 w-1.5 rounded-full bg-stone-200" />
-                ))}
+            <div className="space-y-1.5 text-[10px] text-stone-400">
+              <div className="flex items-center justify-between gap-3">
+                <span className="min-w-0">Not set - Not set</span>
+                <span className="shrink-0 flex items-center gap-1.25">
+                  {Array.from({ length: 7 }).map((_, idx) => (
+                    <span key={idx} className="h-1.5 w-1.5 rounded-full bg-stone-200" />
+                  ))}
+                </span>
               </div>
-              <div className="flex items-center gap-1 text-[10px] uppercase font-bold tracking-wider text-stone-400 min-w-0">
-                <Clock className="h-3 w-3 shrink-0" />
-                <span className="italic opacity-70 truncate">No schedule</span>
+              <div className="flex items-center justify-between gap-3">
+                <span className="min-w-0">Not set - Not set</span>
+                <span className="shrink-0 flex items-center gap-1">
+                  <Clock className="h-3 w-3 shrink-0" />
+                  <span>No schedule</span>
+                </span>
               </div>
             </div>
           )}
         </div>
-
-        <ButtonGroup className="shrink-0">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon-sm" className="h-7 w-7 shadow-none" type="button">
-                {isAiUpdating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuGroup>
-                <DropdownMenuLabel>Sync Mode</DropdownMenuLabel>
-                {(["auto", "existing", "fresh"] as AiSyncSourceMode[]).map((mode) => (
-                  <DropdownMenuItem
-                    key={mode}
-                    onClick={() => {
-                      setAiSourceMode(mode);
-                      try { window.localStorage.setItem(AI_SYNC_MODE_STORAGE_KEY, mode); } catch { /* ignore */ }
-                    }}
-                  >
-                    {mode.charAt(0).toUpperCase() + mode.slice(1)}
-                    {aiSourceMode === mode ? (
-                      <DropdownMenuShortcut><Check className="h-3 w-3" /></DropdownMenuShortcut>
-                    ) : null}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleAiSync} disabled={isAiUpdating}>
-                {isAiUpdating ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Sparkles className="h-3.5 w-3.5 mr-2" />}
-                Run Intelligence
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <Popover open={showAddPlanModal} onOpenChange={setShowAddPlanModal}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="icon-sm" className="h-7 w-7 shadow-none" type="button">
-                {localPlan ? <CalendarCheck className="h-3.5 w-3.5" /> : <CalendarPlus className="h-3.5 w-3.5" />}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-auto p-0 border-none shadow-xl">
-              <AddPlanModal
-                mode="inline"
-                isOpen={showAddPlanModal}
-                onClose={() => setShowAddPlanModal(false)}
-                onSuccess={(saved) => setLocalPlan(saved)}
-                course={{ id: course.id, title: course.title }}
-                existingPlan={localPlan}
-              />
-            </PopoverContent>
-          </Popover>
-
-          <Button variant="outline" size="icon-sm" className="h-7 w-7 shadow-none" asChild>
-            <Link href={detailHref} title="Open course">
-              <ExternalLink className="h-3.5 w-3.5" />
-            </Link>
-          </Button>
-        </ButtonGroup>
       </CardFooter>
     </Card>
   );

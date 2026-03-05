@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Course } from "@/types";
 import { Dictionary } from "@/lib/dictionary";
-import { ChevronLeft, ChevronRight, Clock3, MapPin } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { BookOpen, CheckCircle2, ChevronLeft, ChevronRight, Loader2, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Item,
@@ -67,6 +69,7 @@ interface CalendarEvent {
   title: string;
   courseCode: string;
   university: string;
+  credit?: number;
   location: string | null;
   kind: string;
 }
@@ -121,6 +124,7 @@ function getIsoWeekNumber(date: Date) {
 }
 
 export default function StudyCalendar({ courses, plans, logs, dict, initialDate }: StudyCalendarProps) {
+  const router = useRouter();
   const anchorToday = initialDate ?? new Date();
   const [monthCursor, setMonthCursor] = useState(new Date(anchorToday.getFullYear(), anchorToday.getMonth(), 1));
   const [weekStart, setWeekStart] = useState(startOfWeek(anchorToday));
@@ -128,6 +132,12 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
   const [openTodayPopoverKey, setOpenTodayPopoverKey] = useState<string | null>(null);
   const [openWeekPopoverKey, setOpenWeekPopoverKey] = useState<string | null>(null);
   const [selectedSmallDateKey, setSelectedSmallDateKey] = useState<string>(() => formatDateKey(anchorToday));
+  const [localLogs, setLocalLogs] = useState<StudyLog[]>(logs);
+  const [pendingEventKeys, setPendingEventKeys] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    setLocalLogs(logs);
+  }, [logs]);
 
   const weekdays =
   (dict.calendar_weekdays as string[] | undefined)?.length === 7 &&
@@ -137,6 +147,10 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
   const monthNames =
   dict.calendar_months as string[] | undefined ||
   ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const courseMap = useMemo(
+    () => new Map(courses.map((course) => [course.id, course])),
+    [courses]
+  );
 
   const allEvents = useMemo(() => {
     const items: CalendarEvent[] = [];
@@ -163,7 +177,7 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
         if (!days.includes(dayOfWeek)) continue;
 
         const date = formatDateKey(cursor);
-        const log = logs.find((entry) => entry.plan_id === plan.id && toDateOnly(entry.log_date) === date);
+        const log = localLogs.find((entry) => entry.plan_id === plan.id && toDateOnly(entry.log_date) === date);
         const startMinutes = parseMinutes(plan.start_time);
         const endMinutes = parseMinutes(plan.end_time);
 
@@ -181,6 +195,7 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
           title: plan.courses.title,
           courseCode: plan.courses.course_code,
           university: plan.courses.university,
+          credit: courseMap.get(plan.course_id)?.credit,
           location: plan.location,
           kind: plan.kind || "session"
         });
@@ -188,7 +203,7 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
     }
 
     return items.sort((a, b) => a.date.localeCompare(b.date) || a.startMinutes - b.startMinutes);
-  }, [plans, logs, monthCursor]);
+  }, [courseMap, localLogs, plans, monthCursor]);
 
   const eventsByDate = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();
@@ -224,13 +239,111 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
 
   const timelineHeight = (HOUR_END - HOUR_START) * PIXELS_PER_HOUR;
 
+  const setOptimisticCompletion = (planId: number, date: string, isCompleted: boolean) => {
+    setLocalLogs((current) => {
+      const next = [...current];
+      const existingIndex = next.findIndex((entry) => entry.plan_id === planId && toDateOnly(entry.log_date) === date);
+      if (existingIndex >= 0) {
+        next[existingIndex] = {
+          ...next[existingIndex],
+          is_completed: isCompleted,
+        };
+        return next;
+      }
+      next.push({
+        id: -Date.now(),
+        plan_id: planId,
+        log_date: date,
+        is_completed: isCompleted,
+        notes: null,
+      });
+      return next;
+    });
+  };
+
+  const handleToggleComplete = async (event: CalendarEvent) => {
+    const previous = event.isCompleted;
+    setPendingEventKeys((current) => ({ ...current, [event.key]: true }));
+    setOptimisticCompletion(event.planId, event.date, !previous);
+
+    try {
+      const response = await fetch("/api/schedule", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "toggle_complete",
+          planId: event.planId,
+          date: event.date,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to toggle event completion");
+      }
+
+      router.refresh();
+    } catch {
+      setOptimisticCompletion(event.planId, event.date, previous);
+    } finally {
+      setPendingEventKeys((current) => {
+        const next = { ...current };
+        delete next[event.key];
+        return next;
+      });
+    }
+  };
+
+  const getEventStatusLabel = (event: CalendarEvent) => event.isCompleted ? "Completed" : "Not completed";
+  const getEventStatusTone = (event: CalendarEvent) =>
+    event.isCompleted ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-stone-200 bg-stone-100 text-stone-600";
+
+  const renderStatusBadge = (event: CalendarEvent) =>
+    event.isCompleted ? (
+      <Badge variant="outline" className={`h-5 rounded-full px-1.5 text-[9px] font-semibold uppercase tracking-wide ${getEventStatusTone(event)}`}>
+        {getEventStatusLabel(event)}
+      </Badge>
+    ) : null;
+
+  const renderToggleButton = (event: CalendarEvent) => (
+    <Button
+      variant="outline"
+      size="sm"
+      type="button"
+      disabled={Boolean(pendingEventKeys[event.key])}
+      onClick={() => handleToggleComplete(event)}
+      aria-label={event.isCompleted ? `mark incomplete ${event.title}` : `mark complete ${event.title}`}
+      className="h-7 px-2 text-[11px]"
+    >
+      {pendingEventKeys[event.key] ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
+      {event.isCompleted ? "Mark incomplete" : "Mark complete"}
+    </Button>
+  );
+
+  const getTodayRowClassName = (event: CalendarEvent) =>
+    event.isCompleted
+      ? "border-stone-200 bg-stone-100 text-stone-400"
+      : "border-stone-200 bg-white text-[#0f172a] hover:bg-stone-50";
+  const resetToToday = () => {
+    const now = initialDate ?? new Date();
+    const nowKey = formatDateKey(now);
+    setWeekStart(startOfWeek(now));
+    setSelectedSmallDateKey(nowKey);
+    setMonthCursor(new Date(now.getFullYear(), now.getMonth(), 1));
+  };
+  const getEventMetaLine = (event: CalendarEvent) => {
+    if (typeof event.credit === "number") return `${event.credit} · ${event.university}`;
+    return `${event.courseCode} · ${event.university}`;
+  };
+
 
   return (
     <div className="h-full overflow-hidden">
       <div className="h-full lg:grid lg:grid-cols-[280px_1fr] xl:grid-cols-[300px_1fr] gap-0">
         <div className="flex h-full flex-col border-r border-[#f5f5f5] pr-2">
-          <section className="min-h-0 rounded-lg p-2">
-            <div className="flex h-12 items-center">
+          <section className="min-h-0 rounded-lg py-0 pr-0">
+            <div className="flex h-10 items-center">
               <h3 className="text-xl font-semibold leading-none text-[#1f2937]">Today</h3>
             </div>
             <div className="max-h-56 overflow-auto pr-1" data-testid="today-events-list">
@@ -238,51 +351,44 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
               <ItemGroup>
                   {todayEvents.map((event, idx) =>
                 <div key={event.key}>
-                      <Popover
-                    open={openTodayPopoverKey === event.key}
-                    onOpenChange={(open) => {
-                      if (!open && openTodayPopoverKey === event.key) {
-                        setOpenTodayPopoverKey(null);
-                      }
-                    }}>
-                        <PopoverTrigger asChild>
-                          <Button
-                        variant="ghost"
-                        className="h-auto w-full justify-start px-0 py-2 text-left hover:bg-transparent"
-                        type="button"
-                        onClick={() => {
-                          setWeekStart(startOfWeek(new Date(event.date)));
-                          setSelectedEventKey(event.key);
-                          setOpenTodayPopoverKey(event.key);
-                          setOpenWeekPopoverKey(null);
-                        }}>
-                            <Item size="sm" className="w-full px-0 py-0">
-                              <ItemContent className="gap-0.5">
-                                <p className="text-xs leading-5 text-[#475569]">
-                                  {event.startTime.slice(0, 5)} - {event.endTime.slice(0, 5)}
-                                </p>
-                                <ItemTitle className="truncate text-sm leading-5 font-semibold text-[#0f172a]">
-                                  {event.title}
-                                </ItemTitle>
-                                <p className="truncate text-xs leading-5 text-[#334155]">
-                                  {event.courseCode} · {event.kind}
-                                </p>
-                              </ItemContent>
-                            </Item>
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent align="start" className="w-80">
-                          <PopoverHeader>
-                            <PopoverTitle>{event.title}</PopoverTitle>
-                            <PopoverDescription>{event.courseCode} · {event.kind}</PopoverDescription>
-                          </PopoverHeader>
-                          <div className="space-y-2 text-sm text-[#334155]">
-                            <p className="flex items-center gap-2"><Clock3 className="h-4 w-4" /> {event.startTime.slice(0, 5)} - {event.endTime.slice(0, 5)}</p>
-                            <p className="flex items-center gap-2"><MapPin className="h-4 w-4" /> {event.location || "No location"}</p>
-                            <p className="text-xs text-[#64748b]">{event.university}</p>
-                          </div>
-                        </PopoverContent>
-                      </Popover>
+                  <Button
+                    variant="ghost"
+                    className={`h-auto w-full justify-start px-0 py-0 text-left hover:bg-transparent ${event.isCompleted ? "opacity-80" : ""}`}
+                    type="button"
+                    aria-label={`Toggle completion for ${event.title}`}
+                    onClick={() => {
+                      setWeekStart(startOfWeek(new Date(event.date)));
+                      setSelectedEventKey(event.key);
+                      setOpenTodayPopoverKey(null);
+                      setOpenWeekPopoverKey(null);
+                      void handleToggleComplete(event);
+                    }}
+                  >
+                    <div className={`flex w-full items-start gap-2 rounded-md border px-2 py-2 ${getTodayRowClassName(event)}`}>
+                      <span
+                        aria-hidden="true"
+                        className={`mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border ${
+                          event.isCompleted ? "border-stone-400 bg-stone-400 text-white" : "border-stone-300 bg-white"
+                        }`}
+                      >
+                        {event.isCompleted ? "✓" : ""}
+                      </span>
+                      <Item size="sm" className="w-full px-0 py-0">
+                        <ItemContent className="gap-0.5">
+                          <p className={`text-xs leading-5 ${event.isCompleted ? "text-stone-400" : "text-[#475569]"}`}>
+                            {event.startTime.slice(0, 5)} - {event.endTime.slice(0, 5)}
+                          </p>
+                          <ItemTitle className={`w-full whitespace-normal break-words text-sm leading-5 font-semibold ${event.isCompleted ? "text-stone-500 line-through" : "text-[#0f172a]"}`}>
+                            {event.title}
+                          </ItemTitle>
+                          <p className={`w-full whitespace-normal break-words text-xs leading-5 ${event.isCompleted ? "text-stone-400" : "text-[#334155]"}`}>
+                            {event.courseCode}
+                            {event.location ? ` · ${event.location}` : ""}
+                          </p>
+                        </ItemContent>
+                      </Item>
+                    </div>
+                  </Button>
                       {idx < todayEvents.length - 1 ? <ItemSeparator /> : null}
                     </div>
                 )}
@@ -293,10 +399,20 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
             </div>
           </section>
 
-          <div className="mt-auto rounded-lg p-2">
+          <div className="mt-auto rounded-lg px-0 pb-0 pt-1">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-semibold text-[#1f2937]">{smallCalendarLabel}</h3>
               <div className="flex gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-[11px]"
+                  type="button"
+                  onClick={resetToToday}
+                  aria-label="Mini calendar today"
+                >
+                  Today
+                </Button>
                 <Button variant="outline"
                 size="icon"
                 className="h-7 w-7"
@@ -363,7 +479,7 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
           </div>
         </div>
 
-        <section className="mt-4 lg:mt-0 bg-transparent overflow-hidden h-full min-h-0 relative flex flex-col">
+        <section className="bg-transparent overflow-hidden h-full min-h-0 relative flex flex-col">
           <div className="mb-2 flex h-12 items-center justify-between rounded-lg px-2">
             <div className="flex items-center gap-2">
               <h2 className="text-xl font-semibold leading-none text-[#0f172a]">{`Week ${weekNumber}`}</h2>
@@ -382,13 +498,7 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
               <Button variant="outline"
               size="sm"
               type="button"
-              onClick={() => {
-                const now = initialDate ?? new Date();
-                const nowKey = formatDateKey(now);
-                setWeekStart(startOfWeek(now));
-                setSelectedSmallDateKey(nowKey);
-                setMonthCursor(new Date(now.getFullYear(), now.getMonth(), 1));
-              }}
+              onClick={resetToToday}
 
               aria-label="Today">
                 
@@ -473,6 +583,9 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
                             onOpenChange={(open) => {
                               if (!open && openWeekPopoverKey === event.key) {
                                 setOpenWeekPopoverKey(null);
+                                if (selectedEventKey === event.key) {
+                                  setSelectedEventKey(null);
+                                }
                               }
                             }}
                           >
@@ -494,27 +607,45 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
                                   <p className={`truncate text-[10px] font-medium ${isSelected ? "text-[#d1d5db]" : "text-[#475569]"}`}>
                                     {event.startTime.slice(0, 5)} - {event.endTime.slice(0, 5)}
                                   </p>
-                                  <p className={`mt-0.5 truncate text-[11px] font-semibold leading-tight ${isSelected ? "text-white" : ""}`}>
+                                  <p className={`mt-0.5 truncate text-[10px] font-semibold leading-tight ${isSelected ? "text-white" : ""}`}>
                                     {event.title}
                                   </p>
                                   <p className={`mt-0.5 truncate text-[10px] ${isSelected ? "text-[#e5e7eb]" : "text-[#334155]"}`}>
                                     {event.courseCode}
                                   </p>
-                                  <p className={`truncate text-[10px] ${isSelected ? "text-[#d1d5db]" : "text-[#64748b]"}`}>
-                                    {event.location || event.kind}
-                                  </p>
+                                  <div className="mt-1">{renderStatusBadge(event)}</div>
                                 </div>
                               </Button>
                             </PopoverTrigger>
-                            <PopoverContent align="start" className="w-80">
-                              <PopoverHeader>
-                                <PopoverTitle>{event.title}</PopoverTitle>
-                                <PopoverDescription>{event.courseCode} · {event.kind}</PopoverDescription>
+                            <PopoverContent align="start" className="w-80 rounded-xl px-4 py-3">
+                              <PopoverHeader className="space-y-1.5">
+                                <PopoverTitle className="text-[14px] font-semibold leading-[1.35] tracking-[-0.01em] text-[#111827] whitespace-normal break-words">
+                                  {event.title}
+                                </PopoverTitle>
+                                <PopoverDescription className="text-[11px] font-medium text-[#6b7280]">
+                                  {getEventMetaLine(event)}
+                                </PopoverDescription>
                               </PopoverHeader>
-                              <div className="space-y-2 text-sm text-[#334155]">
-                                <p className="flex items-center gap-2"><Clock3 className="h-4 w-4" /> {event.startTime.slice(0, 5)} - {event.endTime.slice(0, 5)}</p>
-                                <p className="flex items-center gap-2"><MapPin className="h-4 w-4" /> {event.location || "No location"}</p>
-                                <p className="text-xs text-[#64748b]">{event.university}</p>
+                              <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] gap-4">
+                                <div className="space-y-2.5 text-[12px] leading-5 text-[#374151]">
+                                  <div className="flex items-start gap-2">
+                                    <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#6b7280]" />
+                                    <p className="whitespace-normal break-words">{event.location || "No location"}</p>
+                                  </div>
+                                  <div className="flex items-start gap-2">
+                                    <BookOpen className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#6b7280]" />
+                                    <p className="whitespace-normal break-words">{event.kind}</p>
+                                  </div>
+                                  <div className="flex items-start gap-2">
+                                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#6b7280]" />
+                                    <p className="whitespace-normal break-words">
+                                      {event.isCompleted ? "Completed" : "Mark complete"}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-end justify-end">
+                                  {renderToggleButton(event)}
+                                </div>
                               </div>
                             </PopoverContent>
                           </Popover>);

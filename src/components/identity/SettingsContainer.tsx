@@ -3,11 +3,9 @@
 import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
-import { User } from "@supabase/supabase-js";
 import {
   LucideIcon,
   Cpu,
-  Shield,
   Database,
   Sparkles,
   Library,
@@ -28,10 +26,6 @@ const AISettingsCard = dynamic(() => import("./AISettingsCard"), {
 const EngineSettingsPanel = dynamic(() => import("./EngineSettingsPanel"), {
   ssr: false
 });
-const SecurityIdentitySection = dynamic(
-  () => import("./SecurityIdentitySection"),
-  { ssr: false }
-);
 const SystemMaintenanceCard = dynamic(() => import("./SystemMaintenanceCard"), {
   ssr: false
 });
@@ -49,8 +43,6 @@ export type SectionId =
 "engine" |
 "course-intel" |
 "usage" |
-"identity" |
-"account" |
 "sync" |
 "import" |
 "api-management" |
@@ -65,10 +57,6 @@ const NAV_GROUPS: Array<{label: string;items: NavItem[];}> = [
   { id: "engine", label: "Engine", icon: Cpu },
   { id: "course-intel", label: "Course Generation Logic", icon: Sparkles }]
 
-},
-{
-  label: "Account",
-  items: [{ id: "identity", label: "Account", icon: Shield }]
 },
 {
   label: "Synchronization",
@@ -103,11 +91,6 @@ const SECTION_META: Record<SectionId, {title: string;desc: string;}> = {
     title: "Usage Statistic",
     desc: "AI call history, token usage, and cost breakdown."
   },
-  identity: {
-    title: "Account",
-    desc: "Authentication provider, account status, and danger zone."
-  },
-  account: { title: "Account", desc: "Danger zone — irreversible operations." },
   sync: {
     title: "Data Synchronization",
     desc: "Synchronize course catalogs from institution scrapers."
@@ -129,7 +112,6 @@ const SECTION_META: Record<SectionId, {title: string;desc: string;}> = {
 const AI_SECTIONS: SectionId[] = ["engine", "course-intel", "usage"];
 
 interface SettingsContainerProps {
-  user: User;
   profile: Record<string, unknown> | null;
   aiDefaults: {
     modelCatalog: {
@@ -144,7 +126,6 @@ interface SettingsContainerProps {
 }
 
 export default function SettingsContainer({
-  user,
   profile,
   aiDefaults,
   initialSection,
@@ -333,20 +314,6 @@ export default function SettingsContainer({
           
           </div> :
         null}
-
-        {/* Account (Identity + Danger Zone) */}
-        <div className={active === "identity" ? "flex-1 min-h-0" : "hidden"}>
-          <div className="space-y-3">
-            <SecurityIdentitySection
-              view="identity"
-              provider={user.app_metadata.provider} />
-            
-            <SecurityIdentitySection
-              view="account"
-              provider={user.app_metadata.provider} />
-            
-          </div>
-        </div>
 
         {/* Data Synchronization */}
         <div className={active === "sync" ? "flex-1 min-h-0" : "hidden"}>

@@ -1,5 +1,8 @@
 "use client";
 
+import { Activity, Clock3, TrendingUp } from "lucide-react";
+import { Card, CardFooter, CardHeader } from "@/components/ui/card";
+
 type CourseStatusChartProps = {
   data: Array<[string, number]>;
   emptyText: string;
@@ -39,7 +42,7 @@ export default function CourseStatusChart({
 
   if (items.length === 0 || total === 0) {
     return (
-      <div className="rounded-sm border p-3">
+      <div className="rounded-sm p-3">
         <p className="text-sm text-slate-500">{emptyText}</p>
       </div>
     );
@@ -50,7 +53,7 @@ export default function CourseStatusChart({
   const peakActivity = Math.max(1, ...weeklyActivity);
 
   return (
-    <div className="space-y-3 rounded-sm border p-3">
+    <div className="space-y-3 rounded-sm p-3">
       <div className="flex items-end justify-between gap-2">
         <div>
           <p className="text-xs text-muted-foreground">Total Enrollments</p>
@@ -81,18 +84,39 @@ export default function CourseStatusChart({
       </div>
 
       <div className="grid grid-cols-3 gap-2">
-        <div className="h-16 rounded-sm border p-2 flex flex-col">
-          <p className="text-[10px] text-muted-foreground uppercase">Updated 30d</p>
-          <p className="mt-auto text-sm font-semibold">{recentUpdates30}</p>
-        </div>
-        <div className="h-16 rounded-sm border p-2 flex flex-col">
-          <p className="text-[10px] text-muted-foreground uppercase">In Progress</p>
-          <p className="mt-auto text-sm font-semibold">{inProgressCount}</p>
-        </div>
-        <div className="h-16 rounded-sm border p-2 flex flex-col">
-          <p className="text-[10px] text-muted-foreground uppercase">Avg Progress</p>
-          <p className="mt-auto text-sm font-semibold">{avgProgress}%</p>
-        </div>
+        <Card className="shadow-none">
+          <CardHeader className="px-3 py-0">
+            <p className="inline-flex items-center gap-1.5 text-[10px] uppercase text-slate-500">
+              <Clock3 className="h-3 w-3 text-slate-500" />
+              Updated 30d
+            </p>
+          </CardHeader>
+          <CardFooter className="px-3 py-0">
+            <p className="text-sm font-semibold text-slate-900">{recentUpdates30}</p>
+          </CardFooter>
+        </Card>
+        <Card className="shadow-none">
+          <CardHeader className="px-3 py-0">
+            <p className="inline-flex items-center gap-1.5 text-[10px] uppercase text-sky-600">
+              <Activity className="h-3 w-3 text-sky-600" />
+              In Progress
+            </p>
+          </CardHeader>
+          <CardFooter className="px-3 py-0">
+            <p className="text-sm font-semibold text-sky-700">{inProgressCount}</p>
+          </CardFooter>
+        </Card>
+        <Card className="shadow-none">
+          <CardHeader className="px-3 py-0">
+            <p className="inline-flex items-center gap-1.5 text-[10px] uppercase text-emerald-600">
+              <TrendingUp className="h-3 w-3 text-emerald-600" />
+              Avg Progress
+            </p>
+          </CardHeader>
+          <CardFooter className="px-3 py-0">
+            <p className="text-sm font-semibold text-emerald-700">{avgProgress}%</p>
+          </CardFooter>
+        </Card>
       </div>
 
       <div className="space-y-1">

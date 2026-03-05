@@ -4,7 +4,6 @@ const DEFAULT_SECTION: SectionId = "engine";
 
 const PATH_TO_SECTION: Array<{ prefix: string; section: SectionId }> = [
   { prefix: "/settings/usage", section: "usage" },
-  { prefix: "/settings/security", section: "identity" },
   { prefix: "/settings/system", section: "sync" },
   { prefix: "/settings/api-management", section: "api-management" },
   { prefix: "/settings/api-reference", section: "api-reference" },
@@ -17,7 +16,6 @@ const PATH_TO_SECTION: Array<{ prefix: string; section: SectionId }> = [
 const SECTION_TO_PATH: Partial<Record<SectionId, string>> = {
   engine: "/settings/engine",
   usage: "/settings/usage",
-  identity: "/settings/security",
   sync: "/settings/system",
   "api-management": "/settings/api-management",
   "api-reference": "/settings/api-reference",

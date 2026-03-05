@@ -80,6 +80,7 @@ import {
 } from "@/components/ui/combobox";
 import { format, parseISO } from "date-fns";
 import { type DateRange } from "react-day-picker";
+import { buildCourseDetailCalendar, type CourseDetailCalendarEvent } from "@/lib/course-detail-calendar";
 
 interface CourseDetailContentProps {
   course: Course;
@@ -112,11 +113,7 @@ interface CourseDetailContentProps {
   }>;
 }
 
-type PlanCalendarEvent = {
-  label: string;
-  meta: string;
-  kind: string;
-};
+type PlanCalendarEvent = CourseDetailCalendarEvent;
 
 type LinkPreviewData = {
   url: string;
@@ -561,147 +558,13 @@ export default function CourseDetailContent({
   }, [course.resources]);
 
   const studyPlanCalendar = useMemo(() => {
-    const scheduleRows = scheduleItems
-      .map((item) => {
-        const parsedDate = parseIsoDate(item.date);
-        if (!parsedDate) return null;
-        const dateIso = toIsoDateUtc(parsedDate);
-        const label = String(
-          item.title || item.focus || item.kind || "Scheduled Task",
-        ).trim();
-        const duration =
-          typeof item.durationMinutes === "number" &&
-          Number.isFinite(item.durationMinutes)
-            ? `${Math.max(1, Math.round(item.durationMinutes))}m`
-            : "";
-        const kind = String(item.kind || "task").trim().toLowerCase();
-        const meta =
-          [kind, duration].filter(Boolean).join(" · ") || "Scheduled";
-        return { dateIso, label, meta, kind };
-      })
-      .filter(
-        (row): row is { dateIso: string; label: string; meta: string; kind: string } =>
-          row !== null,
-      );
-    if (scheduleRows.length === 0) {
-      return {
-        range: null as null | { startIso: string; endIso: string },
-        months: [] as Array<{
-          key: string;
-          label: string;
-          cells: Array<{
-            dateIso: string;
-            day: number;
-            inMonth: boolean;
-            inRange: boolean;
-          }>;
-        }>,
-        eventsByDate: new Map<string, PlanCalendarEvent[]>(),
-      };
-    }
-
-    const scheduleSortedDates = scheduleRows.map((row) => row.dateIso).sort();
-    const rangeStart = parseIsoDate(scheduleSortedDates[0])!;
-    const rangeEnd = parseIsoDate(
-      scheduleSortedDates[scheduleSortedDates.length - 1],
-    )!;
-    const rangeStartIso = toIsoDateUtc(rangeStart);
-    const rangeEndIso = toIsoDateUtc(rangeEnd);
-
-    const deadlineRows = assignments
-      .map((item) => {
-        if (!item.due_on) return null;
-        const parsedDate = parseIsoDate(item.due_on);
-        if (!parsedDate) return null;
-        const dateIso = toIsoDateUtc(parsedDate);
-        if (dateIso < rangeStartIso || dateIso > rangeEndIso) return null;
-        const label = String(item.label || "Deadline").trim() || "Deadline";
-        const kind = String(item.kind || "deadline").trim().toLowerCase();
-        return {
-          dateIso,
-          label,
-          meta: `Deadline${kind ? ` · ${kind}` : ""}`,
-          kind,
-        };
-      })
-      .filter(
-        (row): row is { dateIso: string; label: string; meta: string; kind: string } =>
-          row !== null,
-      );
-    const rows = [...scheduleRows, ...deadlineRows];
-
-    const eventsByDate = new Map<string, PlanCalendarEvent[]>();
-    for (const row of rows) {
-      const list = eventsByDate.get(row.dateIso) || [];
-      list.push({ label: row.label, meta: row.meta, kind: row.kind });
-      eventsByDate.set(row.dateIso, list);
-    }
-
-    const months: Array<{
-      key: string;
-      label: string;
-      cells: Array<{
-        dateIso: string;
-        day: number;
-        inMonth: boolean;
-        inRange: boolean;
-      }>;
-    }> = [];
-    for (
-      let cursor = new Date(
-        Date.UTC(rangeStart.getUTCFullYear(), rangeStart.getUTCMonth(), 1),
-      );
-      cursor <=
-      new Date(Date.UTC(rangeEnd.getUTCFullYear(), rangeEnd.getUTCMonth(), 1));
-      cursor = new Date(
-        Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() + 1, 1),
-      )
-    ) {
-      const monthStart = new Date(
-        Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth(), 1),
-      );
-      const monthEnd = new Date(
-        Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() + 1, 0),
-      );
-      const gridStart = addDaysUtc(monthStart, -monthStart.getUTCDay());
-      const gridEnd = addDaysUtc(monthEnd, 6 - monthEnd.getUTCDay());
-      const cells: Array<{
-        dateIso: string;
-        day: number;
-        inMonth: boolean;
-        inRange: boolean;
-      }> = [];
-
-      for (
-        let d = new Date(gridStart.getTime());
-        d <= gridEnd;
-        d = addDaysUtc(d, 1)
-      ) {
-        const dateIso = toIsoDateUtc(d);
-        cells.push({
-          dateIso,
-          day: d.getUTCDate(),
-          inMonth: d.getUTCMonth() === monthStart.getUTCMonth(),
-          inRange: dateIso >= rangeStartIso && dateIso <= rangeEndIso,
-        });
-      }
-
-      months.push({
-        key: `${monthStart.getUTCFullYear()}-${String(monthStart.getUTCMonth() + 1).padStart(2, "0")}`,
-        label: monthStart.toLocaleDateString(undefined, {
-          month: "long",
-          year: "numeric",
-        }),
-        cells,
-      });
-    }
-
-    return {
-      range: { startIso: rangeStartIso, endIso: rangeEndIso },
-      months,
-      eventsByDate,
-    };
-  }, [scheduleItems, assignments]);
+    return buildCourseDetailCalendar({
+      courseTitle: course.title,
+      assignments,
+      scheduleItems,
+      studyPlans: editablePlans,
+    });
+  }, [assignments, course.title, editablePlans, scheduleItems]);
 
   useEffect(() => {
     if (!studyPlanCalendar.range) {
@@ -1969,20 +1832,22 @@ export default function CourseDetailContent({
                                   key={`${selectedCalendarDate}-${event.label}-${idx}`}
                                   className="rounded-md border border-black/10 bg-[#fafafa] p-2"
                                 >
-                                  <div className="flex items-start justify-between gap-2">
-                                    <p className="text-sm font-medium text-[#2f2f2f]">
+                                  <div className="space-y-2">
+                                    <p className="text-[13px] font-medium text-[#2f2f2f]">
                                       {event.label}
                                     </p>
-                                    <Badge
-                                      variant="secondary"
-                                      className={getEventKindBadgeClass(event.kind)}
-                                    >
-                                      {event.kind || "task"}
-                                    </Badge>
+                                    <div className="flex items-center justify-between gap-2">
+                                      <span className="text-[11px] font-medium text-[#666]">
+                                        {selectedCalendarDate < todayIso ? "Completed" : "Not completed"}
+                                      </span>
+                                      <Badge
+                                        variant="secondary"
+                                        className={`h-5 px-1.5 text-[9px] uppercase ${getEventKindBadgeClass(event.kind)}`}
+                                      >
+                                        {event.kind || "task"}
+                                      </Badge>
+                                    </div>
                                   </div>
-                                  <p className="text-xs text-[#666] mt-1">
-                                    {event.meta}
-                                  </p>
                                 </li>
                               ))}
                             </ul>

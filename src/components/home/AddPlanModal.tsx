@@ -2,7 +2,7 @@
 
 import { startTransition, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDownIcon, Loader2, LocateFixed } from "lucide-react";
+import { Check, ChevronDownIcon, Loader2, LocateFixed, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -282,17 +282,16 @@ export default function AddPlanModal({
         <form onSubmit={handleSubmit}>
           <CardHeader className="px-3 pb-0">
             <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <CardTitle>{existingPlan ? "Edit Schedule" : "Add Schedule"}</CardTitle>
-                <CardDescription className="truncate">{course.title}</CardDescription>
+                <CardDescription className="line-clamp-2 break-words">{course.title}</CardDescription>
               </div>
-              <div className="flex items-center gap-1.5">
-                <Button variant="outline" type="button" onClick={onClose}>
-                  Cancel
+              <div className="flex shrink-0 items-center gap-1">
+                <Button variant="outline" size="icon-sm" type="button" onClick={onClose} aria-label="Cancel schedule">
+                  <X className="h-3.5 w-3.5" />
                 </Button>
-                <Button variant="outline" type="submit" disabled={loading}>
-                  {loading ? <Loader2 className="animate-spin" /> : null}
-                  {existingPlan ? "Update" : "Save"}
+                <Button variant="outline" size="icon-sm" type="submit" disabled={loading} aria-label={existingPlan ? "Confirm schedule update" : "Confirm schedule save"}>
+                  {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
                 </Button>
               </div>
             </div>

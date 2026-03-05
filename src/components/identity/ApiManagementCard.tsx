@@ -7,6 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Toggle } from "@/components/ui/toggle";
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+  FieldSet,
+} from "@/components/ui/field";
 
 type ApiKeyItem = {
   id: number;
@@ -211,42 +221,53 @@ export default function ApiManagementCard() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <section className="grid gap-3 sm:grid-cols-[1.5fr_1fr_auto] sm:items-end">
-            <div className="space-y-1">
-              <Badge variant="secondary">Key Name</Badge>
-              <Input
-                value={newName}
-                onChange={(e) => {
-                  setNewName(e.target.value);
-                  if (nameError && e.target.value.trim()) setNameError(false);
-                }}
-                placeholder="Enter key name"
-              />
-              {nameError ? <p className="text-xs text-destructive">Name is required.</p> : null}
-            </div>
-            <div className="space-y-1">
-              <Badge variant="secondary">Request Limit</Badge>
-              <Input
-                value={newLimit}
-                onChange={(e) => setNewLimit(e.target.value)}
-                type="number"
-                min={1}
-                placeholder="Unlimited"
-              />
-              <p className="text-xs text-muted-foreground">Integer {"\u2265"} 1. Empty means no limit.</p>
-            </div>
-            <label className="inline-flex items-center gap-2 text-sm text-muted-foreground">
-              <Checkbox
-                checked={newReadOnly}
-                onCheckedChange={(checked) => setNewReadOnly(checked === true)}
-              />
-              Read-only key
-            </label>
-            <Button variant="outline" type="button" onClick={generateKey} disabled={isCreating}>
-              {isCreating ? <Loader2 className="animate-spin" /> : <WandSparkles />}
-              Generate Key
-            </Button>
-          </section>
+          <FieldSet>
+            <FieldGroup className="grid gap-3 sm:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(120px,auto)_auto] sm:items-end">
+              <Field>
+                <FieldLabel htmlFor="api-key-name">Key Name</FieldLabel>
+                <Input
+                  id="api-key-name"
+                  value={newName}
+                  onChange={(e) => {
+                    setNewName(e.target.value);
+                    if (nameError && e.target.value.trim()) setNameError(false);
+                  }}
+                  placeholder="Enter key name"
+                />
+                <FieldError>{nameError ? "Name is required." : null}</FieldError>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="api-key-limit">Request Limit</FieldLabel>
+                <Input
+                  id="api-key-limit"
+                  value={newLimit}
+                  onChange={(e) => setNewLimit(e.target.value)}
+                  type="number"
+                  min={1}
+                  placeholder="Unlimited"
+                />
+              </Field>
+              <Field className="sm:max-w-[160px]">
+                <FieldLabel htmlFor="api-key-read-only">Read-only access</FieldLabel>
+                <Toggle
+                  id="api-key-read-only"
+                  aria-label="Read-only access"
+                  aria-pressed={newReadOnly}
+                  pressed={newReadOnly}
+                  onPressedChange={setNewReadOnly}
+                  variant="outline"
+                  size="sm"
+                  className="w-fit data-[state=on]:border-black data-[state=on]:bg-black data-[state=on]:text-white"
+                >
+                  RO
+                </Toggle>
+              </Field>
+              <Button variant="outline" type="button" onClick={generateKey} disabled={isCreating}>
+                {isCreating ? <Loader2 className="animate-spin" /> : <WandSparkles />}
+                Generate Key
+              </Button>
+            </FieldGroup>
+          </FieldSet>
         </CardContent>
       </Card>
 
@@ -323,8 +344,9 @@ export default function ApiManagementCard() {
                         {item.requestsLimit != null ? ` / ${item.requestsLimit}` : ""}
                       </td>
                       <td className="px-3 py-2">
-                        <label className="inline-flex items-center gap-2 text-sm">
+                        <Field orientation="horizontal" className="gap-2">
                           <Checkbox
+                            id={`api-key-active-${item.id}`}
                             checked={draft.isActive}
                             onCheckedChange={(checked) => {
                               const nextDraft = { ...draft, isActive: checked === true };
@@ -333,14 +355,19 @@ export default function ApiManagementCard() {
                             }}
                             disabled={busy}
                           />
-                          <Badge variant={draft.isActive ? "secondary" : "outline"}>
-                            {draft.isActive ? "Enabled" : "Disabled"}
-                          </Badge>
-                        </label>
+                          <FieldContent className="gap-0">
+                            <FieldLabel htmlFor={`api-key-active-${item.id}`}>
+                              <Badge variant={draft.isActive ? "secondary" : "outline"}>
+                                {draft.isActive ? "Enabled" : "Disabled"}
+                              </Badge>
+                            </FieldLabel>
+                          </FieldContent>
+                        </Field>
                       </td>
                       <td className="px-3 py-2">
-                        <label className="inline-flex items-center gap-2 text-sm">
+                        <Field orientation="horizontal" className="gap-2">
                           <Checkbox
+                            id={`api-key-mode-${item.id}`}
                             checked={draft.isReadOnly}
                             onCheckedChange={(checked) => {
                               const nextDraft = { ...draft, isReadOnly: checked === true };
@@ -349,10 +376,14 @@ export default function ApiManagementCard() {
                             }}
                             disabled={busy}
                           />
-                          <Badge variant={draft.isReadOnly ? "secondary" : "outline"}>
-                            {draft.isReadOnly ? "Read-only" : "Read/Write"}
-                          </Badge>
-                        </label>
+                          <FieldContent className="gap-0">
+                            <FieldLabel htmlFor={`api-key-mode-${item.id}`}>
+                              <Badge variant={draft.isReadOnly ? "secondary" : "outline"}>
+                                {draft.isReadOnly ? "Read-only" : "Read/Write"}
+                              </Badge>
+                            </FieldLabel>
+                          </FieldContent>
+                        </Field>
                       </td>
                       <td className="px-3 py-2 text-xs text-muted-foreground">
                         {item.lastUsedAt ? new Date(item.lastUsedAt).toLocaleString() : "Never"}

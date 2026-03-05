@@ -17,7 +17,6 @@ import {
   Loader2,
   Map,
   Settings2,
-  ShieldCheck,
   Sparkles,
   User,
 } from "lucide-react";
@@ -53,7 +52,6 @@ interface LeftRailProps {
     settings: string;
     settingsEngine: string;
     settingsUsage: string;
-    settingsSecurity: string;
     settingsSystem: string;
     settingsApiControl: string;
     settingsApiReference: string;
@@ -78,7 +76,6 @@ const hubNavItems = [
 const settingsNavItems = [
   { href: "/settings/engine", key: "settingsEngine", icon: BrainCog },
   { href: "/settings/usage", key: "settingsUsage", icon: BarChart3 },
-  { href: "/settings/security", key: "settingsSecurity", icon: ShieldCheck },
   { href: "/settings/system", key: "settingsSystem", icon: Settings2 },
   { href: "/settings/api-management", key: "settingsApiControl", icon: KeyRound },
   { href: "/settings/import", key: "import", icon: FileUp },

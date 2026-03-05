@@ -24,7 +24,7 @@ export default function WeeklyScheduleCard({
 }: WeeklyScheduleCardProps) {
   return (
     <Card>
-      <CardHeader className="px-4 py-3">
+      <CardHeader className="px-4 py-2">
         <div className="flex items-start justify-between">
           <CardTitle className="min-w-0">{title}</CardTitle>
           {headerRight ? (
@@ -32,9 +32,9 @@ export default function WeeklyScheduleCard({
           ) : null}
         </div>
       </CardHeader>
-      {children ? <CardContent className="px-4 py-2">{children}</CardContent> : null}
+      {children ? <CardContent className="px-4 py-1.5">{children}</CardContent> : null}
       {footer ? (
-        <CardFooter className="border-t border-[#f0f0f0] px-4 py-2 text-xs text-[#666]">
+        <CardFooter className="border-t border-[#f0f0f0] px-4 py-1.5 text-xs text-[#666]">
           {footer}
         </CardFooter>
       ) : null}

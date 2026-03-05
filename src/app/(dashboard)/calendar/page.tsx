@@ -154,7 +154,7 @@ async function StudyScheduleContent({
     .map(c => ({ id: c.id, courseCode: c.courseCode, title: c.title }));
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full min-h-0 flex flex-col">
       <StudyCalendar
         courses={enrolledCourses as unknown as Parameters<typeof StudyCalendar>[0]["courses"]}
         plans={plans}

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { usePathname } from "next/navigation";
 import LeftRail from "@/components/dashboard/LeftRail";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
@@ -21,7 +22,6 @@ interface DashboardShellProps {
     settings: string;
     settingsEngine: string;
     settingsUsage: string;
-    settingsSecurity: string;
     settingsSystem: string;
     settingsApiControl: string;
     settingsApiReference: string;
@@ -32,18 +32,16 @@ interface DashboardShellProps {
 }
 
 export default function DashboardShell({ labels, children }: DashboardShellProps) {
-  const [collapsed, setCollapsed] = useState(false);
-
-  useEffect(() => {
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
     try {
-      const saved = window.localStorage.getItem(LEFT_RAIL_COLLAPSED_KEY);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setCollapsed(saved === "true");
+      return window.localStorage.getItem(LEFT_RAIL_COLLAPSED_KEY) === "true";
     } catch {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setCollapsed(false);
+      return false;
     }
-  }, []);
+  });
+  const pathname = usePathname();
+  const isCalendarPage = pathname === "/calendar";
 
   return (
     <SidebarProvider
@@ -63,7 +61,9 @@ export default function DashboardShell({ labels, children }: DashboardShellProps
       <SidebarInset className="h-svh min-w-0 overflow-hidden overscroll-none">
         <div
           id="dashboard-scroll"
-          className="h-full w-full overflow-y-auto overflow-x-hidden overscroll-contain px-4 pt-4 pb-8"
+          className={`h-full w-full overflow-y-auto overflow-x-hidden overscroll-contain px-4 ${
+            isCalendarPage ? "" : "pb-8"
+          }`}
         >
           {children}
         </div>

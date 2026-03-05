@@ -1,5 +1,7 @@
 "use client";
 
+import { Orbit } from "lucide-react";
+
 type LearningField = {
   name: string;
   count: number;
@@ -30,7 +32,6 @@ function toShortLabel(label: string): string {
 export default function LearningProfileChart({
   data,
   unitLabel,
-  emptyText
 }: LearningProfileChartProps) {
   const items = data
     .filter((d) => d.count > 0)
@@ -40,8 +41,19 @@ export default function LearningProfileChart({
 
   if (items.length === 0 || total === 0) {
     return (
-      <div className="rounded-sm border p-3">
-        <p className="text-sm text-slate-500">{emptyText}</p>
+      <div className="rounded-2xl border border-dashed border-[#d9d2c7] px-5 py-8">
+        <div className="mx-auto flex max-w-sm flex-col items-center text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full border border-[#e7e2d8]">
+            <Orbit className="h-5 w-5 text-[#64748b]" />
+          </div>
+          <h3 className="mt-4 text-base font-semibold tracking-[-0.02em] text-[#111827]">
+            Learning map is still blank
+          </h3>
+          <p className="mt-2 text-sm leading-6 text-[#64748b]">
+            Once your enrolled courses accumulate topic and field metadata, your study domains will
+            appear here automatically.
+          </p>
+        </div>
       </div>
     );
   }

@@ -85,7 +85,7 @@ export default memo(function UniversityIcon({ name, size = 40, className = "" }:
   if (error) {
     return (
       <div
-        className={`rounded-md bg-gray-100 text-gray-500 font-black flex items-center justify-center uppercase select-none shrink-0 ${className}`}
+        className={`rounded-md border border-stone-100 bg-gray-100 text-gray-500 font-black flex items-center justify-center uppercase select-none shrink-0 ${className}`}
         style={{ width: size, height: size, minWidth: size, minHeight: size, fontSize: Math.max(8, size * 0.35) }}
         title={name}
       >
@@ -96,7 +96,7 @@ export default memo(function UniversityIcon({ name, size = 40, className = "" }:
 
   return (
     <div
-      className={`relative overflow-hidden rounded-md shrink-0 ${className}`}
+      className={`relative overflow-hidden rounded-md border border-stone-100 bg-white shrink-0 ${className}`}
       style={{ width: size, height: size, minWidth: size, minHeight: size }}
     >
       <Image

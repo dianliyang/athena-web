@@ -305,7 +305,7 @@ function ActiveProjectSeminarTrack({ item }: {item: EnrolledProjectSeminar;}) {
           <UniversityIcon
             name={item.university}
             size={38}
-            className="shrink-0 bg-white border border-stone-100 p-1.5 rounded-lg shadow-sm" />
+            className="shrink-0" />
           
           <div className="flex-1 min-w-0 space-y-0.5">
             <div className="flex items-center justify-between gap-2">

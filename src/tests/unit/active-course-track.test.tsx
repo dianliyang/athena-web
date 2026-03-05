@@ -31,11 +31,11 @@ const course = {
   popularity: 10,
   isHidden: false,
   fields: [],
-  semesters: [],
+  semesters: ["Spring 2026"],
 };
 
 describe("ActiveCourseTrack", () => {
-  test("shows start date, end date, and inclusive total days for a roadmap plan", () => {
+  test("shows schedule times, study days, and inclusive date range for a roadmap plan", () => {
     render(
       <ActiveCourseTrack
         course={course}
@@ -52,10 +52,16 @@ describe("ActiveCourseTrack", () => {
       />
     );
 
-    expect(screen.getByText("Start")).toBeDefined();
-    expect(screen.getByText("End")).toBeDefined();
-    expect(screen.getByText("Total")).toBeDefined();
-    expect(screen.getAllByText("Mar 5, 2026").length).toBe(2);
-    expect(screen.getByText("1 day")).toBeDefined();
+    expect(screen.queryByText("Next Focus")).toBeNull();
+    expect(screen.queryByText("Next Date")).toBeNull();
+    expect(screen.getByText("Spring 2026")).toBeDefined();
+    expect(screen.queryByText("Start time")).toBeNull();
+    expect(screen.queryByText("End time")).toBeNull();
+    expect(screen.queryByText("Start date")).toBeNull();
+    expect(screen.queryByText("End date")).toBeNull();
+    expect(screen.getByText("9:00 AM - 11:00 AM")).toBeDefined();
+    expect(screen.getByText("Mar 5, 2026 - Mar 5, 2026")).toBeDefined();
+    expect(screen.getByText("1")).toBeDefined();
+    expect(screen.getByText("day")).toBeDefined();
   });
 });

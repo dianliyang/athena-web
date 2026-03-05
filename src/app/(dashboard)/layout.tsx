@@ -35,7 +35,6 @@ export default async function DashboardLayout({
             settings: dict.navbar?.settings || "Settings",
             settingsEngine: dict.navbar?.settings_engine || dict.navbar?.settings_intelligence || "Engine",
             settingsUsage: dict.navbar?.settings_usage || "Usage Statistic",
-            settingsSecurity: dict.navbar?.settings_account || dict.navbar?.settings_security || "Account",
             settingsSystem: dict.navbar?.settings_system || "Synchronization",
             settingsApiControl: dict.navbar?.settings_api_control || "API Control",
             settingsApiReference: dict.navbar?.settings_api_reference || "API Reference",
