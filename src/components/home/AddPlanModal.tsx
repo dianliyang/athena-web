@@ -26,6 +26,7 @@ import {
   CardHeader,
   CardTitle
 } from "@/components/ui/card";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
 import {
   Combobox,
@@ -162,7 +163,7 @@ export default function AddPlanModal({
     days: existingPlan?.days_of_week || ([] as number[]),
     startTime: existingPlan?.start_time?.slice(0, 5) || "09:00",
     endTime: existingPlan?.end_time?.slice(0, 5) || "11:00",
-    kind: existingPlan?.kind?.trim() || "Study",
+    kind: existingPlan?.kind?.trim() || "Self-Study",
     location: existingPlan?.location || "Library",
     timezone: existingPlan?.timezone?.trim() || currentTimeZone
   });
@@ -253,7 +254,7 @@ export default function AddPlanModal({
           daysOfWeek: formData.days,
           startTime: `${formData.startTime}:00`,
           endTime: `${formData.endTime}:00`,
-          kind: formData.kind || "Study",
+          kind: formData.kind || "Self-Study",
           location: formData.location,
           timezone: formData.timezone || currentTimeZone
         })
@@ -298,9 +299,9 @@ export default function AddPlanModal({
           </CardHeader>
           <Separator />
           <CardContent className="px-3">
-            <div className="space-y-3">
-              <div className="space-y-2">
-                <label className="text-sm">Date Range</label>
+            <FieldGroup className="gap-3">
+              <Field>
+                <FieldLabel>Date Range</FieldLabel>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" type="button" className="w-full justify-between font-normal">
@@ -331,11 +332,11 @@ export default function AddPlanModal({
                     />
                   </PopoverContent>
                 </Popover>
-              </div>
+              </Field>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                <div className="space-y-2">
-                  <label className="text-sm">Start Time</label>
+                <Field>
+                  <FieldLabel>Start Time</FieldLabel>
                   <Input
                     type="time"
                     step="1"
@@ -344,9 +345,9 @@ export default function AddPlanModal({
                     onChange={(e) => setFormData((prev) => ({ ...prev, startTime: e.target.value }))}
                     className="appearance-none bg-background [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
                   />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm">End Time</label>
+                </Field>
+                <Field>
+                  <FieldLabel>End Time</FieldLabel>
                   <Input
                     type="time"
                     step="1"
@@ -355,11 +356,11 @@ export default function AddPlanModal({
                     onChange={(e) => setFormData((prev) => ({ ...prev, endTime: e.target.value }))}
                     className="appearance-none bg-background [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
                   />
-                </div>
+                </Field>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm">Days of Week</label>
+              <Field>
+                <FieldLabel>Days of Week</FieldLabel>
                 <div className="grid grid-cols-7 gap-1">
                   {dayLabels.map((day, dayIdx) => (
                     <Toggle
@@ -374,19 +375,19 @@ export default function AddPlanModal({
                     </Toggle>
                   ))}
                 </div>
-              </div>
+              </Field>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
-                <div className="space-y-2">
-                  <label className="text-sm">Kind</label>
+                <Field>
+                  <FieldLabel>Kind</FieldLabel>
                   <Input
                     value={formData.kind}
                     onChange={(e) => setFormData((prev) => ({ ...prev, kind: e.target.value }))}
                     placeholder="Study"
                   />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm">Location</label>
+                </Field>
+                <Field>
+                  <FieldLabel>Location</FieldLabel>
                   <InputGroup>
                     <InputGroupInput
                       value={formData.location}
@@ -405,10 +406,10 @@ export default function AddPlanModal({
                       </InputGroupButton>
                     </InputGroupAddon>
                   </InputGroup>
-                </div>
+                </Field>
 
-                <div className="space-y-2">
-                  <label className="text-sm">Timezone</label>
+                <Field>
+                  <FieldLabel>Timezone</FieldLabel>
                   <Combobox
                     items={timeZoneGroups}
                     value={formData.timezone}
@@ -439,9 +440,9 @@ export default function AddPlanModal({
                       </ComboboxList>
                     </ComboboxContent>
                   </Combobox>
-                </div>
+                </Field>
               </div>
-            </div>
+            </FieldGroup>
           </CardContent>
         </form>
       </Card>

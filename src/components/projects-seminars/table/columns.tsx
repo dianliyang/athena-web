@@ -44,7 +44,7 @@ function ProjectSeminarRowActions({ row }: { row: ProjectSeminarTableRow }) {
     <div className="flex justify-end gap-1.5">
       <Button
         variant="outline"
-        size="icon"
+        size="icon-sm"
         disabled={isSubmitting}
         onClick={() => void handleToggleEnrollment()}
         aria-label={row.enrolled ? "Unenroll" : "Enroll"}
@@ -53,13 +53,13 @@ function ProjectSeminarRowActions({ row }: { row: ProjectSeminarTableRow }) {
         {isSubmitting ? <Loader2 className="animate-spin" /> : row.enrolled ? <Check /> : <UserPlus />}
       </Button>
       {row.url ? (
-        <Button variant="outline" size="icon" asChild>
+        <Button variant="outline" size="icon-sm" asChild>
           <a href={row.url} target="_blank" rel="noreferrer" aria-label="Open seminar" title="Open seminar">
             <ExternalLink />
           </a>
         </Button>
       ) : (
-        <Button variant="outline" size="icon" disabled aria-label="Open seminar unavailable" title="Open seminar unavailable">
+        <Button variant="outline" size="icon-sm" disabled aria-label="Open seminar unavailable" title="Open seminar unavailable">
           <ExternalLink />
         </Button>
       )}

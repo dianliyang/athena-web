@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Course } from "@/types";
 import CourseDetailTopSection, {
@@ -39,9 +39,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Toggle } from "@/components/ui/toggle";
 import { Input } from "@/components/ui/input";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { getUniversityUnitInfo } from "@/lib/university-units";
 import { getCourseCodeBreakdown } from "@/lib/course-code-breakdown";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -52,6 +54,7 @@ import {
 } from "@/components/ui/input-group";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import {
   Combobox,
   ComboboxCollection,
@@ -215,6 +218,29 @@ endDate: string)
   return diff >= 0 ? diff + 1 : null;
 }
 
+function getPreviewableUrl(url: string): string | null {
+  const trimmed = String(url || "").trim();
+  if (!trimmed) return null;
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) return trimmed;
+  return null;
+}
+
+function getPreviewHost(url: string): string {
+  const previewable = getPreviewableUrl(url);
+  if (!previewable) return "Unsupported URL";
+  try {
+    return new URL(previewable).hostname;
+  } catch {
+    return "Unknown host";
+  }
+}
+
+function getThirdPartyPreviewImageUrl(url: string): string | null {
+  const previewable = getPreviewableUrl(url);
+  if (!previewable) return null;
+  return `https://image.thum.io/get/width/900/crop/560/noanimate/${encodeURIComponent(previewable)}`;
+}
+
 export default function CourseDetailContent({
   course,
   isEnrolled,
@@ -255,6 +281,7 @@ export default function CourseDetailContent({
   const [newUrl, setNewUrl] = useState("");
   const [isAddingUrl, setIsAddingUrl] = useState(false);
   const [removingUrlIndex, setRemovingUrlIndex] = useState<number | null>(null);
+  const [resourcePreviewState, setResourcePreviewState] = useState<Record<string, "blocked">>({});
   const [showAllResources, setShowAllResources] = useState(false);
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<
     string | null>(
@@ -843,7 +870,7 @@ export default function CourseDetailContent({
         startTime: plan.start_time || "09:00:00",
         endTime: plan.end_time || "10:00:00",
         location: plan.location || "",
-        kind: "",
+        kind: "Self-Study",
         timezone: plan.timezone || "UTC"
       };
       const existingIndex = prev.findIndex((item) => item.id === plan.id);
@@ -900,7 +927,6 @@ export default function CourseDetailContent({
                 Logistics
               </h2>
               <div className="grid grid-cols-1 gap-4">
-                <div>
                   <div className="flex items-center justify-between gap-3 mb-4">
                     <h3 className="text-sm font-medium text-[#333] flex items-center gap-2">
                       <Clock className="w-4 h-4 text-[#777]" />
@@ -950,6 +976,8 @@ export default function CourseDetailContent({
                       </Button>
                     </div>
                   </div>
+                <Card>
+                  <CardContent>
                   <div
                     className={
                     hasStudyPlans ?
@@ -1044,8 +1072,8 @@ export default function CourseDetailContent({
                               <p className="text-sm font-medium text-[#222] mb-3">Edit Schedule</p>
                                 <div className="space-y-3">
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                    <div className="space-y-1 md:col-span-2">
-                                      <label className="text-sm">Date Range</label>
+                                    <Field className="md:col-span-2">
+                                      <FieldLabel>Date Range</FieldLabel>
                                       <Popover>
                                         <PopoverTrigger asChild>
                                           <Button variant="outline" type="button" className="w-full justify-between font-normal">
@@ -1076,12 +1104,12 @@ export default function CourseDetailContent({
                                           />
                                         </PopoverContent>
                                       </Popover>
-                                    </div>
+                                    </Field>
                                   </div>
 
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                    <div className="space-y-1">
-                                      <label className="text-sm">Start Time</label>
+                                    <Field>
+                                      <FieldLabel>Start Time</FieldLabel>
                                       <Input
                                         type="time"
                                         step="1"
@@ -1094,9 +1122,9 @@ export default function CourseDetailContent({
                                         }
                                         className="appearance-none bg-background [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
                                       />
-                                    </div>
-                                    <div className="space-y-1">
-                                      <label className="text-sm">End Time</label>
+                                    </Field>
+                                    <Field>
+                                      <FieldLabel>End Time</FieldLabel>
                                       <Input
                                         type="time"
                                         step="1"
@@ -1109,11 +1137,11 @@ export default function CourseDetailContent({
                                         }
                                         className="appearance-none bg-background [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
                                       />
-                                    </div>
+                                    </Field>
                                   </div>
 
-                                  <div className="space-y-1">
-                                    <label className="text-sm">Days of Week</label>
+                                  <Field>
+                                    <FieldLabel>Days of Week</FieldLabel>
                                     <div className="grid grid-cols-7 gap-1">
                                       {dayLabels.map((day, dayIdx) => {
                                     const selected = (plan.daysOfWeek || []).includes(dayIdx);
@@ -1131,19 +1159,19 @@ export default function CourseDetailContent({
 
                                   })}
                                     </div>
-                                  </div>
+                                  </Field>
 
                                   <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                                    <div className="space-y-1">
-                                      <label className="text-sm">Kind</label>
+                                    <Field>
+                                      <FieldLabel>Kind</FieldLabel>
                                       <Input
                                         value={plan.kind || ""}
                                         onChange={(e) => updateEditablePlan(idx, (p) => ({ ...p, kind: e.target.value }))}
                                         placeholder="Type"
                                       />
-                                    </div>
-                                    <div className="space-y-1">
-                                      <label className="text-sm">Location</label>
+                                    </Field>
+                                    <Field>
+                                      <FieldLabel>Location</FieldLabel>
                                       <InputGroup>
                                         <InputGroupInput
                                           value={plan.location}
@@ -1167,9 +1195,9 @@ export default function CourseDetailContent({
                                           </InputGroupButton>
                                         </InputGroupAddon>
                                       </InputGroup>
-                                    </div>
-                                    <div className="space-y-1">
-                                      <label className="text-sm">Timezone</label>
+                                    </Field>
+                                    <Field>
+                                      <FieldLabel>Timezone</FieldLabel>
                                       {(() => {
                                         const timeZoneGroups = getTimeZoneGroups(plan.timezone || currentTimeZone);
                                         return (
@@ -1205,7 +1233,7 @@ export default function CourseDetailContent({
                                           </Combobox>
                                         );
                                       })()}
-                                    </div>
+                                    </Field>
                                   </div>
                                 </div>
                               <div className="mt-3 flex justify-end gap-2">
@@ -1304,7 +1332,8 @@ export default function CourseDetailContent({
                       </p>
                     }
                   </div>
-                </div>
+                  </CardContent>
+                </Card>
 
                 {course.instructors && course.instructors.length > 0 &&
                 <div>
@@ -1318,7 +1347,7 @@ export default function CourseDetailContent({
                       key={idx}
                       className="flex items-center gap-3 bg-white px-2.5 py-2">
                       
-                          <div className="w-8 h-8 bg-[#efefef] flex items-center justify-center text-[#666] text-xs font-medium">
+                          <div className="w-8 h-8 rounded-full bg-[#efefef] flex items-center justify-center text-[#666] text-xs font-medium">
                             {inst.charAt(0)}
                           </div>
                           <span className="text-sm font-medium text-[#222]">
@@ -1484,20 +1513,21 @@ export default function CourseDetailContent({
             </div>
           }
 
-          <div className="py-2">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <h2 className="text-lg font-semibold text-[#1f1f1f]">
-                Schedule Calendar
-              </h2>
-              {studyPlanCalendar.range &&
-              <span className="text-[11px] text-[#777]">
-                  {studyPlanCalendar.range.startIso} -{" "}
-                  {studyPlanCalendar.range.endIso}
-                </span>
-              }
-            </div>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="text-lg font-semibold text-[#1f1f1f]">
+              Schedule Calendar
+            </h2>
+            {studyPlanCalendar.range &&
+            <span className="text-[11px] text-[#777]">
+                {studyPlanCalendar.range.startIso} -{" "}
+                {studyPlanCalendar.range.endIso}
+              </span>
+            }
+          </div>
+          <Card>
+            <CardContent className="py-2">
             {studyPlanCalendar.range ?
-            <div className="rounded-sm border bg-background">
+            <div className="bg-background">
                 <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_280px]">
                   <div className="p-3 xl:border-r">
                     {visibleCalendarMonth ?
@@ -1571,6 +1601,9 @@ export default function CourseDetailContent({
                       selectedCalendarDate === cell.dateIso;
                       const isToday = cell.dateIso === todayIso;
                       const canSelect = cell.inRange;
+                      const previewEvents = events.slice(0, 3);
+                      const remainingEventsCount = Math.max(events.length - previewEvents.length, 0);
+                      const barColors = ["bg-[#111111]", "bg-[#3a3a3a]", "bg-[#6b6b6b]"];
                       return (
                         <Button
                           variant="outline"
@@ -1606,15 +1639,16 @@ export default function CourseDetailContent({
                                 </span>
                               </div>
                               <div className="mt-1 space-y-1 overflow-hidden">
-                                {events.slice(0, 2).map((event, idx) =>
-                            <p
-                              key={`${cell.dateIso}-${event.label}-${idx}`}
-                              className="leading-tight rounded-sm bg-muted px-1 py-0.5 text-[10px] text-foreground truncate"
-                              title={`${event.meta} ${event.label}`}>
-                              
-                                    {event.label}
-                                  </p>
+                                {previewEvents.map((_, idx) =>
+                            <div
+                              key={`${cell.dateIso}-bar-${idx}`}
+                              className={`h-1 w-full rounded-full ${barColors[idx % barColors.length]}`} />
                             )}
+                                {remainingEventsCount > 0 ?
+                            <p className="text-[10px] leading-none text-[#7a7a7a]">
+                                    +{remainingEventsCount} more
+                                  </p> :
+                            null}
                               </div>
                             </Button>);
 
@@ -1673,7 +1707,8 @@ export default function CourseDetailContent({
                 No schedule range found yet.
               </p>
             }
-          </div>
+            </CardContent>
+          </Card>
         </div>
 
         <aside className="min-h-0 space-y-5 overflow-x-hidden overflow-y-auto lg:pl-5">
@@ -1701,16 +1736,50 @@ export default function CourseDetailContent({
                     <li
                       key={`${url}-${i}`}
                       className="flex items-center gap-2">
-                      
-                          <a
-                        href={url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-sm font-medium text-[#335b9a] hover:underline flex items-center gap-2 break-all flex-1 min-w-0">
-                        
-                            <Globe className="w-4 h-4 flex-shrink-0 text-[#778fb8]" />
-                            {url}
-                          </a>
+                          <HoverCard openDelay={120} closeDelay={80}>
+                            <HoverCardTrigger asChild>
+                              <a
+                                href={url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-sm font-medium text-[#335b9a] hover:underline flex items-center gap-2 break-all flex-1 min-w-0"
+                              >
+                                <Globe className="w-4 h-4 flex-shrink-0 text-[#778fb8]" />
+                                {url}
+                              </a>
+                            </HoverCardTrigger>
+                            <HoverCardContent className="w-[420px] p-0">
+                              <div className="px-3 py-2 border-b">
+                                <p className="text-xs text-muted-foreground truncate">Website Preview</p>
+                                <p className="text-xs font-medium truncate">{url}</p>
+                              </div>
+                              {getPreviewableUrl(url) && resourcePreviewState[url] !== "blocked" ? (
+                                <>
+                                  <img
+                                    src={getThirdPartyPreviewImageUrl(url) || ""}
+                                    alt={`Preview ${url}`}
+                                    className="h-56 w-full object-cover"
+                                    loading="lazy"
+                                    onError={() =>
+                                      setResourcePreviewState((prev) => ({ ...prev, [url]: "blocked" }))
+                                    }
+                                  />
+                                  <div className="px-3 py-2 border-t text-[11px] text-muted-foreground">
+                                    Host: <span className="font-medium text-foreground">{getPreviewHost(url)}</span>
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="px-3 py-2 text-xs space-y-1.5">
+                                  <p className="text-muted-foreground">
+                                    Host: <span className="font-medium text-foreground">{getPreviewHost(url)}</span>
+                                  </p>
+                                  <p className="text-muted-foreground">
+                                    This site blocks embedded previews (X-Frame-Options/CSP). Open the link in a new tab.
+                                  </p>
+                                </div>
+                              )}
+                            </HoverCardContent>
+                          </HoverCard>
                           <Button
                         variant="ghost"
                         size="icon-sm"
@@ -1831,6 +1900,14 @@ export default function CourseDetailContent({
                   Course Facts
                 </h3>
                 <dl className="space-y-4 text-sm">
+                  {course.details?.internalId &&
+                  <div className="flex justify-between py-1">
+                      <dt className="text-[#666]">ID</dt>
+                      <dd className="font-mono text-[#999]">
+                        {course.details.internalId}
+                      </dd>
+                    </div>
+                  }
                   <div className="flex justify-between py-1">
                     <dt className="text-[#666]">Credits</dt>
                     <dd className="font-medium text-[#222]">
@@ -1892,14 +1969,6 @@ export default function CourseDetailContent({
                       }
                     </dd>
                   </div>
-                  {course.details?.internalId &&
-                  <div className="flex justify-between py-1">
-                      <dt className="text-[#666]">ID</dt>
-                      <dd className="font-mono text-[#999]">
-                        {course.details.internalId}
-                      </dd>
-                    </div>
-                  }
                 </dl>
             </div>
           </div>

@@ -109,7 +109,7 @@ export default function ProjectsSeminarsToolbar({
               Filters
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className="w-80">
             <DropdownMenuLabel>
               Category
             </DropdownMenuLabel>

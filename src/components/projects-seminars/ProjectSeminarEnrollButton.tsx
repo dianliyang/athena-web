@@ -34,7 +34,15 @@ export default function ProjectSeminarEnrollButton({
   };
 
   return (
-    <Button variant="outline" type="button" onClick={handleToggle} disabled={isSubmitting}>
+    <Button
+      variant="outline"
+      size={iconOnly ? "icon-sm" : undefined}
+      type="button"
+      onClick={handleToggle}
+      disabled={isSubmitting}
+      aria-label={isEnrolled ? "Unenroll" : "Enroll"}
+      title={isEnrolled ? "Unenroll" : "Enroll"}
+    >
       {isSubmitting ? (
         <Loader2 className="animate-spin"  />
       ) : iconOnly ? (

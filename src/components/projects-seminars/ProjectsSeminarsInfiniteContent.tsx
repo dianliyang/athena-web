@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ExternalLink, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardAction, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import ProjectSeminarEnrollButton from "@/components/projects-seminars/ProjectSeminarEnrollButton";
 import ProjectsSeminarsDataTable from "@/components/projects-seminars/table/projects-seminars-data-table";
 import type { ProjectSeminarTableRow } from "@/components/projects-seminars/table/columns";
@@ -133,53 +135,61 @@ export default function ProjectsSeminarsInfiniteContent({
           {gridItems.map((item) => {
             const semester = (item.latest_semester || {}) as { term?: string; year?: number };
             const status = item.enrolled ? "Enrolled" : "Not Enrolled";
+            const semesterLabel = semester.term && semester.year ? `${semester.term} ${semester.year}` : "-";
             return (
-              <div key={item.id} className="rounded-sm border p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h3 className="line-clamp-2 text-sm font-semibold text-slate-900">
+              <Card key={item.id} className="h-full">
+                <CardHeader className="min-w-0 flex-1 justify-between">
+                  <CardAction>
+                    <div className="flex items-center gap-1">
+                      <ProjectSeminarEnrollButton
+                        projectSeminarId={item.id}
+                        initialEnrolled={item.enrolled}
+                        iconOnly
+                      />
+                      {item.url ? (
+                        <Button variant="outline" size="icon-sm" asChild>
+                          <a
+                            href={item.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label="Open seminar"
+                          >
+                            <ExternalLink />
+                          </a>
+                        </Button>
+                      ) : (
+                        <Button variant="outline" size="icon-sm" disabled aria-label="Open seminar unavailable">
+                          <ExternalLink />
+                        </Button>
+                      )}
+                    </div>
+                  </CardAction>
+                    <CardTitle className="line-clamp-2 text-sm">
                       <Link
                         href={`/projects-seminars/${item.id}`}
                         className="transition-colors hover:text-black"
                       >
                         {item.title}
                       </Link>
-                    </h3>
-                    <p className="mt-0.5 truncate text-xs text-slate-500">
-                      {item.course_code} · {item.university}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <ProjectSeminarEnrollButton
-                      projectSeminarId={item.id}
-                      initialEnrolled={item.enrolled}
-                      iconOnly
-                    />
-                    {item.url ? (
-                      <Button variant="outline" size="icon-sm" asChild>
-                        <a
-                          href={item.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          aria-label="Open seminar"
-                        >
-                          <ExternalLink />
-                        </a>
-                      </Button>
+                    </CardTitle>
+                    <CardDescription className="col-span-2 mt-auto w-full pt-1 flex items-center justify-between gap-2 text-xs">
+                      <span className="min-w-0 truncate">{item.course_code} · {item.university}</span>
+                      <Badge variant="secondary" className="ml-auto shrink-0">{item.category}</Badge>
+                    </CardDescription>
+                </CardHeader>
+                <CardFooter className="flex items-end justify-between text-xs text-slate-600">
+                  <span>{semesterLabel}</span>
+                  <span>
+                    {item.credit != null ? (
+                      <>
+                        <span className="font-semibold text-foreground">{item.credit}</span> Credits
+                      </>
                     ) : (
-                      <Button variant="outline" size="icon-sm" disabled aria-label="Open seminar unavailable">
-                        <ExternalLink />
-                      </Button>
+                      "-"
                     )}
-                  </div>
-                </div>
-                <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs text-slate-600">
-                  {item.category ? <span className="rounded-sm border px-2 py-0.5">{item.category}</span> : null}
-                  {item.credit != null ? <span>{item.credit} cr</span> : null}
-                  <span>{semester.term && semester.year ? `${semester.term} ${semester.year}` : "-"}</span>
-                  <span>{status}</span>
-                </div>
-              </div>
+                  </span>
+                </CardFooter>
+              </Card>
             );
           })}
         </div>
@@ -187,9 +197,6 @@ export default function ProjectsSeminarsInfiniteContent({
 
       <div ref={observerTarget} className="py-4 flex justify-center">
         {isLoading ? <Loader2 className="w-5 h-5 text-slate-500 animate-spin" /> : null}
-        {!isLoading && page >= totalPages && (rows.length > 0 || gridItems.length > 0) ? (
-          <span className="text-xs text-slate-400">End of results</span>
-        ) : null}
       </div>
     </div>
   );

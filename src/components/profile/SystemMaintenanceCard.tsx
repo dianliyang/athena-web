@@ -318,22 +318,24 @@ export default function SystemMaintenanceCard() {
               </Button>
 
               {status.type !== "idle" ? (
-                <div className="rounded-sm border p-3 text-sm">
-                  <div className="flex items-center gap-2">
-                    {status.type === "success" ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
-                    <span>{status.message}</span>
-                  </div>
-                  {status.runs && status.runs.length > 0 ? (
-                    <div className="mt-2 space-y-1 text-xs text-muted-foreground">
-                      {status.runs.map((run) => (
-                        <div key={run.label} className="flex items-center justify-between gap-3">
-                          <span className="truncate">{run.label}</span>
-                          <span>{run.ok ? `${run.count} scraped` : "failed"}</span>
-                        </div>
-                      ))}
+                <Card>
+                  <CardContent className="text-sm">
+                    <div className="flex items-center gap-2">
+                      {status.type === "success" ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+                      <span>{status.message}</span>
                     </div>
-                  ) : null}
-                </div>
+                    {status.runs && status.runs.length > 0 ? (
+                      <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                        {status.runs.map((run) => (
+                          <div key={run.label} className="flex items-center justify-between gap-3">
+                            <span className="truncate">{run.label}</span>
+                            <span>{run.ok ? `${run.count} scraped` : "failed"}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </CardContent>
+                </Card>
               ) : null}
             </section>
           </CardContent>

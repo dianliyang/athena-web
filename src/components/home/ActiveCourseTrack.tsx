@@ -28,10 +28,10 @@ import {
   PopoverTrigger
 } from "@/components/ui/popover";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger
-} from "@/components/ui/tooltip";
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger
+} from "@/components/ui/hover-card";
 import {
   ExternalLink,
   CalendarCheck,
@@ -210,46 +210,35 @@ export default function ActiveCourseTrack({
               null}
               {localPlan ?
               <>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="flex flex-col items-end gap-1">
-                        <div className="inline-flex items-center gap-2 text-[11px] text-muted-foreground leading-none">
-                          <span className="inline-flex items-center gap-1">
-                            <Clock className="h-3.5 w-3.5" />
-                            {localPlan.start_time.slice(0, 5)} - {localPlan.end_time.slice(0, 5)}
-                          </span>
-                          <span>
-                            {new Date(localPlan.start_date).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric"
-                          })}
-                            {" "}to{" "}
-                            {new Date(localPlan.end_date).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric"
-                          })}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1" aria-label="Study days">
-                          {Array.from({ length: 7 }).map((_, idx) =>
-                          <span
-                            key={`study-day-dot-${idx}`}
-                            className={`h-2 w-2 rounded-full ${
-                            localPlan.days_of_week.includes(idx) ? "bg-black" : "bg-muted"}`
-                            } />
-                          )}
-                        </div>
+                  <HoverCard openDelay={60} closeDelay={80}>
+                    <HoverCardTrigger asChild>
+                      <div className="inline-flex items-center gap-2 text-[11px] text-muted-foreground leading-none">
+                        <span className="inline-flex items-center gap-1">
+                          <Clock className="h-3.5 w-3.5" />
+                          {localPlan.start_time.slice(0, 5)} - {localPlan.end_time.slice(0, 5)}
+                        </span>
+                        <span>
+                          {new Date(localPlan.start_date).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric"
+                        })}
+                          {" "}to{" "}
+                          {new Date(localPlan.end_date).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric"
+                        })}
+                        </span>
                       </div>
-                    </TooltipTrigger>
+                    </HoverCardTrigger>
                     {scheduleSummary ?
-                    <TooltipContent side="top" align="end">
+                    <HoverCardContent className="w-auto">
                         <p className="text-xs">
-                          {scheduleSummary.dayText || "No days"} · {scheduleSummary.daysPerWeek} day{scheduleSummary.daysPerWeek === 1 ? "" : "s"}/week
+                          {scheduleSummary.daysPerWeek} day{scheduleSummary.daysPerWeek === 1 ? "" : "s"}/week
                           {scheduleSummary.totalDays ? ` · ${scheduleSummary.totalDays} days total` : ""}
                         </p>
-                      </TooltipContent> :
+                      </HoverCardContent> :
                     null}
-                  </Tooltip>
+                  </HoverCard>
                 </> :
               <p className="text-[11px] italic text-muted-foreground leading-none">No schedule defined</p>}
             </div>
@@ -273,7 +262,7 @@ export default function ActiveCourseTrack({
           </div>
           <div
             data-no-card-nav="true"
-            className="self-start items-start p-2">
+            className="self-stretch flex flex-col justify-between items-end p-2">
             <ButtonGroup className="ml-auto">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -359,6 +348,28 @@ export default function ActiveCourseTrack({
                 </PopoverContent>
               </Popover>
             </ButtonGroup>
+            {localPlan ?
+            <HoverCard openDelay={60} closeDelay={80}>
+                <HoverCardTrigger asChild>
+                  <div className="h-5 flex items-center justify-end gap-1.5" aria-label="Study days">
+                    {Array.from({ length: 7 }).map((_, idx) =>
+                    <span
+                      key={`study-day-dot-bottom-${idx}`}
+                      className={`h-2.5 w-2.5 rounded-full ${
+                      localPlan.days_of_week.includes(idx) ? "bg-black" : "bg-muted"}`
+                      } />
+                    )}
+                  </div>
+                </HoverCardTrigger>
+                {scheduleSummary ?
+              <HoverCardContent className="w-auto">
+                    <p className="text-xs">
+                      {scheduleSummary.dayText || "No days selected"}
+                    </p>
+                  </HoverCardContent> :
+              null}
+              </HoverCard> :
+            null}
           </div>
         </div>
       </CardContent>

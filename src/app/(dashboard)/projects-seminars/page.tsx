@@ -240,7 +240,6 @@ export default async function ProjectsSeminarsPage({
           />
         )}
       </div>
-      <Separator className="my-3" />
     </div>
   );
 }
