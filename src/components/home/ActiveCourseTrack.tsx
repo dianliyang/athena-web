@@ -173,15 +173,30 @@ export default function ActiveCourseTrack({
 
       <CardContent className="flex-1 flex flex-col justify-end px-3 py-2 gap-3">
         <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
+          <div className="flex items-end justify-between">
             <span className="text-muted-foreground text-[9px] uppercase font-bold tracking-widest">Progress</span>
-            <span className="text-[#1f1f1f] text-[10px] font-bold">{progress}%</span>
+            <span className="text-[#1f1f1f] text-xs font-extrabold">{progress}%</span>
           </div>
-          <div className="h-1 w-full bg-stone-100 rounded-full overflow-hidden">
+          <div className="h-1.5 w-full bg-stone-100 rounded-full overflow-hidden">
             <div 
               className="h-full bg-[#1f1f1f] rounded-full transition-all duration-500 ease-out" 
               style={{ width: `${progress}%` }}
             />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 text-[10px]">
+          <div className="rounded-md border border-stone-100 bg-stone-50/60 px-2 py-1.5 min-w-0">
+            <p className="text-[9px] uppercase tracking-widest text-stone-500 font-bold">Next Focus</p>
+            <p className="mt-0.5 truncate font-semibold text-stone-800" title={course.aiPlanSummary?.nextFocus || "No AI plan"}>
+              {course.aiPlanSummary?.nextFocus || "No AI plan"}
+            </p>
+          </div>
+          <div className="rounded-md border border-stone-100 bg-stone-50/60 px-2 py-1.5 min-w-0">
+            <p className="text-[9px] uppercase tracking-widest text-stone-500 font-bold">Next Date</p>
+            <p className="mt-0.5 truncate font-semibold text-stone-800">
+              {course.aiPlanSummary?.nextDate || "Not set"}
+            </p>
           </div>
         </div>
       </CardContent>
