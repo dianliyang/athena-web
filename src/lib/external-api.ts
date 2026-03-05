@@ -27,17 +27,43 @@ function transformSchedules(plans: Array<Record<string, unknown>>) {
 }
 
 function transformAssignments(rows: Array<Record<string, unknown>>) {
-  return rows.map((row) => ({
-    id: row.id ?? null,
-    kind: typeof row.kind === 'string' ? row.kind : 'other',
-    label: typeof row.label === 'string' ? row.label : null,
-    dueOn: row.due_on ?? null,
-    url: typeof row.url === 'string' ? row.url : null,
-    description: typeof row.description === 'string' ? row.description : null,
-    sourceSequence: typeof row.source_sequence === 'string' ? row.source_sequence : null,
-    sourceRowDate: row.source_row_date ?? null,
-    updatedAt: row.updated_at ?? null,
-  }));
+  const knownKinds = new Set([
+    'reading',
+    'lecture',
+    'assignment',
+    'lab',
+    'project',
+    'quiz',
+    'exam',
+    'task',
+    'other',
+  ]);
+
+  return rows.map((row) => {
+    const metadata = (row.metadata && typeof row.metadata === 'object')
+      ? (row.metadata as Record<string, unknown>)
+      : {};
+    const metadataTaskKind = typeof metadata.task_kind === 'string'
+      ? metadata.task_kind.trim().toLowerCase()
+      : '';
+    const storedKind = typeof row.kind === 'string' ? row.kind.trim().toLowerCase() : 'other';
+    const resolvedKind = knownKinds.has(metadataTaskKind)
+      ? metadataTaskKind
+      : (knownKinds.has(storedKind) ? storedKind : 'other');
+
+    return {
+      id: row.id ?? null,
+      kind: resolvedKind,
+      persistedKind: storedKind,
+      label: typeof row.label === 'string' ? row.label : null,
+      dueOn: row.due_on ?? null,
+      url: typeof row.url === 'string' ? row.url : null,
+      description: typeof row.description === 'string' ? row.description : null,
+      sourceSequence: typeof row.source_sequence === 'string' ? row.source_sequence : null,
+      sourceRowDate: row.source_row_date ?? null,
+      updatedAt: row.updated_at ?? null,
+    };
+  });
 }
 
 /** Transform internal course data to the external API structure. */
