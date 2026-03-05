@@ -1739,16 +1739,15 @@ export default function CourseDetailContent({
                                   selectedCalendarDate === cell.dateIso;
                                 const isToday = cell.dateIso === todayIso;
                                 const canSelect = cell.inRange;
+                                const hasEvents = events.length > 0;
                                 const previewEvents = events.slice(0, 3);
                                 const remainingEventsCount = Math.max(
                                   events.length - previewEvents.length,
                                   0,
                                 );
-                                const barColors = [
-                                  "bg-[#111111]",
-                                  "bg-[#3a3a3a]",
-                                  "bg-[#6b6b6b]",
-                                ];
+                                const barColors = isSelected
+                                  ? ["bg-white", "bg-white/80", "bg-white/60"]
+                                  : ["bg-[#111111]", "bg-[#3a3a3a]", "bg-[#6b6b6b]"];
                                 return (
                                   <Button
                                     variant="outline"
@@ -1771,17 +1770,19 @@ export default function CourseDetailContent({
                                       }
                                     }}
                                     disabled={!canSelect}
-                                    className={`h-auto min-h-[76px] w-full flex-col items-start justify-start gap-1 overflow-hidden p-1.5 text-left ${
+                                    className={`h-auto min-h-[76px] w-full flex-col items-start justify-start gap-1 overflow-hidden p-1.5 text-left transition-colors ${
                                       isSelected
-                                        ? "border-black bg-muted"
+                                        ? "border-black bg-black text-white"
                                         : isToday
-                                          ? "border-black/60"
-                                          : ""
+                                          ? "border-black/70 bg-black/[0.04]"
+                                          : hasEvents
+                                            ? "border-black/25 bg-black/[0.02]"
+                                            : ""
                                     }`}
                                   >
                                     <div className="flex items-center justify-between">
                                       <span
-                                        className={`font-semibold ${isToday ? "text-[#111]" : "text-[#666]"}`}
+                                        className={`font-semibold ${isSelected ? "text-white" : isToday ? "text-[#111]" : "text-[#666]"}`}
                                       >
                                         {cell.day}
                                       </span>
@@ -1794,7 +1795,11 @@ export default function CourseDetailContent({
                                         />
                                       ))}
                                       {remainingEventsCount > 0 ? (
-                                        <p className="text-[10px] leading-none text-[#7a7a7a]">
+                                        <p
+                                          className={`text-[10px] leading-none ${
+                                            isSelected ? "text-white/80" : "text-[#7a7a7a]"
+                                          }`}
+                                        >
                                           +{remainingEventsCount} more
                                         </p>
                                       ) : null}
