@@ -1205,10 +1205,13 @@ export default function CourseDetailContent({
                         title={
                           editingPlanIndex !== idx ? (
                             <div className="flex flex-col gap-1">
-                              <div className="text-sm font-semibold text-[#111111] leading-snug">
+                              <div className="flex items-center gap-2 text-sm font-semibold text-[#111111] leading-snug">
                                 <span>
                                   {plan.startTime.slice(0, 5)} -{" "}
                                   {plan.endTime.slice(0, 5)}
+                                </span>
+                                <span className="rounded-sm bg-[#f3f3f3] px-1.5 py-0.5 text-[10px] font-medium text-[#666]">
+                                  {plan.timezone || "UTC"}
                                 </span>
                               </div>
                               <div
@@ -1313,10 +1316,7 @@ export default function CourseDetailContent({
                         }
                       >
                         {editingPlanIndex === idx ? (
-                          <div className="mt-3 rounded-sm border border-[#ededed] bg-[#fcfcfc] p-3">
-                            <p className="text-sm font-medium text-[#222] mb-3">
-                              Edit Schedule
-                            </p>
+                          <div className="mt-2">
                             <div className="space-y-3">
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                 <Field className="md:col-span-2">
@@ -1574,11 +1574,7 @@ export default function CourseDetailContent({
                                   {plan.location || "TBD"}
                                 </span>
                               </span>
-                              {(plan.timezone || "").trim() ? (
-                                <span className="block pl-[18px] text-[10px] text-[#7a7a7a] leading-tight">
-                                  {plan.timezone}
-                                </span>
-                              ) : null}
+
                             </div>
                           </div>
                         )}
