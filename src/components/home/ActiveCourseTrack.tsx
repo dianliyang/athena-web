@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Course } from "@/types";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import UniversityIcon from "@/components/common/UniversityIcon";
 import { Dictionary } from "@/lib/dictionary";
@@ -127,26 +126,18 @@ export default function ActiveCourseTrack({
     }
   };
 
-  const weekdaysShort = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const scheduleSummary = useMemo(() => {
-    if (!localPlan) return null;
-    const dayIndexes = [...(localPlan.days_of_week || [])].sort((a, b) => a - b);
-    const dayText = dayIndexes.map((idx) => weekdaysShort[idx]).join(", ");
-    return { dayText };
-  }, [localPlan]);
-
   const roadmapSubdomain = course.subdomain || course.fields?.[0] || "";
 
   return (
     <Card className="h-full flex flex-col border-[#efefef] hover:border-[#dfdfdf] transition-all duration-200 shadow-sm hover:shadow-md overflow-hidden bg-white text-[#1f1f1f]">
-      <CardHeader className="p-4 pb-3">
+      <CardHeader className="p-3 pb-2">
         <div className="flex items-start gap-3">
           <UniversityIcon
             name={course.university}
-            size={42}
-            className="shrink-0 bg-white border border-stone-100 p-2 rounded-lg shadow-sm"
+            size={38}
+            className="shrink-0 bg-white border border-stone-100 p-1.5 rounded-lg shadow-sm"
           />
-          <div className="flex-1 min-w-0 space-y-1">
+          <div className="flex-1 min-w-0 space-y-0.5">
             <div className="flex items-center justify-between gap-2">
               <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">
                 {course.courseCode}
@@ -172,66 +163,38 @@ export default function ActiveCourseTrack({
         </div>
       </CardHeader>
 
-      <CardContent className="flex-1 flex flex-col gap-3 p-4 pt-0">
-        <div className="mt-auto space-y-2">
-          <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider">
-            <span className="text-muted-foreground text-[10px]">Progress</span>
-            <span className="text-[#1f1f1f] text-[10px] font-bold">{progress}%</span>
-          </div>
-          <div className="flex items-center gap-1 h-1.5 w-full bg-stone-100 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-[#1f1f1f] rounded-full transition-all duration-500 ease-out" 
-              style={{ width: `${progress}%` }}
-            />
-          </div>
+      <CardContent className="px-3 py-1 flex flex-col justify-center">
+        <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider text-stone-400">
+          <Clock className="h-3 w-3 shrink-0" />
+          {localPlan ? (
+            <span className="text-stone-600">
+              {localPlan.start_time.slice(0, 5)} - {localPlan.end_time.slice(0, 5)}
+            </span>
+          ) : (
+            <span className="italic opacity-70">No schedule</span>
+          )}
         </div>
       </CardContent>
 
-      <CardFooter className="border-t border-stone-100 bg-gray-50/30 flex items-center justify-between gap-2 py-2 px-4 mt-auto">
-        <div className="flex flex-1 items-center gap-3 min-w-0">
-          {localPlan ? (
-            <HoverCard openDelay={60} closeDelay={80}>
-              <HoverCardTrigger asChild>
-                <div className="flex items-center gap-1.5 shrink-0" aria-label="Study days">
-                  {Array.from({ length: 7 }).map((_, idx) => (
-                    <span
-                      key={`study-day-dot-${idx}`}
-                      className={`h-2 w-2 rounded-full transition-colors ${
-                        localPlan.days_of_week.includes(idx) ? "bg-[#1f1f1f]" : "bg-stone-200"
-                      }`}
-                    />
-                  ))}
-                </div>
-              </HoverCardTrigger>
-              {scheduleSummary && (
-                <HoverCardContent className="w-auto p-2">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-stone-600">
-                    {scheduleSummary.dayText || "No days selected"}
-                  </p>
-                </HoverCardContent>
-              )}
-            </HoverCard>
-          ) : (
-            <div className="flex items-center gap-1.5 shrink-0">
-              {Array.from({ length: 7 }).map((_, idx) => (
-                <span key={idx} className="h-2 w-2 rounded-full bg-stone-200" />
-              ))}
-            </div>
-          )}
-
-          <div className="flex items-center gap-1.5 text-[11px] text-stone-500 min-w-0">
-            <Clock className="h-3 w-3 shrink-0" />
-            <span className="font-semibold uppercase truncate">
-              {localPlan ? `${localPlan.start_time.slice(0, 5)} - ${localPlan.end_time.slice(0, 5)}` : "No schedule"}
-            </span>
+      <CardFooter className="p-3 pt-2 mt-auto border-t border-stone-50 bg-gray-50/20 flex items-center justify-between gap-4">
+        <div className="flex-1 flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[9px] uppercase font-black tracking-widest text-stone-400">Progress</span>
+            <span className="text-[10px] font-bold text-stone-900">{progress}%</span>
+          </div>
+          <div className="h-1 w-full bg-stone-100 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-stone-900 rounded-full transition-all duration-500 ease-out" 
+              style={{ width: `${progress}%` }}
+            />
           </div>
         </div>
 
         <ButtonGroup className="shrink-0">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon-sm" className="h-7 w-7 rounded-md border-stone-200 hover:bg-white shadow-none" type="button">
-                {isAiUpdating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 text-stone-600" />}
+              <Button variant="outline" size="icon-sm" className="h-7 w-7 rounded-md border-stone-200 hover:bg-white shadow-none bg-white" type="button">
+                {isAiUpdating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 text-stone-600" />}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48 rounded-md border-stone-200 shadow-xl">
@@ -265,7 +228,7 @@ export default function ActiveCourseTrack({
 
           <Popover open={showAddPlanModal} onOpenChange={setShowAddPlanModal}>
             <PopoverTrigger asChild>
-              <Button variant="outline" size="icon-sm" className="h-7 w-7 rounded-md border-stone-200 hover:bg-white shadow-none" type="button">
+              <Button variant="outline" size="icon-sm" className="h-7 w-7 rounded-md border-stone-200 hover:bg-white shadow-none bg-white" type="button">
                 {localPlan ? <CalendarCheck className="h-3.5 w-3.5 text-stone-600" /> : <CalendarPlus className="h-3.5 w-3.5 text-stone-600" />}
               </Button>
             </PopoverTrigger>
@@ -281,8 +244,8 @@ export default function ActiveCourseTrack({
             </PopoverContent>
           </Popover>
 
-          <Button variant="outline" size="icon-sm" className="h-7 w-7 rounded-md border-stone-200 hover:bg-white shadow-none" asChild>
-            <Link href={detailHref} title="Open course" aria-label="Open course">
+          <Button variant="outline" size="icon-sm" className="h-7 w-7 rounded-md border-stone-200 hover:bg-white shadow-none bg-white" asChild>
+            <Link href={detailHref} title="Open course">
               <ExternalLink className="h-3.5 w-3.5 text-stone-600" />
             </Link>
           </Button>

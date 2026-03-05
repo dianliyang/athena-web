@@ -300,14 +300,14 @@ async function StudyPlanContent({
 function ActiveProjectSeminarTrack({ item }: {item: EnrolledProjectSeminar;}) {
   return (
     <Card className="h-full flex flex-col border-[#efefef] hover:border-[#dfdfdf] transition-all duration-200 shadow-sm hover:shadow-md overflow-hidden bg-white text-[#1f1f1f]">
-      <CardHeader className="p-4 pb-3">
+      <CardHeader className="p-3 pb-2">
         <div className="flex items-start gap-3">
           <UniversityIcon
             name={item.university}
-            size={42}
-            className="shrink-0 bg-white border border-stone-100 p-2 rounded-lg shadow-sm" />
+            size={38}
+            className="shrink-0 bg-white border border-stone-100 p-1.5 rounded-lg shadow-sm" />
           
-          <div className="flex-1 min-w-0 space-y-1">
+          <div className="flex-1 min-w-0 space-y-0.5">
             <div className="flex items-center justify-between gap-2">
               <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">
                 {item.courseCode || "P&S"}
@@ -326,38 +326,31 @@ function ActiveProjectSeminarTrack({ item }: {item: EnrolledProjectSeminar;}) {
         </div>
       </CardHeader>
 
-      <CardContent className="flex-1 flex flex-col gap-3 p-4 pt-0">
-        <div className="mt-auto space-y-2">
-          <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider">
-            <span className="text-muted-foreground text-[10px]">Status</span>
-            <span className="text-[#1f1f1f] text-[10px] font-bold">In Progress</span>
-          </div>
-          <div className="flex items-center gap-1 h-1.5 w-full bg-stone-100 rounded-full overflow-hidden">
-            <div className="h-full w-1/2 bg-[#1f1f1f] rounded-full" />
-          </div>
+      <CardContent className="px-3 py-1 flex flex-col justify-center">
+        <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider text-stone-600">
+          <span className="truncate">{item.semesterLabel}</span>
         </div>
       </CardContent>
 
-      <CardFooter className="border-t border-stone-100 bg-gray-50/30 flex items-center justify-between gap-2 py-2 px-4 mt-auto">
-        <div className="flex flex-1 items-center gap-3 min-w-0">
-          <div className="flex items-center gap-1.5 shrink-0">
-            {Array.from({ length: 7 }).map((_, idx) => (
-              <span key={idx} className="h-2 w-2 rounded-full bg-stone-200" />
-            ))}
+      <CardFooter className="p-3 pt-2 mt-auto border-t border-stone-50 bg-gray-50/20 flex items-center justify-between gap-4">
+        <div className="flex-1 flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[9px] uppercase font-black tracking-widest text-stone-400">Status</span>
+            <span className="text-[10px] font-bold text-stone-900">In Progress</span>
           </div>
-          <div className="flex items-center gap-1.5 text-[11px] text-stone-500 min-w-0">
-            <span className="font-semibold uppercase truncate">{item.semesterLabel}</span>
+          <div className="h-1 w-full bg-stone-100 rounded-full overflow-hidden">
+            <div className="h-full w-1/2 bg-[#1f1f1f] rounded-full" />
           </div>
         </div>
         
         <div className="flex gap-1 shrink-0">
-          <Button variant="outline" size="icon-sm" className="h-7 w-7 rounded-md border-stone-200 hover:bg-white shadow-none" asChild>
+          <Button variant="outline" size="icon-sm" className="h-7 w-7 rounded-md border-stone-200 hover:bg-white shadow-none bg-white" asChild>
             <Link href={`/projects-seminars/${item.id}`}>
               <ExternalLink className="h-3.5 w-3.5 text-stone-600" />
             </Link>
           </Button>
           {item.url ? (
-            <Button variant="outline" size="icon-sm" className="h-7 w-7 rounded-md border-stone-200 hover:bg-white shadow-none" asChild>
+            <Button variant="outline" size="icon-sm" className="h-7 w-7 rounded-md border-stone-200 hover:bg-white shadow-none bg-white" asChild>
               <a href={item.url} target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="h-3.5 w-3.5 text-stone-600" />
               </a>
