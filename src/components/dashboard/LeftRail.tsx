@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Image from "next/image";
 import {
   BarChart3,
   BookOpen,
@@ -137,8 +138,7 @@ export default function LeftRail({ labels }: LeftRailProps) {
           className={`flex h-8 items-center gap-2.5 ${collapsed ? "opacity-0 pointer-events-none" : ""}`}
           title="Athena"
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/athena.svg" alt="Athena" width={22} height={22} />
+          <Image src="/athena.svg" alt="Athena" width={22} height={22} />
           {!collapsed && <span className="font-brand text-base leading-none">Athena</span>}
         </Link>
         <SidebarTrigger className={collapsed ? "absolute left-1/2 -translate-x-1/2" : ""} />

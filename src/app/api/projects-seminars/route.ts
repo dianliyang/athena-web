@@ -8,7 +8,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
 
   const page = Math.max(1, Number.parseInt(searchParams.get("page") || "1", 10));
-  const size = Math.max(1, Number.parseInt(searchParams.get("size") || "12", 10));
+  const size = Math.max(1, Number.parseInt(searchParams.get("size") || "20", 10));
   const offset = (page - 1) * size;
   const query = searchParams.get("q") || "";
   const categoriesFilter = (searchParams.get("category") || "")

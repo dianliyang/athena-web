@@ -166,6 +166,7 @@ export default function ActiveCourseTrack({
       totalDays
     };
   }, [localPlan, weekdaysShort]);
+  const roadmapSubdomain = course.subdomain || course.fields?.[0] || "";
 
   return (
     <Card className="gap-0 overflow-hidden p-0">
@@ -239,6 +240,9 @@ export default function ActiveCourseTrack({
                       </HoverCardContent> :
                     null}
                   </HoverCard>
+                  {roadmapSubdomain ? (
+                    <Badge variant="secondary">{roadmapSubdomain}</Badge>
+                  ) : null}
                 </> :
               <p className="text-[11px] italic text-muted-foreground leading-none">No schedule defined</p>}
             </div>

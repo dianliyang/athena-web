@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import LeftRail from "@/components/dashboard/LeftRail";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
@@ -33,19 +32,18 @@ interface DashboardShellProps {
 }
 
 export default function DashboardShell({ labels, children }: DashboardShellProps) {
-  const pathname = usePathname();
-  const isScheduleRoute = pathname.startsWith("/study-schedule");
-  const isFlushScrollRoute = isScheduleRoute;
+  const [collapsed, setCollapsed] = useState(false);
 
-  const [collapsed, setCollapsed] = useState(() => {
-    if (typeof window === "undefined") return false;
+  useEffect(() => {
     try {
       const saved = window.localStorage.getItem(LEFT_RAIL_COLLAPSED_KEY);
-      return saved === "true";
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCollapsed(saved === "true");
     } catch {
-      return false;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCollapsed(false);
     }
-  });
+  }, []);
 
   return (
     <SidebarProvider
@@ -65,11 +63,7 @@ export default function DashboardShell({ labels, children }: DashboardShellProps
       <SidebarInset className="h-svh min-w-0 overflow-hidden overscroll-none">
         <div
           id="dashboard-scroll"
-          className={`h-full w-full ${
-            isFlushScrollRoute
-              ? "overflow-y-auto overflow-x-hidden overscroll-contain"
-              : "overflow-y-auto overflow-x-hidden overscroll-contain p-4"
-          }`}
+          className="h-full w-full overflow-y-auto overflow-x-hidden overscroll-contain px-4 py-4"
         >
           {children}
         </div>

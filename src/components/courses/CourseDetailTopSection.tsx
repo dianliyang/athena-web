@@ -97,6 +97,7 @@ export default function CourseDetailTopSection({
     description: course.description || "",
     url: course.url || "",
     department: course.department || "",
+    subdomain: course.subdomain || "",
     corequisites: course.corequisites || "",
     prerequisites: course.prerequisites || "",
     resourcesText: (course.resources || []).join("\n"),
@@ -178,7 +179,7 @@ export default function CourseDetailTopSection({
         difficulty: Number(formData.difficulty || 0),
         popularity: Number(formData.popularity || 0),
         workload: Number(formData.workload || 0),
-        subdomain: course.subdomain || "",
+        subdomain: formData.subdomain,
         category: course.category || "",
         isHidden: formData.isHidden,
         isInternal: formData.isInternal,
@@ -344,6 +345,10 @@ export default function CourseDetailTopSection({
               <div className="space-y-1">
                 <label className="text-xs font-medium text-[#666]">Department</label>
                 <Input value={formData.department} onChange={(e) => setFormData((p) => ({ ...p, department: e.target.value }))} placeholder="Department" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-[#666]">Subdomain</label>
+                <Input value={formData.subdomain} onChange={(e) => setFormData((p) => ({ ...p, subdomain: e.target.value }))} placeholder="Subdomain" />
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium text-[#666]">Level</label>

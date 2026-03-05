@@ -41,9 +41,9 @@ export default async function ProjectsSeminarsPage({
   const dict = await getDictionary(lang);
 
   const page = Math.max(1, parseInt(readParam(params, "page") || "1"));
-  const allowedPerPage = [12, 24, 48];
-  const parsedPerPage = parseInt(readParam(params, "perPage") || "12");
-  const perPage = allowedPerPage.includes(parsedPerPage) ? parsedPerPage : 12;
+  const allowedPerPage = [20];
+  const parsedPerPage = parseInt(readParam(params, "perPage") || "20");
+  const perPage = allowedPerPage.includes(parsedPerPage) ? parsedPerPage : 20;
   const offset = (page - 1) * perPage;
   const query = readParam(params, "q");
   const categoriesFilter = readListParam(params, "category");

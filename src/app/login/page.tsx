@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import LoginForm from "@/components/auth/LoginForm";
 import { getLanguage } from "@/actions/language";
 import { getDictionary } from "@/lib/dictionary";
@@ -56,8 +57,7 @@ export default async function LoginPage({ searchParams }: PageProps) {
           className="flex items-center gap-3 text-2xl tracking-tight text-stone-900"
           style={{ fontFamily: "var(--font-landing-serif)" }}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/athena.svg" alt="Athena logo" width={24} height={24} />
+          <Image src="/athena.svg" alt="Athena logo" width={24} height={24} />
           Athena
         </Link>
 

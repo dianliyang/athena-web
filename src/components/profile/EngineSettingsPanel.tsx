@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import { Globe, Sparkles, X } from "lucide-react";
 import { AI_PROVIDERS, type AIProvider } from "@/lib/ai/models-client";
 import { updateAiPreferences } from "@/actions/profile";
@@ -233,10 +234,12 @@ export default function EngineSettingsPanel({
         <Card>
           <CardContent>
             <div className="flex items-center gap-2 text-muted-foreground">
-              <img
+              <Image
                 src={providerSummaryIconPath(provider)}
                 alt={`${providerLabel(provider)} icon`}
                 className={providerSummaryIconClass(provider)}
+                width={20}
+                height={20}
               />
               <span className="text-xs">Active Provider</span>
             </div>
@@ -288,7 +291,13 @@ export default function EngineSettingsPanel({
                     aria-label={providerLabel(p as AIProvider)}
                     title={providerLabel(p as AIProvider)}
                   >
-                    <img src={providerIconPath(p as AIProvider)} alt="" className={providerIconClass(p as AIProvider)} />
+                    <Image
+                      src={providerIconPath(p as AIProvider)}
+                      alt=""
+                      className={providerIconClass(p as AIProvider)}
+                      width={120}
+                      height={24}
+                    />
                   </Toggle>
                 ))}
               </div>

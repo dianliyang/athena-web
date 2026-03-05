@@ -10,7 +10,7 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const page = parseInt(searchParams.get('page') || '1');
-  const size = parseInt(searchParams.get('size') || '12');
+  const size = parseInt(searchParams.get('size') || '20');
   const offset = (page - 1) * size;
   
   const universitiesParam = searchParams.get('universities');

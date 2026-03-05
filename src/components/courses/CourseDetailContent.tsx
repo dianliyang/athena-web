@@ -2,10 +2,12 @@
 
 import { startTransition, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Course } from "@/types";
 import CourseDetailTopSection, {
-  EditableStudyPlan } from
-"@/components/courses/CourseDetailTopSection";
+  EditableStudyPlan,
+} from "@/components/courses/CourseDetailTopSection";
+import WeeklyScheduleCard from "@/components/courses/WeeklyScheduleCard";
 import CourseDetailHeader from "@/components/courses/CourseDetailHeader";
 import AddPlanModal from "@/components/home/AddPlanModal";
 import {
@@ -13,8 +15,8 @@ import {
   previewStudyPlansFromCourseSchedule,
   toggleCourseEnrollmentAction,
   updateCourseResources,
-  type SchedulePlanPreview } from
-"@/actions/courses";
+  type SchedulePlanPreview,
+} from "@/actions/courses";
 import {
   CalendarPlus,
   ChevronDownIcon,
@@ -34,8 +36,8 @@ import {
   Trash2,
   Users,
   WandSparkles,
-  X } from
-"lucide-react";
+  X,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Toggle } from "@/components/ui/toggle";
 import { Input } from "@/components/ui/input";
@@ -50,11 +52,19 @@ import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
-  InputGroupInput
+  InputGroupInput,
 } from "@/components/ui/input-group";
 import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 import {
   Combobox,
   ComboboxCollection,
@@ -65,7 +75,7 @@ import {
   ComboboxItem,
   ComboboxLabel,
   ComboboxList,
-  ComboboxSeparator
+  ComboboxSeparator,
 } from "@/components/ui/combobox";
 import { format, parseISO } from "date-fns";
 import { type DateRange } from "react-day-picker";
@@ -77,7 +87,7 @@ interface CourseDetailContentProps {
   availableTopics: string[];
   availableSemesters: string[];
   studyPlans: EditableStudyPlan[];
-  projectSeminarRef?: {id: number;category: string;} | null;
+  projectSeminarRef?: { id: number; category: string } | null;
   syllabus?: {
     source_url: string | null;
     content: Record<string, unknown>;
@@ -140,9 +150,9 @@ function parseDateAsLocal(value: string): Date | null {
 }
 
 function formatDateForUser(
-value: string,
-options: Intl.DateTimeFormatOptions)
-: string {
+  value: string,
+  options: Intl.DateTimeFormatOptions,
+): string {
   const parsed = parseDateAsLocal(value);
   if (!parsed) return value;
   return parsed.toLocaleDateString(undefined, options);
@@ -160,14 +170,14 @@ function resolvePreferredLanguage(): string {
 }
 
 async function reverseGeocodeLocationName(
-lat: number,
-lng: number)
-: Promise<string> {
+  lat: number,
+  lng: number,
+): Promise<string> {
   const fallback = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
   const language = resolvePreferredLanguage();
   try {
     const res = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=18&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}&accept-language=${encodeURIComponent(language)}`
+      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=18&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}&accept-language=${encodeURIComponent(language)}`,
     );
     if (!res.ok) return fallback;
     const data = (await res.json()) as {
@@ -177,28 +187,28 @@ lng: number)
     };
     const address = data.address || {};
     const locality =
-    address.city ||
-    address.town ||
-    address.village ||
-    address.hamlet ||
-    address.county ||
-    address.state;
+      address.city ||
+      address.town ||
+      address.village ||
+      address.hamlet ||
+      address.county ||
+      address.state;
     const microArea =
-    address.road ||
-    address.pedestrian ||
-    address.footway ||
-    address.amenity ||
-    address.building;
+      address.road ||
+      address.pedestrian ||
+      address.footway ||
+      address.amenity ||
+      address.building;
     const area =
-    address.suburb || address.neighbourhood || address.city_district;
+      address.suburb || address.neighbourhood || address.city_district;
     const country = address.country;
-    const compact = [microArea, area, locality, country].
-    filter(Boolean).
-    join(", ");
+    const compact = [microArea, area, locality, country]
+      .filter(Boolean)
+      .join(", ");
     if (compact) return compact;
     if (data.name) return data.name;
     if (data.display_name)
-    return data.display_name.split(",").slice(0, 3).join(",").trim();
+      return data.display_name.split(",").slice(0, 3).join(",").trim();
     return fallback;
   } catch {
     return fallback;
@@ -206,14 +216,14 @@ lng: number)
 }
 
 function calculateInclusiveDays(
-startDate: string,
-endDate: string)
-: number | null {
+  startDate: string,
+  endDate: string,
+): number | null {
   const start = parseIsoDate(startDate);
   const end = parseIsoDate(endDate);
   if (!start || !end) return null;
   const diff = Math.floor(
-    (end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000)
+    (end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000),
   );
   return diff >= 0 ? diff + 1 : null;
 }
@@ -221,7 +231,8 @@ endDate: string)
 function getPreviewableUrl(url: string): string | null {
   const trimmed = String(url || "").trim();
   if (!trimmed) return null;
-  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) return trimmed;
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://"))
+    return trimmed;
   return null;
 }
 
@@ -250,7 +261,7 @@ export default function CourseDetailContent({
   studyPlans,
   projectSeminarRef = null,
   assignments = [],
-  scheduleItems = []
+  scheduleItems = [],
 }: CourseDetailContentProps) {
   const [enrolled, setEnrolled] = useState(isEnrolled);
   const [isEnrolling, setIsEnrolling] = useState(false);
@@ -258,46 +269,48 @@ export default function CourseDetailContent({
   const [isGeneratingPlans, setIsGeneratingPlans] = useState(false);
   const [isConfirmingPlans, setIsConfirmingPlans] = useState(false);
   const [editablePlans, setEditablePlans] =
-  useState<EditableStudyPlan[]>(studyPlans);
+    useState<EditableStudyPlan[]>(studyPlans);
   const [editingPlanIndex, setEditingPlanIndex] = useState<number | null>(null);
   const [editingPlanBackup, setEditingPlanBackup] =
-  useState<EditableStudyPlan | null>(null);
+    useState<EditableStudyPlan | null>(null);
   const [savingPlanIndex, setSavingPlanIndex] = useState<number | null>(null);
   const [deletingPlanIndex, setDeletingPlanIndex] = useState<number | null>(
-    null
+    null,
   );
   const [locatingPlanIndex, setLocatingPlanIndex] = useState<number | null>(
-    null
+    null,
   );
   const [planPreview, setPlanPreview] = useState<{
-    originalSchedule: Array<{type: string;line: string;}>;
+    originalSchedule: Array<{ type: string; line: string }>;
     generatedPlans: SchedulePlanPreview[];
   } | null>(null);
   const [selectedPlanIds, setSelectedPlanIds] = useState<string[]>([]);
   const [localResources, setLocalResources] = useState<string[]>(
-    course.resources || []
+    course.resources || [],
   );
   const [showAddUrl, setShowAddUrl] = useState(false);
   const [newUrl, setNewUrl] = useState("");
   const [isAddingUrl, setIsAddingUrl] = useState(false);
   const [removingUrlIndex, setRemovingUrlIndex] = useState<number | null>(null);
-  const [resourcePreviewState, setResourcePreviewState] = useState<Record<string, "blocked">>({});
+  const [resourcePreviewState, setResourcePreviewState] = useState<
+    Record<string, "blocked">
+  >({});
   const [showAllResources, setShowAllResources] = useState(false);
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<
-    string | null>(
-    null);
+    string | null
+  >(null);
   const [visibleCalendarMonthKey, setVisibleCalendarMonthKey] = useState<
-    string | null>(
-    null);
+    string | null
+  >(null);
   const [showAddPlanModal, setShowAddPlanModal] = useState(false);
   const router = useRouter();
   const dayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const hasStudyPlans = editablePlans.length > 0;
   const normalizeTime = (value: string) =>
-  value.length === 5 ? `${value}:00` : value || "09:00:00";
+    value.length === 5 ? `${value}:00` : value || "09:00:00";
   const unitInfo = useMemo(
     () => getUniversityUnitInfo(course.university, course.units),
-    [course.university, course.units]
+    [course.university, course.units],
   );
   const currentTimeZone = useMemo(() => {
     try {
@@ -309,9 +322,9 @@ export default function CourseDetailContent({
   const timeZoneOptions = useMemo(() => {
     try {
       const intlWithSupported =
-      Intl as unknown as Intl.DateTimeFormatConstructor & {
-        supportedValuesOf?: (key: string) => string[];
-      };
+        Intl as unknown as Intl.DateTimeFormatConstructor & {
+          supportedValuesOf?: (key: string) => string[];
+        };
       const zones = intlWithSupported.supportedValuesOf?.("timeZone");
       if (zones && zones.length > 0) {
         return zones;
@@ -336,71 +349,72 @@ export default function CourseDetailContent({
         zone.startsWith("Asia/") ||
         zone.startsWith("Pacific/") ||
         zone.startsWith("Australia/")
-      ) group = "Asia/Pacific";
+      )
+        group = "Asia/Pacific";
       else if (zone.startsWith("Africa/")) group = "Africa";
       const bucket = groups.get(group) || [];
       bucket.push(zone);
       groups.set(group, bucket);
     });
     const order = ["Americas", "Europe", "Asia/Pacific", "Africa", "Other"];
-    return order.
-    filter((key) => groups.has(key)).
-    map((key) => ({ value: key, items: groups.get(key) || [] }));
+    return order
+      .filter((key) => groups.has(key))
+      .map((key) => ({ value: key, items: groups.get(key) || [] }));
   };
   const estimatedWorkload = unitInfo.estimate?.details || "-";
   const codeBreakdown = useMemo(
     () => getCourseCodeBreakdown(course.university, course.courseCode),
-    [course.university, course.courseCode]
+    [course.university, course.courseCode],
   );
   const categoryRaw =
-  typeof course.details?.category === "string" ? course.details.category : "";
+    typeof course.details?.category === "string" ? course.details.category : "";
   const categoryLabel =
-  categoryRaw === "Compulsory elective modules in Computer Science" ?
-  "Compulsory elective" :
-  categoryRaw === "Theoretical Computer Science" ?
-  "Theoretical" :
-  categoryRaw === "Advanced Project" ?
-  "Project" :
-  categoryRaw === "Seminar" ?
-  "Seminar" :
-  categoryRaw;
+    categoryRaw === "Compulsory elective modules in Computer Science"
+      ? "Compulsory elective"
+      : categoryRaw === "Theoretical Computer Science"
+        ? "Theoretical"
+        : categoryRaw === "Advanced Project"
+          ? "Project"
+          : categoryRaw === "Seminar"
+            ? "Seminar"
+            : categoryRaw;
   const variantCodeLinks = useMemo(() => {
     const details =
-    course.details as Record<string, unknown> | undefined || {};
+      (course.details as Record<string, unknown> | undefined) || {};
     const raw =
-    details.variant_code_links ||
-    details.cmu_code_links ||
-    details.mit_code_links ||
-    details.ucb_code_links ||
-    details.stanford_code_links;
-    if (!Array.isArray(raw)) return [] as Array<{id: string;link: string;}>;
-    return raw.
-    map((item) => {
-      if (!item || typeof item !== "object") return null;
-      const id =
-      typeof (item as Record<string, unknown>).id === "string" ?
-      (item as Record<string, unknown>).id :
-      "";
-      const link =
-      typeof (item as Record<string, unknown>).link === "string" ?
-      (item as Record<string, unknown>).link :
-      "";
-      if (!id) return null;
-      return { id, link };
-    }).
-    filter((item): item is {id: string;link: string;} => item !== null);
+      details.variant_code_links ||
+      details.cmu_code_links ||
+      details.mit_code_links ||
+      details.ucb_code_links ||
+      details.stanford_code_links;
+    if (!Array.isArray(raw)) return [] as Array<{ id: string; link: string }>;
+    return raw
+      .map((item) => {
+        if (!item || typeof item !== "object") return null;
+        const id =
+          typeof (item as Record<string, unknown>).id === "string"
+            ? (item as Record<string, unknown>).id
+            : "";
+        const link =
+          typeof (item as Record<string, unknown>).link === "string"
+            ? (item as Record<string, unknown>).link
+            : "";
+        if (!id) return null;
+        return { id, link };
+      })
+      .filter((item): item is { id: string; link: string } => item !== null);
   }, [course.details]);
   const variantLabel =
-  course.university?.toLowerCase() === "mit" ?
-  "MIT Course Variants" :
-  course.university?.toLowerCase() === "ucb" ?
-  "UCB Course Variants" :
-  course.university?.toLowerCase() === "stanford" ?
-  "Stanford Course Variants" :
-  "CMU Course Variants";
-  const visibleResources = showAllResources ?
-  localResources :
-  localResources.slice(0, 5);
+    course.university?.toLowerCase() === "mit"
+      ? "MIT Course Variants"
+      : course.university?.toLowerCase() === "ucb"
+        ? "UCB Course Variants"
+        : course.university?.toLowerCase() === "stanford"
+          ? "Stanford Course Variants"
+          : "CMU Course Variants";
+  const visibleResources = showAllResources
+    ? localResources
+    : localResources.slice(0, 5);
   const hasMoreResources = localResources.length > 5;
 
   useEffect(() => {
@@ -409,31 +423,31 @@ export default function CourseDetailContent({
   }, [course.resources]);
 
   const studyPlanCalendar = useMemo(() => {
-    const scheduleRows = scheduleItems.
-    map((item) => {
-      const parsedDate = parseIsoDate(item.date);
-      if (!parsedDate) return null;
-      const dateIso = toIsoDateUtc(parsedDate);
-      const label = String(
-        item.title || item.focus || item.kind || "Scheduled Task"
-      ).trim();
-      const duration =
-      typeof item.durationMinutes === "number" &&
-      Number.isFinite(item.durationMinutes) ?
-      `${Math.max(1, Math.round(item.durationMinutes))}m` :
-      "";
-      const kind = String(item.kind || "").trim();
-      const meta =
-      [kind, duration].filter(Boolean).join(" · ") || "Scheduled";
-      return { dateIso, label, meta };
-    }).
-    filter(
-      (row): row is {dateIso: string;label: string;meta: string;} =>
-      row !== null
-    );
+    const scheduleRows = scheduleItems
+      .map((item) => {
+        const parsedDate = parseIsoDate(item.date);
+        if (!parsedDate) return null;
+        const dateIso = toIsoDateUtc(parsedDate);
+        const label = String(
+          item.title || item.focus || item.kind || "Scheduled Task",
+        ).trim();
+        const duration =
+          typeof item.durationMinutes === "number" &&
+          Number.isFinite(item.durationMinutes)
+            ? `${Math.max(1, Math.round(item.durationMinutes))}m`
+            : "";
+        const kind = String(item.kind || "").trim();
+        const meta =
+          [kind, duration].filter(Boolean).join(" · ") || "Scheduled";
+        return { dateIso, label, meta };
+      })
+      .filter(
+        (row): row is { dateIso: string; label: string; meta: string } =>
+          row !== null,
+      );
     if (scheduleRows.length === 0) {
       return {
-        range: null as null | {startIso: string;endIso: string;},
+        range: null as null | { startIso: string; endIso: string },
         months: [] as Array<{
           key: string;
           label: string;
@@ -444,37 +458,37 @@ export default function CourseDetailContent({
             inRange: boolean;
           }>;
         }>,
-        eventsByDate: new Map<string, PlanCalendarEvent[]>()
+        eventsByDate: new Map<string, PlanCalendarEvent[]>(),
       };
     }
 
     const scheduleSortedDates = scheduleRows.map((row) => row.dateIso).sort();
     const rangeStart = parseIsoDate(scheduleSortedDates[0])!;
     const rangeEnd = parseIsoDate(
-      scheduleSortedDates[scheduleSortedDates.length - 1]
+      scheduleSortedDates[scheduleSortedDates.length - 1],
     )!;
     const rangeStartIso = toIsoDateUtc(rangeStart);
     const rangeEndIso = toIsoDateUtc(rangeEnd);
 
-    const deadlineRows = assignments.
-    map((item) => {
-      if (!item.due_on) return null;
-      const parsedDate = parseIsoDate(item.due_on);
-      if (!parsedDate) return null;
-      const dateIso = toIsoDateUtc(parsedDate);
-      if (dateIso < rangeStartIso || dateIso > rangeEndIso) return null;
-      const label = String(item.label || "Deadline").trim() || "Deadline";
-      const kind = String(item.kind || "").trim();
-      return {
-        dateIso,
-        label,
-        meta: `Deadline${kind ? ` · ${kind}` : ""}`
-      };
-    }).
-    filter(
-      (row): row is {dateIso: string;label: string;meta: string;} =>
-      row !== null
-    );
+    const deadlineRows = assignments
+      .map((item) => {
+        if (!item.due_on) return null;
+        const parsedDate = parseIsoDate(item.due_on);
+        if (!parsedDate) return null;
+        const dateIso = toIsoDateUtc(parsedDate);
+        if (dateIso < rangeStartIso || dateIso > rangeEndIso) return null;
+        const label = String(item.label || "Deadline").trim() || "Deadline";
+        const kind = String(item.kind || "").trim();
+        return {
+          dateIso,
+          label,
+          meta: `Deadline${kind ? ` · ${kind}` : ""}`,
+        };
+      })
+      .filter(
+        (row): row is { dateIso: string; label: string; meta: string } =>
+          row !== null,
+      );
     const rows = [...scheduleRows, ...deadlineRows];
 
     const eventsByDate = new Map<string, PlanCalendarEvent[]>();
@@ -495,20 +509,20 @@ export default function CourseDetailContent({
       }>;
     }> = [];
     for (
-    let cursor = new Date(
-      Date.UTC(rangeStart.getUTCFullYear(), rangeStart.getUTCMonth(), 1)
-    );
-    cursor <=
-    new Date(Date.UTC(rangeEnd.getUTCFullYear(), rangeEnd.getUTCMonth(), 1));
-    cursor = new Date(
-      Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() + 1, 1)
-    ))
-    {
+      let cursor = new Date(
+        Date.UTC(rangeStart.getUTCFullYear(), rangeStart.getUTCMonth(), 1),
+      );
+      cursor <=
+      new Date(Date.UTC(rangeEnd.getUTCFullYear(), rangeEnd.getUTCMonth(), 1));
+      cursor = new Date(
+        Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() + 1, 1),
+      )
+    ) {
       const monthStart = new Date(
-        Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth(), 1)
+        Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth(), 1),
       );
       const monthEnd = new Date(
-        Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() + 1, 0)
+        Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() + 1, 0),
       );
       const gridStart = addDaysUtc(monthStart, -monthStart.getUTCDay());
       const gridEnd = addDaysUtc(monthEnd, 6 - monthEnd.getUTCDay());
@@ -520,16 +534,16 @@ export default function CourseDetailContent({
       }> = [];
 
       for (
-      let d = new Date(gridStart.getTime());
-      d <= gridEnd;
-      d = addDaysUtc(d, 1))
-      {
+        let d = new Date(gridStart.getTime());
+        d <= gridEnd;
+        d = addDaysUtc(d, 1)
+      ) {
         const dateIso = toIsoDateUtc(d);
         cells.push({
           dateIso,
           day: d.getUTCDate(),
           inMonth: d.getUTCMonth() === monthStart.getUTCMonth(),
-          inRange: dateIso >= rangeStartIso && dateIso <= rangeEndIso
+          inRange: dateIso >= rangeStartIso && dateIso <= rangeEndIso,
         });
       }
 
@@ -537,16 +551,16 @@ export default function CourseDetailContent({
         key: `${monthStart.getUTCFullYear()}-${String(monthStart.getUTCMonth() + 1).padStart(2, "0")}`,
         label: monthStart.toLocaleDateString(undefined, {
           month: "long",
-          year: "numeric"
+          year: "numeric",
         }),
-        cells
+        cells,
       });
     }
 
     return {
       range: { startIso: rangeStartIso, endIso: rangeEndIso },
       months,
-      eventsByDate
+      eventsByDate,
     };
   }, [scheduleItems, assignments]);
 
@@ -557,14 +571,14 @@ export default function CourseDetailContent({
     }
     const current = selectedCalendarDate;
     if (
-    current &&
-    current >= studyPlanCalendar.range.startIso &&
-    current <= studyPlanCalendar.range.endIso)
-    {
+      current &&
+      current >= studyPlanCalendar.range.startIso &&
+      current <= studyPlanCalendar.range.endIso
+    ) {
       return;
     }
     const firstEventDate =
-    Array.from(studyPlanCalendar.eventsByDate.keys()).sort()[0] || null;
+      Array.from(studyPlanCalendar.eventsByDate.keys()).sort()[0] || null;
     setSelectedCalendarDate(firstEventDate || studyPlanCalendar.range.startIso);
   }, [studyPlanCalendar, selectedCalendarDate]);
 
@@ -575,18 +589,18 @@ export default function CourseDetailContent({
       return;
     }
     if (
-    visibleCalendarMonthKey &&
-    months.some((month) => month.key === visibleCalendarMonthKey))
-    {
+      visibleCalendarMonthKey &&
+      months.some((month) => month.key === visibleCalendarMonthKey)
+    ) {
       return;
     }
-    const selectedMonthKey = selectedCalendarDate ?
-    selectedCalendarDate.slice(0, 7) :
-    null;
+    const selectedMonthKey = selectedCalendarDate
+      ? selectedCalendarDate.slice(0, 7)
+      : null;
     if (
-    selectedMonthKey &&
-    months.some((month) => month.key === selectedMonthKey))
-    {
+      selectedMonthKey &&
+      months.some((month) => month.key === selectedMonthKey)
+    ) {
       setVisibleCalendarMonthKey(selectedMonthKey);
       return;
     }
@@ -594,12 +608,12 @@ export default function CourseDetailContent({
   }, [studyPlanCalendar.months, selectedCalendarDate, visibleCalendarMonthKey]);
 
   const visibleCalendarMonthIndex = studyPlanCalendar.months.findIndex(
-    (month) => month.key === visibleCalendarMonthKey
+    (month) => month.key === visibleCalendarMonthKey,
   );
   const resolvedCalendarMonthIndex =
-  visibleCalendarMonthIndex >= 0 ? visibleCalendarMonthIndex : 0;
+    visibleCalendarMonthIndex >= 0 ? visibleCalendarMonthIndex : 0;
   const visibleCalendarMonth =
-  studyPlanCalendar.months[resolvedCalendarMonthIndex] || null;
+    studyPlanCalendar.months[resolvedCalendarMonthIndex] || null;
   const todayIso = toIsoDateUtc(new Date());
 
   const handleGeneratePlans = async () => {
@@ -612,10 +626,10 @@ export default function CourseDetailContent({
     } catch (error) {
       console.error(error);
       toast.error(
-        error instanceof Error ?
-        error.message :
-        "Failed to generate study plans from schedule",
-        { position: "bottom-right" }
+        error instanceof Error
+          ? error.message
+          : "Failed to generate study plans from schedule",
+        { position: "bottom-right" },
       );
     } finally {
       setIsGeneratingPlans(false);
@@ -626,23 +640,23 @@ export default function CourseDetailContent({
     if (!planPreview) return;
     setIsConfirmingPlans(true);
     try {
-      const selected = planPreview.generatedPlans.
-      map((plan, idx) => ({ plan, idx: String(idx) })).
-      filter(({ idx }) => selectedPlanIds.includes(idx)).
-      map(({ plan }) => ({
-        daysOfWeek: plan.daysOfWeek,
-        startTime: plan.startTime,
-        endTime: plan.endTime,
-        location: plan.location,
-        kind: plan.kind,
-        startDate: plan.startDate,
-        endDate: plan.endDate
-      }));
+      const selected = planPreview.generatedPlans
+        .map((plan, idx) => ({ plan, idx: String(idx) }))
+        .filter(({ idx }) => selectedPlanIds.includes(idx))
+        .map(({ plan }) => ({
+          daysOfWeek: plan.daysOfWeek,
+          startTime: plan.startTime,
+          endTime: plan.endTime,
+          location: plan.location,
+          kind: plan.kind,
+          startDate: plan.startDate,
+          endDate: plan.endDate,
+        }));
       const result = await confirmGeneratedStudyPlans(course.id, selected, {
-        replaceExisting: true
+        replaceExisting: true,
       });
       toast.success(`Updated Weekly Schedule with ${result.created} plan(s).`, {
-        position: "bottom-right"
+        position: "bottom-right",
       });
       setPlanPreview(null);
       setSelectedPlanIds([]);
@@ -650,10 +664,10 @@ export default function CourseDetailContent({
     } catch (error) {
       console.error(error);
       toast.error(
-        error instanceof Error ?
-        error.message :
-        "Failed to save generated study plans",
-        { position: "bottom-right" }
+        error instanceof Error
+          ? error.message
+          : "Failed to save generated study plans",
+        { position: "bottom-right" },
       );
     } finally {
       setIsConfirmingPlans(false);
@@ -679,10 +693,10 @@ export default function CourseDetailContent({
   };
 
   const handleAddUrl = async () => {
-    const urls = newUrl.
-    split("\n").
-    map((url) => url.trim()).
-    filter(Boolean);
+    const urls = newUrl
+      .split("\n")
+      .map((url) => url.trim())
+      .filter(Boolean);
     if (!urls.length) return;
     const updated = [...localResources, ...urls];
     setLocalResources(updated);
@@ -726,7 +740,7 @@ export default function CourseDetailContent({
       const res = await fetch("/api/schedule", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "remove_plan", planId: plan.id })
+        body: JSON.stringify({ action: "remove_plan", planId: plan.id }),
       });
       if (!res.ok) throw new Error("Failed to delete study plan");
       startTransition(() => router.refresh());
@@ -734,7 +748,7 @@ export default function CourseDetailContent({
       console.error(error);
       toast.error(
         error instanceof Error ? error.message : "Failed to delete study plan",
-        { position: "bottom-right" }
+        { position: "bottom-right" },
       );
     } finally {
       setDeletingPlanIndex(null);
@@ -760,8 +774,8 @@ export default function CourseDetailContent({
             endTime: normalizeTime(plan.endTime),
             location: plan.location,
             kind: plan.kind,
-            timezone: plan.timezone || "UTC"
-          })
+            timezone: plan.timezone || "UTC",
+          }),
         });
         if (!res.ok) throw new Error("Failed to update study plan");
       }
@@ -772,7 +786,7 @@ export default function CourseDetailContent({
       console.error(error);
       toast.error(
         error instanceof Error ? error.message : "Failed to save study plan",
-        { position: "bottom-right" }
+        { position: "bottom-right" },
       );
     } finally {
       setSavingPlanIndex(null);
@@ -781,16 +795,16 @@ export default function CourseDetailContent({
 
   const handleStartEditPlan = (index: number) => {
     const target = editablePlans[index];
-    const normalizedTarget = target ?
-    {
-      ...target,
-      daysOfWeek: [...(target.daysOfWeek || [])],
-      timezone: target.timezone?.trim() || currentTimeZone
-    } :
-    null;
+    const normalizedTarget = target
+      ? {
+          ...target,
+          daysOfWeek: [...(target.daysOfWeek || [])],
+          timezone: target.timezone?.trim() || currentTimeZone,
+        }
+      : null;
     if (normalizedTarget) {
       setEditablePlans((prev) =>
-      prev.map((plan, i) => i === index ? normalizedTarget : plan)
+        prev.map((plan, i) => (i === index ? normalizedTarget : plan)),
       );
     }
     setEditingPlanIndex(index);
@@ -801,7 +815,7 @@ export default function CourseDetailContent({
     if (editingPlanIndex !== null && editingPlanBackup) {
       const index = editingPlanIndex;
       setEditablePlans((prev) =>
-      prev.map((plan, i) => i === index ? editingPlanBackup : plan)
+        prev.map((plan, i) => (i === index ? editingPlanBackup : plan)),
       );
     }
     setEditingPlanIndex(null);
@@ -819,27 +833,29 @@ export default function CourseDetailContent({
         const lng = position.coords.longitude.toFixed(5);
         const locationName = await reverseGeocodeLocationName(
           Number(lat),
-          Number(lng)
+          Number(lng),
         );
         setEditablePlans((prev) =>
-        prev.map((plan, i) =>
-        i === index ? { ...plan, location: locationName } : plan
-        )
+          prev.map((plan, i) =>
+            i === index ? { ...plan, location: locationName } : plan,
+          ),
         );
         setLocatingPlanIndex(null);
       },
       () => {
         setLocatingPlanIndex(null);
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
     );
   };
 
   const updateEditablePlan = (
     index: number,
-    updater: (plan: EditableStudyPlan) => EditableStudyPlan
+    updater: (plan: EditableStudyPlan) => EditableStudyPlan,
   ) => {
-    setEditablePlans((prev) => prev.map((plan, i) => (i === index ? updater(plan) : plan)));
+    setEditablePlans((prev) =>
+      prev.map((plan, i) => (i === index ? updater(plan) : plan)),
+    );
   };
 
   const toggleEditDay = (index: number, dayIdx: number) => {
@@ -871,7 +887,7 @@ export default function CourseDetailContent({
         endTime: plan.end_time || "10:00:00",
         location: plan.location || "",
         kind: "Self-Study",
-        timezone: plan.timezone || "UTC"
+        timezone: plan.timezone || "UTC",
       };
       const existingIndex = prev.findIndex((item) => item.id === plan.id);
       const merged =
@@ -885,7 +901,7 @@ export default function CourseDetailContent({
   return (
     <div className="h-full min-h-0 overflow-hidden px-4">
       <div className="grid h-full min-h-0 overflow-hidden grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-0 lg:divide-x lg:divide-[#F5F5F5]">
-        <div className="min-h-0 space-y-5 overflow-x-hidden overflow-y-auto lg:pr-5">
+        <div className="no-scrollbar min-h-0 space-y-5 overflow-x-hidden overflow-y-auto lg:pr-5">
           <CourseDetailHeader
             course={course}
             isEditing={isEditing}
@@ -894,11 +910,14 @@ export default function CourseDetailContent({
             enrolled={enrolled}
             isEnrolling={isEnrolling}
             onToggleEnroll={handleEnrollToggle}
-            codeBreakdown={codeBreakdown} />
+            codeBreakdown={codeBreakdown}
+          />
 
           {!isEditing ? (
             <section className="py-2">
-              <h2 className="mb-2 text-lg font-semibold text-[#1f1f1f]">Description</h2>
+              <h2 className="mb-2 text-lg font-semibold text-[#1f1f1f]">
+                Description
+              </h2>
               {course.description ? (
                 <div className="prose prose-sm prose-gray max-w-none prose-p:text-[#555] prose-p:leading-7">
                   <p>{course.description}</p>
@@ -917,9 +936,9 @@ export default function CourseDetailContent({
               isEditing={isEditing}
               onEditingChange={setIsEditing}
               projectSeminarRef={projectSeminarRef}
-              showHeader={false} />
+              showHeader={false}
+            />
           )}
-          
 
           <section className="py-2">
             <div>
@@ -927,426 +946,494 @@ export default function CourseDetailContent({
                 Logistics
               </h2>
               <div className="grid grid-cols-1 gap-4">
-                  <div className="flex items-center justify-between gap-3 mb-4">
-                    <h3 className="text-sm font-medium text-[#333] flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-[#777]" />
-                      Weekly Schedule
-                    </h3>
-                    <div className="inline-flex items-center gap-1">
-                      <Popover open={showAddPlanModal} onOpenChange={setShowAddPlanModal}>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="icon-sm"
-                            type="button"
-                            title="Add schedule"
-                            aria-label="Add schedule"
-                          >
-                            <CalendarPlus />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto border-0 bg-transparent p-0 shadow-none" align="end">
-                          <AddPlanModal
-                            mode="inline"
-                            isOpen={showAddPlanModal}
-                            onClose={() => setShowAddPlanModal(false)}
-                            onSuccess={handleAddPlanSuccess}
-                            course={{
-                              id: course.id,
-                              title: course.title,
-                              courseCode: course.courseCode,
-                              university: course.university
-                            }}
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <Button
-                        variant="outline"
-                        size="icon-sm"
-                        type="button"
-                        onClick={handleGeneratePlans}
-                        disabled={isGeneratingPlans}
-                        title="Generate study plan preview">
-                        
-                        {isGeneratingPlans ?
-                        <Loader2 className="animate-spin" /> :
-
+                <div className="flex items-center justify-between gap-3 mb-4">
+                  <h3 className="text-sm font-medium text-[#333] flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-[#777]" />
+                    Weekly Schedule
+                  </h3>
+                  <div className="inline-flex items-center gap-1">
+                    <Popover
+                      open={showAddPlanModal}
+                      onOpenChange={setShowAddPlanModal}
+                    >
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon-sm"
+                          type="button"
+                          title="Add schedule"
+                          aria-label="Add schedule"
+                        >
+                          <CalendarPlus />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent
+                        className="w-auto border-0 bg-transparent p-0 shadow-none"
+                        align="end"
+                      >
+                        <AddPlanModal
+                          mode="inline"
+                          isOpen={showAddPlanModal}
+                          onClose={() => setShowAddPlanModal(false)}
+                          onSuccess={handleAddPlanSuccess}
+                          course={{
+                            id: course.id,
+                            title: course.title,
+                            courseCode: course.courseCode,
+                            university: course.university,
+                          }}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <Button
+                      variant="outline"
+                      size="icon-sm"
+                      type="button"
+                      onClick={handleGeneratePlans}
+                      disabled={isGeneratingPlans}
+                      title="Generate study plan preview"
+                    >
+                      {isGeneratingPlans ? (
+                        <Loader2 className="animate-spin" />
+                      ) : (
                         <WandSparkles />
-                        }
-                      </Button>
-                    </div>
+                      )}
+                    </Button>
                   </div>
-                <Card>
-                  <CardContent>
-                  <div
-                    className={
-                    hasStudyPlans ?
-                    "grid grid-cols-1 gap-3 md:grid-cols-2" :
-                    "space-y-4"
-                    }>
-                    
-                    {hasStudyPlans ?
-                    editablePlans.map((plan, idx) =>
-                    <div
-                      key={plan.id ?? idx}
-                      className="rounded-sm border border-[#e9e9e9] bg-white p-3">
-                      
-                      
-                          <div className="flex items-start justify-between gap-2">
-                            {editingPlanIndex !== idx ?
-                        <div className="flex flex-col gap-1">
-                                <div className="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-[#111111] leading-snug">
-                                  <span>
-                                    {plan.startTime.slice(0, 5)} -{" "}
-                                    {plan.endTime.slice(0, 5)}
-                                  </span>
-                                  {(plan.timezone || "").trim() &&
-                            <span className="text-[11px] font-normal text-[#7a7a7a]">
-                                      {plan.timezone}
-                                    </span>
-                            }
-                                </div>
-                                <div className="flex items-center gap-1 py-1" aria-label="Study days">
-                                  {Array.from({ length: 7 }).map((_, dayIdx) =>
-                            <span
-                              key={`study-day-dot-${plan.id ?? idx}-${dayIdx}`}
-                              className={`h-2 w-2 rounded-full ${
-                              (plan.daysOfWeek || []).includes(dayIdx) ? "bg-black" : "bg-muted"}`
-                              } />
-                            )}
-                                </div>
-                              </div> :
-
-                        <div className="flex flex-wrap items-center gap-2 text-xs">
-                                <Badge className="items-center gap-1 border-[#e3e3e3] bg-[#f8f8f8] px-2 py-0.5 text-[#666]">
-                                  <span className="font-semibold text-[#111111]">
-                                    {(plan.daysOfWeek || []).length}
-                                  </span>
-                                  days/week
-                                </Badge>
-                                <Badge className="items-center gap-1 border-[#e3e3e3] bg-[#f8f8f8] px-2 py-0.5 text-[#666]">
-                                  <span className="font-semibold text-[#111111]">
-                                    {calculateInclusiveDays(
-                                plan.startDate,
-                                plan.endDate
-                              ) ?? 0}
-                                  </span>
-                                  days
-                                </Badge>
+                </div>
+                <div
+                  className={
+                    hasStudyPlans
+                      ? "grid grid-cols-1 gap-3 md:grid-cols-2"
+                      : "space-y-4"
+                  }
+                >
+                  {hasStudyPlans ? (
+                    editablePlans.map((plan, idx) => (
+                      <WeeklyScheduleCard
+                        key={plan.id ?? idx}
+                        title={
+                          editingPlanIndex !== idx ? (
+                            <div className="flex flex-col gap-1">
+                              <div className="text-sm font-semibold text-[#111111] leading-snug">
+                                <span>
+                                  {plan.startTime.slice(0, 5)} -{" "}
+                                  {plan.endTime.slice(0, 5)}
+                                </span>
                               </div>
-                        }
-                            <div className="flex items-center gap-1">
-                              {editingPlanIndex === idx ? null :
-                          <>
-                                  <Button
-                              variant="outline"
-                              size="icon-sm"
-                              type="button"
-                              onClick={() => handleStartEditPlan(idx)}
-
-                              title="Edit plan">
-                              
-                                    <PenSquare />
-                                  </Button>
-                                  <Button
-                              variant="outline"
-                              size="icon-sm"
-                              type="button"
-                              onClick={() => handleDeleteSinglePlan(idx)}
-                              disabled={deletingPlanIndex === idx}
-
-                              title="Delete plan">
-                              
-                                    {deletingPlanIndex === idx ?
-                              <Loader2 className="animate-spin" /> :
-
-                              <Trash2 />
-                              }
-                                  </Button>
-                                </>
-                          }
+                              <div
+                                className="flex items-center gap-1 py-1"
+                                aria-label="Study days"
+                              >
+                                {Array.from({ length: 7 }).map((_, dayIdx) => (
+                                  <span
+                                    key={`study-day-dot-${plan.id ?? idx}-${dayIdx}`}
+                                    className={`h-2 w-2 rounded-full ${
+                                      (plan.daysOfWeek || []).includes(dayIdx)
+                                        ? "bg-black"
+                                        : "bg-muted"
+                                    }`}
+                                  />
+                                ))}
+                              </div>
                             </div>
-                          </div>
-                          {editingPlanIndex === idx ?
-                      <div className="mt-3 rounded-sm border border-[#ededed] bg-[#fcfcfc] p-3">
-                              <p className="text-sm font-medium text-[#222] mb-3">Edit Schedule</p>
-                                <div className="space-y-3">
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                    <Field className="md:col-span-2">
-                                      <FieldLabel>Date Range</FieldLabel>
-                                      <Popover>
-                                        <PopoverTrigger asChild>
-                                          <Button variant="outline" type="button" className="w-full justify-between font-normal">
-                                            {plan.startDate && plan.endDate ?
-                                            `${format(parseISO(plan.startDate), "LLL dd, y")} - ${format(parseISO(plan.endDate), "LLL dd, y")}` :
-                                            "Pick a date range"}
-                                            <ChevronDownIcon />
-                                          </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="start">
-                                          <Calendar
-                                            mode="range"
-                                            numberOfMonths={2}
-                                            selected={{
-                                              from: plan.startDate ? parseISO(plan.startDate) : undefined,
-                                              to: plan.endDate ? parseISO(plan.endDate) : undefined
-                                            } as DateRange}
-                                            onSelect={(range) => {
-                                              const from = range?.from;
-                                              const to = range?.to || range?.from;
-                                              if (!from) return;
-                                              updateEditablePlan(idx, (p) => ({
-                                                ...p,
-                                                startDate: format(from, "yyyy-MM-dd"),
-                                                endDate: format(to!, "yyyy-MM-dd")
-                                              }));
-                                            }}
-                                          />
-                                        </PopoverContent>
-                                      </Popover>
-                                    </Field>
-                                  </div>
-
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                    <Field>
-                                      <FieldLabel>Start Time</FieldLabel>
-                                      <Input
-                                        type="time"
-                                        step="1"
-                                        value={plan.startTime.slice(0, 5)}
-                                        onChange={(e) =>
-                                        updateEditablePlan(idx, (p) => ({
-                                          ...p,
-                                          startTime: normalizeTime(e.target.value)
-                                        }))
+                          ) : (
+                            <div className="flex flex-wrap items-center gap-2 text-xs">
+                              <Badge className="items-center gap-1 border-[#e3e3e3] bg-[#f8f8f8] px-2 py-0.5 text-[#666]">
+                                <span className="font-semibold text-[#111111]">
+                                  {(plan.daysOfWeek || []).length}
+                                </span>
+                                days/week
+                              </Badge>
+                              <Badge className="items-center gap-1 border-[#e3e3e3] bg-[#f8f8f8] px-2 py-0.5 text-[#666]">
+                                <span className="font-semibold text-[#111111]">
+                                  {calculateInclusiveDays(
+                                    plan.startDate,
+                                    plan.endDate,
+                                  ) ?? 0}
+                                </span>
+                                days
+                              </Badge>
+                            </div>
+                          )
+                        }
+                        headerRight={
+                          <>
+                            {editingPlanIndex === idx ? null : (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="icon-sm"
+                                  type="button"
+                                  onClick={() => handleStartEditPlan(idx)}
+                                  title="Edit plan"
+                                >
+                                  <PenSquare />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="icon-sm"
+                                  type="button"
+                                  onClick={() => handleDeleteSinglePlan(idx)}
+                                  disabled={deletingPlanIndex === idx}
+                                  title="Delete plan"
+                                >
+                                  {deletingPlanIndex === idx ? (
+                                    <Loader2 className="animate-spin" />
+                                  ) : (
+                                    <Trash2 />
+                                  )}
+                                </Button>
+                              </>
+                            )}
+                          </>
+                        }
+                        footer={
+                          editingPlanIndex === idx ? null : (
+                            <div className="space-y-0.5">
+                              <p>
+                                {formatDateForUser(plan.startDate, {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                })}
+                                {" - "}
+                                {formatDateForUser(plan.endDate, {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                })}
+                              </p>
+                              {calculateInclusiveDays(
+                                plan.startDate,
+                                plan.endDate,
+                              ) !== null && (
+                                <p className="text-[#666]">
+                                  <span className="font-semibold text-[#111]">
+                                    {calculateInclusiveDays(
+                                      plan.startDate,
+                                      plan.endDate,
+                                    )}
+                                  </span>{" "}
+                                  days
+                                </p>
+                              )}
+                            </div>
+                          )
+                        }
+                      >
+                        {editingPlanIndex === idx ? (
+                          <div className="mt-3 rounded-sm border border-[#ededed] bg-[#fcfcfc] p-3">
+                            <p className="text-sm font-medium text-[#222] mb-3">
+                              Edit Schedule
+                            </p>
+                            <div className="space-y-3">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                <Field className="md:col-span-2">
+                                  <FieldLabel>Date Range</FieldLabel>
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                      <Button
+                                        variant="outline"
+                                        type="button"
+                                        className="w-full justify-between font-normal"
+                                      >
+                                        {plan.startDate && plan.endDate
+                                          ? `${format(parseISO(plan.startDate), "LLL dd, y")} - ${format(parseISO(plan.endDate), "LLL dd, y")}`
+                                          : "Pick a date range"}
+                                        <ChevronDownIcon />
+                                      </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent
+                                      className="w-auto p-0"
+                                      align="start"
+                                    >
+                                      <Calendar
+                                        mode="range"
+                                        numberOfMonths={2}
+                                        selected={
+                                          {
+                                            from: plan.startDate
+                                              ? parseISO(plan.startDate)
+                                              : undefined,
+                                            to: plan.endDate
+                                              ? parseISO(plan.endDate)
+                                              : undefined,
+                                          } as DateRange
                                         }
-                                        className="appearance-none bg-background [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+                                        onSelect={(range) => {
+                                          const from = range?.from;
+                                          const to = range?.to || range?.from;
+                                          if (!from) return;
+                                          updateEditablePlan(idx, (p) => ({
+                                            ...p,
+                                            startDate: format(
+                                              from,
+                                              "yyyy-MM-dd",
+                                            ),
+                                            endDate: format(to!, "yyyy-MM-dd"),
+                                          }));
+                                        }}
                                       />
-                                    </Field>
-                                    <Field>
-                                      <FieldLabel>End Time</FieldLabel>
-                                      <Input
-                                        type="time"
-                                        step="1"
-                                        value={plan.endTime.slice(0, 5)}
-                                        onChange={(e) =>
-                                        updateEditablePlan(idx, (p) => ({
-                                          ...p,
-                                          endTime: normalizeTime(e.target.value)
-                                        }))
-                                        }
-                                        className="appearance-none bg-background [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
-                                      />
-                                    </Field>
-                                  </div>
+                                    </PopoverContent>
+                                  </Popover>
+                                </Field>
+                              </div>
 
-                                  <Field>
-                                    <FieldLabel>Days of Week</FieldLabel>
-                                    <div className="grid grid-cols-7 gap-1">
-                                      {dayLabels.map((day, dayIdx) => {
-                                    const selected = (plan.daysOfWeek || []).includes(dayIdx);
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                <Field>
+                                  <FieldLabel>Start Time</FieldLabel>
+                                  <Input
+                                    type="time"
+                                    step="1"
+                                    value={plan.startTime.slice(0, 5)}
+                                    onChange={(e) =>
+                                      updateEditablePlan(idx, (p) => ({
+                                        ...p,
+                                        startTime: normalizeTime(
+                                          e.target.value,
+                                        ),
+                                      }))
+                                    }
+                                    className="appearance-none bg-background [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+                                  />
+                                </Field>
+                                <Field>
+                                  <FieldLabel>End Time</FieldLabel>
+                                  <Input
+                                    type="time"
+                                    step="1"
+                                    value={plan.endTime.slice(0, 5)}
+                                    onChange={(e) =>
+                                      updateEditablePlan(idx, (p) => ({
+                                        ...p,
+                                        endTime: normalizeTime(e.target.value),
+                                      }))
+                                    }
+                                    className="appearance-none bg-background [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+                                  />
+                                </Field>
+                              </div>
+
+                              <Field>
+                                <FieldLabel>Days of Week</FieldLabel>
+                                <div className="grid grid-cols-7 gap-1">
+                                  {dayLabels.map((day, dayIdx) => {
+                                    const selected = (
+                                      plan.daysOfWeek || []
+                                    ).includes(dayIdx);
                                     return (
                                       <Toggle
                                         key={`edit-day-${idx}-${day}`}
                                         pressed={selected}
-                                        onPressedChange={() => toggleEditDay(idx, dayIdx)}
+                                        onPressedChange={() =>
+                                          toggleEditDay(idx, dayIdx)
+                                        }
                                         variant="outline"
                                         size="sm"
-                                        className="text-[11px] font-semibold data-[state=on]:border-black data-[state=on]:bg-black data-[state=on]:text-white">
-                                        
+                                        className="text-[11px] font-semibold data-[state=on]:border-black data-[state=on]:bg-black data-[state=on]:text-white"
+                                      >
                                         {day}
-                                      </Toggle>);
-
+                                      </Toggle>
+                                    );
                                   })}
-                                    </div>
-                                  </Field>
+                                </div>
+                              </Field>
 
-                                  <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                                    <Field>
-                                      <FieldLabel>Kind</FieldLabel>
-                                      <Input
-                                        value={plan.kind || ""}
-                                        onChange={(e) => updateEditablePlan(idx, (p) => ({ ...p, kind: e.target.value }))}
-                                        placeholder="Type"
-                                      />
-                                    </Field>
-                                    <Field>
-                                      <FieldLabel>Location</FieldLabel>
-                                      <InputGroup>
-                                        <InputGroupInput
-                                          value={plan.location}
-                                          onChange={(e) =>
+                              <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                                <Field>
+                                  <FieldLabel>Kind</FieldLabel>
+                                  <Input
+                                    value={plan.kind || ""}
+                                    onChange={(e) =>
+                                      updateEditablePlan(idx, (p) => ({
+                                        ...p,
+                                        kind: e.target.value,
+                                      }))
+                                    }
+                                    placeholder="Type"
+                                  />
+                                </Field>
+                                <Field>
+                                  <FieldLabel>Location</FieldLabel>
+                                  <InputGroup>
+                                    <InputGroupInput
+                                      value={plan.location}
+                                      onChange={(e) =>
+                                        updateEditablePlan(idx, (p) => ({
+                                          ...p,
+                                          location: e.target.value,
+                                        }))
+                                      }
+                                      placeholder="Location"
+                                    />
+                                    <InputGroupAddon align="inline-end">
+                                      <InputGroupButton
+                                        size="icon-xs"
+                                        type="button"
+                                        onClick={() =>
+                                          handleUseCurrentLocationForPlan(idx)
+                                        }
+                                        title="Use current location"
+                                        aria-label="Use current location"
+                                      >
+                                        {locatingPlanIndex === idx ? (
+                                          <Loader2 className="animate-spin" />
+                                        ) : (
+                                          <LocateFixed />
+                                        )}
+                                      </InputGroupButton>
+                                    </InputGroupAddon>
+                                  </InputGroup>
+                                </Field>
+                                <Field>
+                                  <FieldLabel>Timezone</FieldLabel>
+                                  {(() => {
+                                    const timeZoneGroups = getTimeZoneGroups(
+                                      plan.timezone || currentTimeZone,
+                                    );
+                                    return (
+                                      <Combobox
+                                        items={timeZoneGroups}
+                                        value={plan.timezone || currentTimeZone}
+                                        onValueChange={(next) => {
                                           updateEditablePlan(idx, (p) => ({
                                             ...p,
-                                            location: e.target.value
-                                          }))
-                                          }
-                                          placeholder="Location"
-                                        />
-                                        <InputGroupAddon align="inline-end">
-                                          <InputGroupButton
-                                            size="icon-xs"
-                                            type="button"
-                                            onClick={() => handleUseCurrentLocationForPlan(idx)}
-                                            title="Use current location"
-                                            aria-label="Use current location"
-                                          >
-                                            {locatingPlanIndex === idx ? <Loader2 className="animate-spin" /> : <LocateFixed />}
-                                          </InputGroupButton>
-                                        </InputGroupAddon>
-                                      </InputGroup>
-                                    </Field>
-                                    <Field>
-                                      <FieldLabel>Timezone</FieldLabel>
-                                      {(() => {
-                                        const timeZoneGroups = getTimeZoneGroups(plan.timezone || currentTimeZone);
-                                        return (
-                                          <Combobox
-                                            items={timeZoneGroups}
-                                            value={plan.timezone || currentTimeZone}
-                                            onValueChange={(next) => {
-                                              updateEditablePlan(idx, (p) => ({
-                                                ...p,
-                                                timezone: String(next || currentTimeZone)
-                                              }));
-                                            }}
-                                          >
-                                            <ComboboxInput placeholder="Select timezone" />
-                                            <ComboboxContent>
-                                              <ComboboxEmpty>No timezones found.</ComboboxEmpty>
-                                              <ComboboxList>
-                                                {(group, groupIndex) => (
-                                                  <ComboboxGroup key={`${idx}-${group.value}`} items={group.items}>
-                                                    <ComboboxLabel>{group.value}</ComboboxLabel>
-                                                    <ComboboxCollection>
-                                                      {(item) => (
-                                                        <ComboboxItem key={`${idx}-${item}`} value={item}>
-                                                          {item}
-                                                        </ComboboxItem>
-                                                      )}
-                                                    </ComboboxCollection>
-                                                    {groupIndex < timeZoneGroups.length - 1 ? <ComboboxSeparator /> : null}
-                                                  </ComboboxGroup>
-                                                )}
-                                              </ComboboxList>
-                                            </ComboboxContent>
-                                          </Combobox>
-                                        );
-                                      })()}
-                                    </Field>
-                                  </div>
-                                </div>
-                              <div className="mt-3 flex justify-end gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  type="button"
-                                  onClick={() => handleSaveSinglePlan(idx)}
-                                  disabled={savingPlanIndex === idx}
-                                  title="Confirm">
-                                  
-                                  {savingPlanIndex === idx ? <Loader2 className="animate-spin" /> : <Check />}
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  type="button"
-                                  onClick={handleCancelEditPlan}
-                                  title="Cancel">
-                                  
-                                  <X />
-                                </Button>
-                              </div>
-                            </div> :
-
-                      <div className="space-y-1.5">
-                              <div className="text-xs text-[#666] space-y-1">
-                                <span className="flex items-start gap-1 min-w-0 leading-tight">
-                                  <Tag className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                                  <span className="line-clamp-2 break-words">
-                                    {plan.kind || "Session"}
-                                  </span>
-                                </span>
-                                <span className="flex items-start gap-1 min-w-0 leading-tight">
-                                  <MapPin className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                                  <span className="line-clamp-2 break-words">
-                                    {plan.location || "TBD"}
-                                  </span>
-                                </span>
-                              </div>
-                              <div className="text-xs text-[#888] flex items-center gap-2 flex-wrap">
-                                <span>
-                                  {formatDateForUser(plan.startDate, {
-                              month: "short",
-                              day: "numeric",
-                              year: "numeric"
-                            })}
-                                  {" - "}
-                                  {formatDateForUser(plan.endDate, {
-                              month: "short",
-                              day: "numeric",
-                              year: "numeric"
-                            })}
-                                </span>
-                                {calculateInclusiveDays(
-                            plan.startDate,
-                            plan.endDate
-                          ) !== null &&
-                          <Badge className="items-center border-[#dedede] bg-[#f5f5f5] px-2 py-0.5 text-[10px] font-medium text-[#555]">
-                                    {calculateInclusiveDays(
-                              plan.startDate,
-                              plan.endDate
-                            )}{" "}
-                                    days
-                                  </Badge>
-                          }
+                                            timezone: String(
+                                              next || currentTimeZone,
+                                            ),
+                                          }));
+                                        }}
+                                      >
+                                        <ComboboxInput placeholder="Select timezone" />
+                                        <ComboboxContent>
+                                          <ComboboxEmpty>
+                                            No timezones found.
+                                          </ComboboxEmpty>
+                                          <ComboboxList>
+                                            {(group, groupIndex) => (
+                                              <ComboboxGroup
+                                                key={`${idx}-${group.value}`}
+                                                items={group.items}
+                                              >
+                                                <ComboboxLabel>
+                                                  {group.value}
+                                                </ComboboxLabel>
+                                                <ComboboxCollection>
+                                                  {(item) => (
+                                                    <ComboboxItem
+                                                      key={`${idx}-${item}`}
+                                                      value={item}
+                                                    >
+                                                      {item}
+                                                    </ComboboxItem>
+                                                  )}
+                                                </ComboboxCollection>
+                                                {groupIndex <
+                                                timeZoneGroups.length - 1 ? (
+                                                  <ComboboxSeparator />
+                                                ) : null}
+                                              </ComboboxGroup>
+                                            )}
+                                          </ComboboxList>
+                                        </ComboboxContent>
+                                      </Combobox>
+                                    );
+                                  })()}
+                                </Field>
                               </div>
                             </div>
-                      }
-                        </div>
-                    ) :
-                    course.details?.schedule &&
-                    Object.keys(course.details.schedule).length > 0 ?
-                    Object.entries(course.details?.schedule || {}).map(
-                      ([type, times]) =>
-                      <div key={type}>
-                            <div className="text-xs font-medium text-[#777] mb-1">
-                              {type}
+                            <div className="mt-3 flex justify-end gap-2">
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                type="button"
+                                onClick={() => handleSaveSinglePlan(idx)}
+                                disabled={savingPlanIndex === idx}
+                                title="Confirm"
+                              >
+                                {savingPlanIndex === idx ? (
+                                  <Loader2 className="animate-spin" />
+                                ) : (
+                                  <Check />
+                                )}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                type="button"
+                                onClick={handleCancelEditPlan}
+                                title="Cancel"
+                              >
+                                <X />
+                              </Button>
                             </div>
-                            <ul className="space-y-2">
-                              {(times as string[]).map((time, idx) =>
-                          <li
-                            key={idx}
-                            className="text-sm text-[#444] leading-snug break-all">
-                            
-                                  {time}
-                                </li>
-                          )}
-                            </ul>
                           </div>
-
-                    ) :
-
+                        ) : (
+                          <div>
+                            <div className="text-sm text-[#444] space-y-1">
+                              <span className="flex items-start gap-1.5 min-w-0 leading-tight">
+                                <Tag className="w-3 h-3 mt-0.5 shrink-0" />
+                                <span className="line-clamp-2 break-words">
+                                  {plan.kind || "Session"}
+                                </span>
+                              </span>
+                              <span className="flex items-start gap-1.5 min-w-0 leading-tight">
+                                <MapPin className="w-3 h-3 mt-0.5 shrink-0" />
+                                <span className="line-clamp-2 break-words">
+                                  {plan.location || "TBD"}
+                                </span>
+                              </span>
+                              {(plan.timezone || "").trim() ? (
+                                <span className="block pl-[18px] text-[10px] text-[#7a7a7a] leading-tight">
+                                  {plan.timezone}
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+                        )}
+                      </WeeklyScheduleCard>
+                    ))
+                  ) : course.details?.schedule &&
+                    Object.keys(course.details.schedule).length > 0 ? (
+                    Object.entries(course.details?.schedule || {}).map(
+                      ([type, times]) => (
+                        <div key={type}>
+                          <div className="text-xs font-medium text-[#777] mb-1">
+                            {type}
+                          </div>
+                          <ul className="space-y-2">
+                            {(times as string[]).map((time, idx) => (
+                              <li
+                                key={idx}
+                                className="text-sm text-[#444] leading-snug break-all"
+                              >
+                                {time}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ),
+                    )
+                  ) : (
                     <p className="text-sm text-[#9a9a9a]">
-                        No schedule available yet.
-                      </p>
-                    }
-                  </div>
-                  </CardContent>
-                </Card>
+                      No schedule available yet.
+                    </p>
+                  )}
+                </div>
 
-                {course.instructors && course.instructors.length > 0 &&
-                <div>
+                {course.instructors && course.instructors.length > 0 && (
+                  <div>
                     <h3 className="text-sm font-medium text-[#333] mb-4 flex items-center gap-2">
                       <Users className="w-4 h-4 text-[#777]" />
                       Teaching Staff
                     </h3>
                     <ul className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                      {course.instructors.map((inst, idx) =>
-                    <li
-                      key={idx}
-                      className="flex items-center gap-3 bg-white px-2.5 py-2">
-                      
+                      {course.instructors.map((inst, idx) => (
+                        <li
+                          key={idx}
+                          className="flex items-center gap-3 bg-white px-2.5 py-2"
+                        >
                           <div className="w-8 h-8 rounded-full bg-[#efefef] flex items-center justify-center text-[#666] text-xs font-medium">
                             {inst.charAt(0)}
                           </div>
@@ -1354,13 +1441,13 @@ export default function CourseDetailContent({
                             {inst}
                           </span>
                         </li>
-                    )}
+                      ))}
                     </ul>
                   </div>
-                }
+                )}
               </div>
-              {planPreview &&
-              <div className="bg-[#fcfcfc]">
+              {planPreview && (
+                <div className="bg-[#fcfcfc]">
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
                     <h3 className="text-base font-semibold text-[#1f1f1f]">
                       Study Plan Preview
@@ -1375,12 +1462,12 @@ export default function CourseDetailContent({
                         Original Schedule
                       </p>
                       <ul className="space-y-1.5 text-sm text-[#444]">
-                        {planPreview.originalSchedule.map((item, idx) =>
-                      <li key={`${item.type}-${idx}`}>
+                        {planPreview.originalSchedule.map((item, idx) => (
+                          <li key={`${item.type}-${idx}`}>
                             <span className="font-medium">{item.type}:</span>{" "}
                             {item.line}
                           </li>
-                      )}
+                        ))}
                       </ul>
                     </div>
                     <div className="rounded-sm bg-white p-4">
@@ -1389,30 +1476,28 @@ export default function CourseDetailContent({
                       </p>
                       <ul className="space-y-2">
                         {planPreview.generatedPlans.map((plan, idx) => {
-                        const id = String(idx);
-                        const disabled = false;
-                        const daysText = plan.daysOfWeek.
-                        map((d) => dayLabels[d] || String(d)).
-                        join(", ");
-                        return (
-                          <li
-                            key={id}
-                            className=" bg-white px-2.5 py-2">
-                            
+                          const id = String(idx);
+                          const disabled = false;
+                          const daysText = plan.daysOfWeek
+                            .map((d) => dayLabels[d] || String(d))
+                            .join(", ");
+                          return (
+                            <li key={id} className=" bg-white px-2.5 py-2">
                               <label className="flex items-start gap-2 text-sm text-[#444]">
                                 <Input
-                                type="checkbox"
-                                checked={selectedPlanIds.includes(id)}
-                                disabled={disabled || isConfirmingPlans}
-                                onChange={(e) => {
-                                  setSelectedPlanIds((prev) =>
-                                  e.target.checked ?
-                                  [...prev, id] :
-                                  prev.filter((v) => v !== id)
-                                  );
-                                }}
-                                className="mt-0.5" />
-                              
+                                  type="checkbox"
+                                  checked={selectedPlanIds.includes(id)}
+                                  disabled={disabled || isConfirmingPlans}
+                                  onChange={(e) => {
+                                    setSelectedPlanIds((prev) =>
+                                      e.target.checked
+                                        ? [...prev, id]
+                                        : prev.filter((v) => v !== id),
+                                    );
+                                  }}
+                                  className="mt-0.5"
+                                />
+
                                 <span className="min-w-0">
                                   <span className="block font-medium">
                                     {daysText} • {plan.startTime.slice(0, 5)}-
@@ -1423,74 +1508,74 @@ export default function CourseDetailContent({
                                       {plan.kind || "Session"}
                                     </Badge>
                                     @ {plan.location}
-                                    {plan.alreadyExists ?
-                                  " (will replace existing)" :
-                                  ""}
+                                    {plan.alreadyExists
+                                      ? " (will replace existing)"
+                                      : ""}
                                   </span>
-                                  {plan.startDate && plan.endDate &&
-                                <span className="block text-xs text-[#888]">
+                                  {plan.startDate && plan.endDate && (
+                                    <span className="block text-xs text-[#888]">
                                       {formatDateForUser(plan.startDate, {
-                                    month: "short",
-                                    day: "numeric",
-                                    year: "numeric"
-                                  })}
+                                        month: "short",
+                                        day: "numeric",
+                                        year: "numeric",
+                                      })}
                                       {" - "}
                                       {formatDateForUser(plan.endDate, {
-                                    month: "short",
-                                    day: "numeric",
-                                    year: "numeric"
-                                  })}
+                                        month: "short",
+                                        day: "numeric",
+                                        year: "numeric",
+                                      })}
                                     </span>
-                                }
+                                  )}
                                 </span>
                               </label>
-                            </li>);
-
-                      })}
+                            </li>
+                          );
+                        })}
                       </ul>
                     </div>
                   </div>
                   <div className="mt-3 flex items-center gap-2">
                     <Button
-                    variant="outline"
-                    type="button"
-                    onClick={handleConfirmPlans}
-                    disabled={
-                    isConfirmingPlans || selectedPlanIds.length === 0
-                    }
-                    size="sm">
-                    
-                      {isConfirmingPlans ?
-                    <Loader2 className="animate-spin" /> :
-
-                    <Check />
-                    }
+                      variant="outline"
+                      type="button"
+                      onClick={handleConfirmPlans}
+                      disabled={
+                        isConfirmingPlans || selectedPlanIds.length === 0
+                      }
+                      size="sm"
+                    >
+                      {isConfirmingPlans ? (
+                        <Loader2 className="animate-spin" />
+                      ) : (
+                        <Check />
+                      )}
                       Confirm
                     </Button>
                     <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={handleDiscardPlans}
-                    disabled={isConfirmingPlans}
-                    size="sm">
-                    
+                      type="button"
+                      variant="ghost"
+                      onClick={handleDiscardPlans}
+                      disabled={isConfirmingPlans}
+                      size="sm"
+                    >
                       <X />
                       Discard
                     </Button>
                   </div>
                 </div>
-              }
+              )}
             </div>
           </section>
 
-          {(course.prerequisites || course.corequisites) &&
-          <div className="bg-[#fcfcfc]">
+          {(course.prerequisites || course.corequisites) && (
+            <div className="bg-[#fcfcfc]">
               <h2 className="text-base font-semibold text-[#1f1f1f] mb-3">
                 Prerequisites
               </h2>
               <div className="space-y-8">
-                {course.prerequisites &&
-              <div>
+                {course.prerequisites && (
+                  <div>
                     <span className="text-xs font-medium text-[#777] block mb-2">
                       Required Knowledge
                     </span>
@@ -1498,9 +1583,9 @@ export default function CourseDetailContent({
                       {course.prerequisites}
                     </p>
                   </div>
-              }
-                {course.corequisites &&
-              <div>
+                )}
+                {course.corequisites && (
+                  <div>
                     <span className="text-xs font-medium text-[#777] block mb-2">
                       Corequisites
                     </span>
@@ -1508,354 +1593,379 @@ export default function CourseDetailContent({
                       {course.corequisites}
                     </p>
                   </div>
-              }
+                )}
               </div>
             </div>
-          }
+          )}
 
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <h2 className="text-lg font-semibold text-[#1f1f1f]">
-              Schedule Calendar
-            </h2>
-            {studyPlanCalendar.range &&
-            <span className="text-[11px] text-[#777]">
-                {studyPlanCalendar.range.startIso} -{" "}
-                {studyPlanCalendar.range.endIso}
-              </span>
-            }
-          </div>
-          <Card>
-            <CardContent className="py-2">
-            {studyPlanCalendar.range ?
-            <div className="bg-background">
-                <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_280px]">
-                  <div className="p-3 xl:border-r">
-                    {visibleCalendarMonth ?
-                <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <Button
-                      variant="outline"
-                      size="icon-sm"
-                      type="button"
-                      onClick={() => {
-                        if (resolvedCalendarMonthIndex <= 0) return;
-                        const previousMonth =
-                        studyPlanCalendar.months[
-                        resolvedCalendarMonthIndex - 1];
-
-                        if (previousMonth)
-                        setVisibleCalendarMonthKey(previousMonth.key);
-                      }}
-                      disabled={resolvedCalendarMonthIndex <= 0}
-
-                      title="Previous month">
-                      
-                          <ChevronLeft />
-                        </Button>
-                        <p className="text-sm font-semibold text-[#2a2a2a]">
-                          {visibleCalendarMonth.label}
-                        </p>
-                        <Button
-                      variant="outline"
-                      size="icon-sm"
-                      type="button"
-                      onClick={() => {
-                        if (
-                        resolvedCalendarMonthIndex >=
-                        studyPlanCalendar.months.length - 1)
-
-                        return;
-                        const nextMonth =
-                        studyPlanCalendar.months[
-                        resolvedCalendarMonthIndex + 1];
-
-                        if (nextMonth)
-                        setVisibleCalendarMonthKey(nextMonth.key);
-                      }}
-                      disabled={
-                      resolvedCalendarMonthIndex >=
-                      studyPlanCalendar.months.length - 1
-                      }
-
-                      title="Next month">
-                      
-                          <ChevronRight />
-                        </Button>
-                      </div>
-                      <div className="grid grid-cols-7 gap-1 mb-1">
-                        {dayLabels.map((day) =>
-                    <div
-                      key={`${visibleCalendarMonth.key}-${day}`}
-                      className="text-[10px] text-[#8a8a8a] font-medium text-center py-1">
-                      
-                            {day}
-                          </div>
-                    )}
-                      </div>
-                      <div className="grid grid-cols-7 gap-1">
-                        {visibleCalendarMonth.cells.map((cell) => {
-                      const events =
-                      studyPlanCalendar.eventsByDate.get(cell.dateIso) ||
-                      [];
-                      const isSelected =
-                      selectedCalendarDate === cell.dateIso;
-                      const isToday = cell.dateIso === todayIso;
-                      const canSelect = cell.inRange;
-                      const previewEvents = events.slice(0, 3);
-                      const remainingEventsCount = Math.max(events.length - previewEvents.length, 0);
-                      const barColors = ["bg-[#111111]", "bg-[#3a3a3a]", "bg-[#6b6b6b]"];
-                      return (
-                        <Button
-                          variant="outline"
-                          type="button"
-                          key={`${visibleCalendarMonth.key}-${cell.dateIso}`}
-                          onClick={() => {
-                            if (!canSelect) return;
-                            setSelectedCalendarDate(cell.dateIso);
-                            const targetMonthKey = cell.dateIso.slice(0, 7);
-                            if (
-                            targetMonthKey !== visibleCalendarMonth.key)
-                            {
-                              setVisibleCalendarMonthKey(targetMonthKey);
-                            }
-                          }}
-                          disabled={!canSelect}
-                          className={`h-auto min-h-[76px] w-full flex-col items-start justify-start gap-1 overflow-hidden p-1.5 text-left ${
-                            isSelected ? "border-black bg-muted" : isToday ? "border-black/60" : ""
-                          }`}>
-
-
-
-
-
-
-
-
-
-                          
-                              <div className="flex items-center justify-between">
-                                <span className={`font-semibold ${isToday ? "text-[#111]" : "text-[#666]"}`}>
-                                  {cell.day}
-                                </span>
-                              </div>
-                              <div className="mt-1 space-y-1 overflow-hidden">
-                                {previewEvents.map((_, idx) =>
-                            <div
-                              key={`${cell.dateIso}-bar-${idx}`}
-                              className={`h-1 w-full rounded-full ${barColors[idx % barColors.length]}`} />
-                            )}
-                                {remainingEventsCount > 0 ?
-                            <p className="text-[10px] leading-none text-[#7a7a7a]">
-                                    +{remainingEventsCount} more
-                                  </p> :
-                            null}
-                              </div>
-                            </Button>);
-
-                    })}
-                      </div>
-                    </div> :
-                null}
-                  </div>
-                  <div className="p-3">
-                  <h3 className="text-base font-semibold text-[#1f1f1f]">
-                    Day Details
-                  </h3>
-                  <p className="text-xs text-[#777] mt-1">
-                    {selectedCalendarDate || "Select a day"}
-                  </p>
-                  {selectedCalendarDate ?
-                (
-                studyPlanCalendar.eventsByDate.get(
-                  selectedCalendarDate
-                ) || []).
-                length > 0 ?
-                <ul className="mt-3 space-y-2">
-                        {(
-                  studyPlanCalendar.eventsByDate.get(
-                    selectedCalendarDate
-                  ) || []).
-                  map((event, idx) =>
-                  <li
-                    key={`${selectedCalendarDate}-${event.label}-${idx}`}
-                    className=" bg-[#fafafa] p-2">
-                    
-                            <p className="text-[11px] font-medium text-[#2f2f2f]">
-                              {event.label}
-                            </p>
-                            <p className="text-[11px] text-[#666] mt-0.5">
-                              {event.meta}
-                            </p>
-                          </li>
-                  )}
-                      </ul> :
-
-                <p className="text-xs text-[#8a8a8a] mt-3">
-                        No scheduled events on this day.
-                      </p> :
-
-
-                <p className="text-xs text-[#8a8a8a] mt-3">
-                      Pick a date to view events.
-                    </p>
-                }
-                </div>
+          {studyPlanCalendar.range ? (
+            <>
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h2 className="text-lg font-semibold text-[#1f1f1f]">
+                  Schedule Calendar
+                </h2>
+                <span className="text-[11px] text-[#777]">
+                  {studyPlanCalendar.range.startIso} -{" "}
+                  {studyPlanCalendar.range.endIso}
+                </span>
               </div>
-            </div> :
+              <Card>
+                <CardContent className="p-0">
+                  <div className="bg-background">
+                    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_280px]">
+                      <div className="p-3 xl:border-r">
+                        {visibleCalendarMonth ? (
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <Button
+                                variant="outline"
+                                size="icon-sm"
+                                type="button"
+                                onClick={() => {
+                                  if (resolvedCalendarMonthIndex <= 0) return;
+                                  const previousMonth =
+                                    studyPlanCalendar.months[
+                                      resolvedCalendarMonthIndex - 1
+                                    ];
 
-            <p className="text-sm text-[#9a9a9a]">
-                No schedule range found yet.
-              </p>
-            }
-            </CardContent>
-          </Card>
+                                  if (previousMonth)
+                                    setVisibleCalendarMonthKey(
+                                      previousMonth.key,
+                                    );
+                                }}
+                                disabled={resolvedCalendarMonthIndex <= 0}
+                                title="Previous month"
+                              >
+                                <ChevronLeft />
+                              </Button>
+                              <p className="text-sm font-semibold text-[#2a2a2a]">
+                                {visibleCalendarMonth.label}
+                              </p>
+                              <Button
+                                variant="outline"
+                                size="icon-sm"
+                                type="button"
+                                onClick={() => {
+                                  if (
+                                    resolvedCalendarMonthIndex >=
+                                    studyPlanCalendar.months.length - 1
+                                  )
+                                    return;
+                                  const nextMonth =
+                                    studyPlanCalendar.months[
+                                      resolvedCalendarMonthIndex + 1
+                                    ];
+
+                                  if (nextMonth)
+                                    setVisibleCalendarMonthKey(nextMonth.key);
+                                }}
+                                disabled={
+                                  resolvedCalendarMonthIndex >=
+                                  studyPlanCalendar.months.length - 1
+                                }
+                                title="Next month"
+                              >
+                                <ChevronRight />
+                              </Button>
+                            </div>
+                            <div className="grid grid-cols-7 gap-1 mb-1">
+                              {dayLabels.map((day) => (
+                                <div
+                                  key={`${visibleCalendarMonth.key}-${day}`}
+                                  className="text-[10px] text-[#8a8a8a] font-medium text-center py-1"
+                                >
+                                  {day}
+                                </div>
+                              ))}
+                            </div>
+                            <div className="grid grid-cols-7 gap-1">
+                              {visibleCalendarMonth.cells.map((cell) => {
+                                const events =
+                                  studyPlanCalendar.eventsByDate.get(
+                                    cell.dateIso,
+                                  ) || [];
+                                const isSelected =
+                                  selectedCalendarDate === cell.dateIso;
+                                const isToday = cell.dateIso === todayIso;
+                                const canSelect = cell.inRange;
+                                const previewEvents = events.slice(0, 3);
+                                const remainingEventsCount = Math.max(
+                                  events.length - previewEvents.length,
+                                  0,
+                                );
+                                const barColors = [
+                                  "bg-[#111111]",
+                                  "bg-[#3a3a3a]",
+                                  "bg-[#6b6b6b]",
+                                ];
+                                return (
+                                  <Button
+                                    variant="outline"
+                                    type="button"
+                                    key={`${visibleCalendarMonth.key}-${cell.dateIso}`}
+                                    onClick={() => {
+                                      if (!canSelect) return;
+                                      setSelectedCalendarDate(cell.dateIso);
+                                      const targetMonthKey = cell.dateIso.slice(
+                                        0,
+                                        7,
+                                      );
+                                      if (
+                                        targetMonthKey !==
+                                        visibleCalendarMonth.key
+                                      ) {
+                                        setVisibleCalendarMonthKey(
+                                          targetMonthKey,
+                                        );
+                                      }
+                                    }}
+                                    disabled={!canSelect}
+                                    className={`h-auto min-h-[76px] w-full flex-col items-start justify-start gap-1 overflow-hidden p-1.5 text-left ${
+                                      isSelected
+                                        ? "border-black bg-muted"
+                                        : isToday
+                                          ? "border-black/60"
+                                          : ""
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <span
+                                        className={`font-semibold ${isToday ? "text-[#111]" : "text-[#666]"}`}
+                                      >
+                                        {cell.day}
+                                      </span>
+                                    </div>
+                                    <div className="mt-1 space-y-1 overflow-hidden">
+                                      {previewEvents.map((_, idx) => (
+                                        <div
+                                          key={`${cell.dateIso}-bar-${idx}`}
+                                          className={`h-1 w-full rounded-full ${barColors[idx % barColors.length]}`}
+                                        />
+                                      ))}
+                                      {remainingEventsCount > 0 ? (
+                                        <p className="text-[10px] leading-none text-[#7a7a7a]">
+                                          +{remainingEventsCount} more
+                                        </p>
+                                      ) : null}
+                                    </div>
+                                  </Button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                      <div className="p-3">
+                        <h3 className="text-base font-semibold text-[#1f1f1f]">
+                          Day Details
+                        </h3>
+                        <p className="text-xs text-[#777] mt-1">
+                          {selectedCalendarDate || "Select a day"}
+                        </p>
+                        {selectedCalendarDate ? (
+                          (
+                            studyPlanCalendar.eventsByDate.get(
+                              selectedCalendarDate,
+                            ) || []
+                          ).length > 0 ? (
+                            <ul className="mt-3 space-y-2">
+                              {(
+                                studyPlanCalendar.eventsByDate.get(
+                                  selectedCalendarDate,
+                                ) || []
+                              ).map((event, idx) => (
+                                <li
+                                  key={`${selectedCalendarDate}-${event.label}-${idx}`}
+                                  className=" bg-[#fafafa] p-2"
+                                >
+                                  <p className="text-sm font-medium text-[#2f2f2f]">
+                                    {event.label}
+                                  </p>
+                                  <p className="text-xs text-[#666] mt-0.5">
+                                    {event.meta}
+                                  </p>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-xs text-[#8a8a8a] mt-3">
+                              No scheduled events on this day.
+                            </p>
+                          )
+                        ) : (
+                          <p className="text-xs text-[#8a8a8a] mt-3">
+                            Pick a date to view events.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          ) : null}
         </div>
 
-        <aside className="min-h-0 space-y-5 overflow-x-hidden overflow-y-auto lg:pl-5">
+        <aside className="no-scrollbar min-h-0 space-y-5 overflow-x-hidden overflow-y-auto lg:pl-5">
           <div className="space-y-5">
             <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-[#1f1f1f]">
-                    Resources
-                  </h3>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    type="button"
-                    onClick={() => setShowAddUrl((v) => !v)}
-                    disabled={isAddingUrl}
-
-                    title="Add resource URL">
-                    <Plus />
-                  </Button>
-                </div>
-                <div className="space-y-4">
-                  {localResources.length > 0 &&
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-[#1f1f1f]">
+                  Resources
+                </h3>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  type="button"
+                  onClick={() => setShowAddUrl((v) => !v)}
+                  disabled={isAddingUrl}
+                  title="Add resource URL"
+                >
+                  <Plus />
+                </Button>
+              </div>
+              <div className="space-y-4">
+                {localResources.length > 0 && (
                   <ul className="space-y-3">
-                      {visibleResources.map((url: string, i: number) =>
-                    <li
-                      key={`${url}-${i}`}
-                      className="flex items-center gap-2">
-                          <HoverCard openDelay={120} closeDelay={80}>
-                            <HoverCardTrigger asChild>
-                              <a
-                                href={url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-sm font-medium text-[#335b9a] hover:underline flex items-center gap-2 break-all flex-1 min-w-0"
-                              >
-                                <Globe className="w-4 h-4 flex-shrink-0 text-[#778fb8]" />
+                    {visibleResources.map((url: string, i: number) => (
+                      <li
+                        key={`${url}-${i}`}
+                        className="flex items-center gap-2"
+                      >
+                        <HoverCard openDelay={120} closeDelay={80}>
+                          <HoverCardTrigger asChild>
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-sm font-medium text-[#335b9a] hover:underline flex items-center gap-2 break-all flex-1 min-w-0"
+                            >
+                              <Globe className="w-4 h-4 shrink-0 text-[#778fb8]" />
+                              {url}
+                            </a>
+                          </HoverCardTrigger>
+                          <HoverCardContent className="w-[420px] p-0">
+                            <div className="px-3 py-2 border-b">
+                              <p className="text-xs text-muted-foreground truncate">
+                                Website Preview
+                              </p>
+                              <p className="text-xs font-medium truncate">
                                 {url}
-                              </a>
-                            </HoverCardTrigger>
-                            <HoverCardContent className="w-[420px] p-0">
-                              <div className="px-3 py-2 border-b">
-                                <p className="text-xs text-muted-foreground truncate">Website Preview</p>
-                                <p className="text-xs font-medium truncate">{url}</p>
-                              </div>
-                              {getPreviewableUrl(url) && resourcePreviewState[url] !== "blocked" ? (
-                                <>
-                                  <img
-                                    src={getThirdPartyPreviewImageUrl(url) || ""}
-                                    alt={`Preview ${url}`}
-                                    className="h-56 w-full object-cover"
-                                    loading="lazy"
-                                    onError={() =>
-                                      setResourcePreviewState((prev) => ({ ...prev, [url]: "blocked" }))
-                                    }
-                                  />
-                                  <div className="px-3 py-2 border-t text-[11px] text-muted-foreground">
-                                    Host: <span className="font-medium text-foreground">{getPreviewHost(url)}</span>
-                                  </div>
-                                </>
-                              ) : (
-                                <div className="px-3 py-2 text-xs space-y-1.5">
-                                  <p className="text-muted-foreground">
-                                    Host: <span className="font-medium text-foreground">{getPreviewHost(url)}</span>
-                                  </p>
-                                  <p className="text-muted-foreground">
-                                    This site blocks embedded previews (X-Frame-Options/CSP). Open the link in a new tab.
-                                  </p>
+                              </p>
+                            </div>
+                            {getPreviewableUrl(url) &&
+                            resourcePreviewState[url] !== "blocked" ? (
+                              <>
+                                <Image
+                                  src={getThirdPartyPreviewImageUrl(url) || ""}
+                                  alt={`Preview ${url}`}
+                                  className="h-56 w-full object-cover"
+                                  width={900}
+                                  height={560}
+                                  unoptimized
+                                  onError={() =>
+                                    setResourcePreviewState((prev) => ({
+                                      ...prev,
+                                      [url]: "blocked",
+                                    }))
+                                  }
+                                />
+                                <div className="px-3 py-2 border-t text-[11px] text-muted-foreground">
+                                  Host:{" "}
+                                  <span className="font-medium text-foreground">
+                                    {getPreviewHost(url)}
+                                  </span>
                                 </div>
-                              )}
-                            </HoverCardContent>
-                          </HoverCard>
-                          <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        type="button"
-                        onClick={() => handleRemoveUrl(i)}
-                        disabled={removingUrlIndex === i || isAddingUrl}
-
-                        title="Remove resource URL"
-                        aria-label="Remove resource URL">
-                        
-                            {removingUrlIndex === i ?
-                        <Loader2 className="animate-spin" /> :
-
-                        <Minus />
-                        }
-                          </Button>
-                        </li>
-                    )}
-                    </ul>
-                  }
-                  {hasMoreResources &&
+                              </>
+                            ) : (
+                              <div className="px-3 py-2 text-xs space-y-1.5">
+                                <p className="text-muted-foreground">
+                                  Host:{" "}
+                                  <span className="font-medium text-foreground">
+                                    {getPreviewHost(url)}
+                                  </span>
+                                </p>
+                                <p className="text-muted-foreground">
+                                  This site blocks embedded previews
+                                  (X-Frame-Options/CSP). Open the link in a new
+                                  tab.
+                                </p>
+                              </div>
+                            )}
+                          </HoverCardContent>
+                        </HoverCard>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          type="button"
+                          onClick={() => handleRemoveUrl(i)}
+                          disabled={removingUrlIndex === i || isAddingUrl}
+                          title="Remove resource URL"
+                          aria-label="Remove resource URL"
+                        >
+                          {removingUrlIndex === i ? (
+                            <Loader2 className="animate-spin" />
+                          ) : (
+                            <Minus />
+                          )}
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {hasMoreResources && (
                   <Button
                     variant="outline"
                     type="button"
-                    onClick={() => setShowAllResources((v) => !v)}>
-
-                    
-                      {showAllResources ? "Less" : "More"}
-                    </Button>
-                  }
-                  {course.crossListedCourses &&
+                    onClick={() => setShowAllResources((v) => !v)}
+                  >
+                    {showAllResources ? "Less" : "More"}
+                  </Button>
+                )}
+                {course.crossListedCourses && (
                   <div>
-                      <span className="text-xs font-medium text-[#777] block mb-2">
-                        Cross-Listed
-                      </span>
-                      <p className="text-sm text-[#555] leading-relaxed">
-                        {course.crossListedCourses}
-                      </p>
-                    </div>
-                  }
-                  {variantCodeLinks.length > 0 &&
+                    <span className="text-xs font-medium text-[#777] block mb-2">
+                      Cross-Listed
+                    </span>
+                    <p className="text-sm text-[#555] leading-relaxed">
+                      {course.crossListedCourses}
+                    </p>
+                  </div>
+                )}
+                {variantCodeLinks.length > 0 && (
                   <div>
-                      <span className="text-xs font-medium text-[#777] block mb-2">
-                        {variantLabel}
-                      </span>
-                      <ul className="space-y-2">
-                        {variantCodeLinks.map((item) =>
-                      <li key={item.id} className="text-sm text-[#555]">
-                            {item.link ?
-                        <a
-                          href={item.link}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-[#335b9a] hover:underline">
-                          
-                                {item.id}
-                              </a> :
-
-                        <span>{item.id}</span>
-                        }
-                          </li>
-                      )}
-                      </ul>
-                    </div>
-                  }
-                  {localResources.length === 0 &&
+                    <span className="text-xs font-medium text-[#777] block mb-2">
+                      {variantLabel}
+                    </span>
+                    <ul className="space-y-2">
+                      {variantCodeLinks.map((item) => (
+                        <li key={item.id} className="text-sm text-[#555]">
+                          {item.link ? (
+                            <a
+                              href={item.link}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-[#335b9a] hover:underline"
+                            >
+                              {item.id}
+                            </a>
+                          ) : (
+                            <span>{item.id}</span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {localResources.length === 0 &&
                   !course.crossListedCourses &&
                   variantCodeLinks.length === 0 &&
-                  !showAddUrl &&
-                  <p className="text-sm text-[#9a9a9a]">
-                        No resources yet.
-                      </p>
-                  }
-                  {showAddUrl &&
+                  !showAddUrl && (
+                    <p className="text-sm text-[#9a9a9a]">No resources yet.</p>
+                  )}
+                {showAddUrl && (
                   <div className="space-y-2">
-                      <Textarea
+                    <Textarea
                       value={newUrl}
                       onChange={(e) => setNewUrl(e.target.value)}
                       onKeyDown={(e) => {
@@ -1866,114 +1976,130 @@ export default function CourseDetailContent({
                       }}
                       placeholder={"https://...\nhttps://... (one per line)"}
                       rows={4}
-                      autoFocus />
-                    
-                      <div className="flex justify-end gap-2">
-                        <Button
+                      autoFocus
+                    />
+
+                    <div className="flex justify-end gap-2">
+                      <Button
                         variant="outline"
                         type="button"
                         onClick={() => {
                           setShowAddUrl(false);
                           setNewUrl("");
-                        }}>
-
-                        
-                          Cancel
-                        </Button>
-                        <Button
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
                         variant="outline"
                         type="button"
                         onClick={handleAddUrl}
-                        disabled={!newUrl.trim() || isAddingUrl}>
-                        
-                          {isAddingUrl && <Loader2 className="animate-spin" />}
-                          Add
-                        </Button>
-                      </div>
+                        disabled={!newUrl.trim() || isAddingUrl}
+                      >
+                        {isAddingUrl && <Loader2 className="animate-spin" />}
+                        Add
+                      </Button>
                     </div>
-                  }
-                </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div>
-                <h3 className="text-lg font-semibold text-[#1f1f1f] mb-4">
-                  Course Facts
-                </h3>
-                <dl className="space-y-4 text-sm">
-                  {course.details?.internalId &&
+              <h3 className="text-lg font-semibold text-[#1f1f1f] mb-4">
+                Course Facts
+              </h3>
+              <dl className="space-y-4 text-sm">
+                {course.details?.internalId && (
                   <div className="flex justify-between py-1">
-                      <dt className="text-[#666]">ID</dt>
-                      <dd className="font-mono text-[#999]">
-                        {course.details.internalId}
-                      </dd>
-                    </div>
-                  }
-                  <div className="flex justify-between py-1">
-                    <dt className="text-[#666]">Credits</dt>
-                    <dd className="font-medium text-[#222]">
-                      {course.credit ? `${course.credit} ECTS` : "-"}
+                    <dt className="text-[#666]">ID</dt>
+                    <dd className="font-mono text-[#999]">
+                      {course.details.internalId}
                     </dd>
                   </div>
-                  <div className="flex justify-between py-1 overflow-visible relative">
-                    <dt className="text-[#666] flex-shrink-0 flex items-center gap-1.5 group cursor-help relative">
-                      {unitInfo.label}
-                      <Info className="w-3.5 h-3.5 text-[#999]" />
-                      <span className="pointer-events-none absolute left-0 top-full z-20 mt-1 hidden w-64 bg-white px-2 py-1.5 text-[11px] font-normal leading-relaxed text-[#555] shadow-sm group-hover:block">
+                )}
+                <div className="flex justify-between py-1">
+                  <dt className="text-[#666]">Credits</dt>
+                  <dd className="font-medium text-[#222]">
+                    {course.credit ? `${course.credit} ECTS` : "-"}
+                  </dd>
+                </div>
+                <div className="flex justify-between py-1 overflow-visible relative">
+                  <dt className="text-[#666] shrink-0">
+                    <HoverCard openDelay={100} closeDelay={80}>
+                      <HoverCardTrigger asChild>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1.5 cursor-help"
+                          aria-label={`${unitInfo.label} help`}
+                        >
+                          <span>{unitInfo.label}</span>
+                          <Info className="w-3.5 h-3.5 text-[#999]" />
+                        </button>
+                      </HoverCardTrigger>
+                      <HoverCardContent className="w-64 text-[11px] leading-relaxed text-[#555]">
                         {unitInfo.help}
-                      </span>
-                    </dt>
-                    <dd className="font-medium text-[#222] text-right pl-4 break-words">
-                      {course.units || "-"}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between py-1">
-                    <dt className="text-[#666] flex-shrink-0">Workload</dt>
-                    <dd className="font-medium text-[#222] text-right pl-4 break-words">
-                      {estimatedWorkload}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between py-1">
-                    <dt className="text-[#666] flex-shrink-0">Level</dt>
-                    <dd className="font-medium text-[#222] capitalize text-right pl-4 break-words">
-                      {course.level || "-"}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between py-1">
-                    <dt className="text-[#666] flex-shrink-0">Department</dt>
-                    <dd className="font-medium text-[#222] text-right pl-4 break-words">
-                      {course.department || "-"}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between py-1">
-                    <dt className="text-[#666] flex-shrink-0">Category</dt>
-                    <dd className="font-medium text-[#222] text-right pl-4 break-words">
-                      {categoryLabel || "-"}
-                    </dd>
-                  </div>
-                  <div className="flex flex-col py-1 gap-2">
-                    <dt className="text-[#666]">Available Terms</dt>
-                    <dd className="font-medium text-[#222] flex flex-wrap gap-1.5 justify-end">
-                      {course.semesters.length > 0 ?
-                      course.semesters.map((s, idx) =>
-                      <Badge
-                        key={idx}
-                        className="whitespace-nowrap bg-white px-2 py-0.5 text-[11px]">
-                        
-                            {s}
-                          </Badge>
-                      ) :
-
+                      </HoverCardContent>
+                    </HoverCard>
+                  </dt>
+                  <dd className="font-medium text-[#222] text-right pl-4 break-words">
+                    {course.units || "-"}
+                  </dd>
+                </div>
+                <div className="flex justify-between py-1">
+                  <dt className="text-[#666] shrink-0">Workload</dt>
+                  <dd className="font-medium text-[#222] text-right pl-4 break-words">
+                    {estimatedWorkload}
+                  </dd>
+                </div>
+                <div className="flex justify-between py-1">
+                  <dt className="text-[#666] shrink-0">Level</dt>
+                  <dd className="font-medium text-[#222] capitalize text-right pl-4 break-words">
+                    {course.level || "-"}
+                  </dd>
+                </div>
+                <div className="flex justify-between py-1">
+                  <dt className="text-[#666] shrink-0">Department</dt>
+                  <dd className="font-medium text-[#222] text-right pl-4 break-words">
+                    {course.department || "-"}
+                  </dd>
+                </div>
+                <div className="flex justify-between py-1">
+                  <dt className="text-[#666] shrink-0">Subdomain</dt>
+                  <dd className="font-medium text-[#222] text-right pl-4 break-words">
+                    {course.subdomain || "-"}
+                  </dd>
+                </div>
+                <div className="flex justify-between py-1">
+                  <dt className="text-[#666] shrink-0">Category</dt>
+                  <dd className="font-medium text-[#222] text-right pl-4 break-words">
+                    {categoryLabel || "-"}
+                  </dd>
+                </div>
+                <div className="flex flex-col py-1 gap-2">
+                  <dt className="text-[#666]">Available Terms</dt>
+                  <dd className="font-medium text-[#222] flex flex-wrap gap-1.5 justify-end">
+                    {course.semesters.length > 0 ? (
+                      course.semesters.map((s, idx) => (
+                        <Badge
+                          key={idx}
+                          className="whitespace-nowrap bg-white px-2 py-0.5 text-[11px]"
+                        >
+                          {s}
+                        </Badge>
+                      ))
+                    ) : (
                       <span className="text-[#999] font-normal italic">
-                          Historical
-                        </span>
-                      }
-                    </dd>
-                  </div>
-                </dl>
+                        Historical
+                      </span>
+                    )}
+                  </dd>
+                </div>
+              </dl>
             </div>
           </div>
         </aside>
       </div>
-    </div>);
-
+    </div>
+  );
 }
