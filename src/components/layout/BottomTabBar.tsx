@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, CalendarDays, User, Dumbbell, Settings } from "lucide-react";
+import { BookOpen, CalendarDays, User, Dumbbell, Settings, Map } from "lucide-react";
 
 interface BottomTabBarProps {
   labels?: {
@@ -28,7 +28,7 @@ export default function BottomTabBar({ labels }: BottomTabBarProps) {
     {
       name: labels?.studyPlan || "Roadmap",
       href: "/roadmap",
-      icon: BookOpen,
+      icon: Map,
       isActive: pathname === "/roadmap",
     },
     {
@@ -58,18 +58,18 @@ export default function BottomTabBar({ labels }: BottomTabBarProps) {
   ];
 
   return (
-    <div className="lg:hidden fixed left-0 right-0 z-50 px-4 bottom-[calc(env(safe-area-inset-bottom,0px)+4px)]">
-      <nav className="mx-auto w-full max-w-[600px] border border-white/40 bg-white/55 backdrop-blur-2xl supports-[backdrop-filter]:bg-white/45 shadow-[0_14px_34px_rgba(15,23,42,0.16)]">
-        <div className="flex items-center justify-between p-1">
+    <div className="lg:hidden fixed left-0 right-0 z-50 px-2 bottom-[max(8px,env(safe-area-inset-bottom,0px))]">
+      <nav className="mx-auto w-full max-w-[720px] rounded-2xl border border-white/40 bg-white/65 backdrop-blur-2xl supports-[backdrop-filter]:bg-white/55 shadow-[0_14px_34px_rgba(15,23,42,0.16)]">
+        <div className="no-scrollbar flex items-center gap-1 overflow-x-auto px-1 py-1.5">
           {tabs.map((tab) => (
             <Link
               key={tab.href}
               href={tab.href}
               prefetch={false}
               aria-current={tab.isActive ? "page" : undefined}
-              className={`flex flex-col items-center justify-center flex-1 gap-0.5 py-1.5 transition-all ${
+              className={`flex min-w-[64px] flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-2 py-1.5 transition-all ${
                 tab.isActive
-                  ? "bg-white/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_1px_8px_rgba(15,23,42,0.12)]"
+                  ? "bg-white/65 shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_1px_8px_rgba(15,23,42,0.12)]"
                   : "hover:bg-white/35"
               }`}
             >
@@ -79,7 +79,7 @@ export default function BottomTabBar({ labels }: BottomTabBarProps) {
                 }`}
               />
               <span
-                className={`text-[10px] font-medium tracking-tight transition-colors ${
+                className={`max-w-full truncate text-[10px] font-medium tracking-tight transition-colors ${
                   tab.isActive ? "text-slate-800" : "text-slate-500"
                 }`}
               >
