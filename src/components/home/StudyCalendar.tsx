@@ -207,6 +207,7 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
   }, [allEvents]);
 
   const todayKey = formatDateKey(anchorToday);
+  const activeDateKey = selectedSmallDateKey || todayKey;
   const todayEvents = eventsByDate.get(todayKey) || [];
 
   const weekDates = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
@@ -331,7 +332,7 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
                 }
                 const date = new Date(monthCursor.getFullYear(), monthCursor.getMonth(), day);
                 const dateKey = formatDateKey(date);
-                const isToday = dateKey === todayKey;
+                const isActiveDay = dateKey === activeDateKey;
                 const hasEvent = (eventsByDate.get(dateKey) || []).length > 0;
                 return (
                   <Button variant="ghost"
@@ -346,10 +347,8 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
                     
                     <span
                       className={`h-6 w-6 inline-flex items-center justify-center rounded-full ${
-                      dateKey === selectedSmallDateKey ?
+                      isActiveDay ?
                       " bg-[#111111] text-white" :
-                      isToday ?
-                      " border border-[#111111] text-[#111111]" :
                       hasEvent ?
                       " text-[#334155] font-semibold" :
                       " text-[#334155]"}`
@@ -426,26 +425,25 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
               {weekDates.map((date, i) => {
                 const dayKey = formatDateKey(date);
                 const dayEvents = eventsByDate.get(dayKey) || [];
-                const isSelectedColumn = dayKey === selectedSmallDateKey;
-                const isTodayColumn = dayKey === todayKey;
+                const isActiveColumn = dayKey === activeDateKey;
                 return (
                   <div
                     key={dayKey}
                     className={`relative border-r border-[#f5f5f5] last:border-r-0 ${
-                    isSelectedColumn ? "bg-[#fafafa]" : isTodayColumn ? "bg-[#fcfcfc]" : ""}`
+                    isActiveColumn ? "bg-[#fafafa]" : ""}`
                     }>
                     
                     <div className="sticky top-0 z-20 flex h-10 items-center justify-between bg-[#f5f5f5] px-2">
                       <span
                         className={`text-xs ${
-                        isSelectedColumn || isTodayColumn ? "text-[#111111] font-semibold" : "text-[#334155]"}`
+                        isActiveColumn ? "text-[#111111] font-semibold" : "text-[#334155]"}`
                         }>
                         
                         {weekdays[i]}
                       </span>
                       <span
                         className={`text-xs font-semibold ${
-                        isSelectedColumn || isTodayColumn ?
+                        isActiveColumn ?
                         "text-white bg-[#111111] h-6 w-6 rounded-full inline-flex items-center justify-center" :
                         "text-[#0f172a]"}`
                         }>
