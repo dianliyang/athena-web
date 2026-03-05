@@ -11,7 +11,7 @@ import { calculateAttendance } from "@/lib/attendance";
 import { ExternalLink, Ghost } from "lucide-react";
 import CourseIntelSyncWindow from "@/components/home/CourseIntelSyncWindow";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
 export const dynamic = "force-dynamic";
@@ -300,10 +300,9 @@ async function StudyPlanContent({
 
 function ActiveProjectSeminarTrack({ item }: {item: EnrolledProjectSeminar;}) {
   return (
-    <Card className="h-full flex flex-col overflow-hidden border-[#efefef] hover:border-[#dfdfdf] transition-all duration-200 shadow-sm hover:shadow-md">
-      <CardHeader className="p-4 pb-2">
-        {/* Top: Icon and Category */}
-        <div className="flex items-start justify-between gap-2 mb-3">
+    <Card className="h-full flex flex-col border-[#efefef] hover:border-[#dfdfdf] transition-all duration-200 shadow-sm hover:shadow-md overflow-hidden">
+      <CardHeader className="space-y-3 pb-0">
+        <div className="flex items-start justify-between gap-2">
           <UniversityIcon
             name={item.university}
             size={40}
@@ -314,63 +313,58 @@ function ActiveProjectSeminarTrack({ item }: {item: EnrolledProjectSeminar;}) {
           </Badge>
         </div>
 
-        {/* Info Section */}
         <div className="space-y-1">
-          <span className="block text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
+          <CardDescription className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
             {item.courseCode || "P&S"} · {item.university}
-          </span>
+          </CardDescription>
           <CardTitle className="text-lg font-bold tracking-tight text-[#1f1f1f] leading-tight line-clamp-2 hover:text-black transition-colors">
             <Link href={`/projects-seminars/${item.id}`}>{item.title}</Link>
           </CardTitle>
         </div>
       </CardHeader>
 
-      <CardContent className="flex flex-1 flex-col p-4 pt-2 gap-6">
-        {/* Status/Semester Part */}
+      <CardContent className="flex-1 flex flex-col gap-4 py-4">
         <div className="space-y-3">
           <div className="flex items-center gap-2 text-[12px] text-stone-600 bg-stone-50 p-2 rounded-md border border-stone-100/50">
             <span className="font-medium">{item.semesterLabel}</span>
           </div>
           {item.description && (
-            <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">
+            <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
               {item.description}
             </p>
           )}
         </div>
 
-        {/* Progress Part */}
-        <div className="mt-auto space-y-2.5">
+        <div className="mt-auto space-y-2">
           <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider">
             <span className="text-muted-foreground text-[10px]">Status</span>
             <span className="text-[#1f1f1f]">In Progress</span>
           </div>
-          <div className="flex items-center gap-1 h-2 w-full bg-gray-100 rounded-sm overflow-hidden">
+          <div className="flex items-center gap-1 h-1.5 w-full bg-gray-100 rounded-sm overflow-hidden">
             <div className="h-full w-1/2 bg-black rounded-sm" />
           </div>
         </div>
       </CardContent>
 
-      <CardFooter className="p-4 pt-4 border-t border-[#f5f5f5] bg-gray-50/30 mt-auto">
-        <div className="flex items-center justify-between gap-2 w-full">
-          <div className="flex items-center gap-1.5">
-            {Array.from({ length: 7 }).map((_, idx) => (
-              <span key={idx} className="h-2 w-2 rounded-full bg-gray-100" />
-            ))}
-          </div>
-          <div className="flex gap-1">
+      <CardFooter className="pt-0 border-t border-[#f5f5f5] bg-gray-50/30 flex items-center justify-between gap-2 py-3">
+        <div className="flex items-center gap-1.5">
+          {Array.from({ length: 7 }).map((_, idx) => (
+            <span key={idx} className="h-2 w-2 rounded-full bg-gray-100" />
+          ))}
+        </div>
+        <div className="flex gap-1">
+          <Button variant="outline" size="icon-sm" className="h-8 w-8 rounded-md" asChild>
+            <Link href={`/projects-seminars/${item.id}`}>
+              <ExternalLink className="h-3.5 w-3.5" />
+            </Link>
+          </Button>
+          {item.url ? (
             <Button variant="outline" size="icon-sm" className="h-8 w-8 rounded-md" asChild>
-              <Link href={`/projects-seminars/${item.id}`}>
+              <a href={item.url} target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="h-3.5 w-3.5" />
-              </Link>
+              </a>
             </Button>
-            {item.url ? (
-              <Button variant="outline" size="icon-sm" className="h-8 w-8 rounded-md" asChild>
-                <a href={item.url} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </a>
-              </Button>
-            ) : null}
-          </div>
+          ) : null}
         </div>
       </CardFooter>
     </Card>);
