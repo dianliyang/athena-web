@@ -115,6 +115,7 @@ interface CourseDetailContentProps {
 type PlanCalendarEvent = {
   label: string;
   meta: string;
+  kind: string;
 };
 
 type LinkPreviewData = {
@@ -573,13 +574,13 @@ export default function CourseDetailContent({
           Number.isFinite(item.durationMinutes)
             ? `${Math.max(1, Math.round(item.durationMinutes))}m`
             : "";
-        const kind = String(item.kind || "").trim();
+        const kind = String(item.kind || "task").trim().toLowerCase();
         const meta =
           [kind, duration].filter(Boolean).join(" · ") || "Scheduled";
-        return { dateIso, label, meta };
+        return { dateIso, label, meta, kind };
       })
       .filter(
-        (row): row is { dateIso: string; label: string; meta: string } =>
+        (row): row is { dateIso: string; label: string; meta: string; kind: string } =>
           row !== null,
       );
     if (scheduleRows.length === 0) {
@@ -615,15 +616,16 @@ export default function CourseDetailContent({
         const dateIso = toIsoDateUtc(parsedDate);
         if (dateIso < rangeStartIso || dateIso > rangeEndIso) return null;
         const label = String(item.label || "Deadline").trim() || "Deadline";
-        const kind = String(item.kind || "").trim();
+        const kind = String(item.kind || "deadline").trim().toLowerCase();
         return {
           dateIso,
           label,
           meta: `Deadline${kind ? ` · ${kind}` : ""}`,
+          kind,
         };
       })
       .filter(
-        (row): row is { dateIso: string; label: string; meta: string } =>
+        (row): row is { dateIso: string; label: string; meta: string; kind: string } =>
           row !== null,
       );
     const rows = [...scheduleRows, ...deadlineRows];
@@ -631,7 +633,7 @@ export default function CourseDetailContent({
     const eventsByDate = new Map<string, PlanCalendarEvent[]>();
     for (const row of rows) {
       const list = eventsByDate.get(row.dateIso) || [];
-      list.push({ label: row.label, meta: row.meta });
+      list.push({ label: row.label, meta: row.meta, kind: row.kind });
       eventsByDate.set(row.dateIso, list);
     }
 
@@ -752,6 +754,26 @@ export default function CourseDetailContent({
   const visibleCalendarMonth =
     studyPlanCalendar.months[resolvedCalendarMonthIndex] || null;
   const todayIso = toIsoDateUtc(new Date());
+  const getEventKindBadgeClass = (kind: string) => {
+    switch (kind) {
+      case "lecture":
+        return "bg-blue-100 text-blue-800";
+      case "reading":
+        return "bg-indigo-100 text-indigo-800";
+      case "assignment":
+        return "bg-amber-100 text-amber-800";
+      case "project":
+        return "bg-emerald-100 text-emerald-800";
+      case "lab":
+        return "bg-cyan-100 text-cyan-800";
+      case "quiz":
+      case "exam":
+      case "deadline":
+        return "bg-rose-100 text-rose-800";
+      default:
+        return "bg-slate-100 text-slate-700";
+    }
+  };
 
   const handleGeneratePlans = async () => {
     setIsGeneratingPlans(true);
@@ -1889,12 +1911,12 @@ export default function CourseDetailContent({
                                     disabled={!canSelect}
                                     className={`h-auto min-h-[76px] w-full flex-col items-start justify-start gap-1 overflow-hidden p-1.5 text-left transition-colors ${
                                       isSelected
-                                        ? "border-black bg-black text-white"
+                                        ? "border-black bg-black !text-white hover:bg-black hover:!text-white"
                                         : isToday
-                                          ? "border-black/70 bg-black/[0.04]"
+                                          ? "border-black/70 bg-black/[0.04] hover:bg-black/[0.08]"
                                           : hasEvents
-                                            ? "border-black/25 bg-black/[0.02]"
-                                            : ""
+                                            ? "border-black/25 bg-black/[0.02] hover:bg-black/[0.06]"
+                                            : "hover:bg-black/[0.04]"
                                     }`}
                                   >
                                     <div className="flex items-center justify-between">
@@ -1949,12 +1971,20 @@ export default function CourseDetailContent({
                               ).map((event, idx) => (
                                 <li
                                   key={`${selectedCalendarDate}-${event.label}-${idx}`}
-                                  className=" bg-[#fafafa] p-2"
+                                  className="rounded-md border border-black/10 bg-[#fafafa] p-2"
                                 >
-                                  <p className="text-sm font-medium text-[#2f2f2f]">
-                                    {event.label}
-                                  </p>
-                                  <p className="text-xs text-[#666] mt-0.5">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <p className="text-sm font-medium text-[#2f2f2f]">
+                                      {event.label}
+                                    </p>
+                                    <Badge
+                                      variant="secondary"
+                                      className={getEventKindBadgeClass(event.kind)}
+                                    >
+                                      {event.kind || "task"}
+                                    </Badge>
+                                  </div>
+                                  <p className="text-xs text-[#666] mt-1">
                                     {event.meta}
                                   </p>
                                 </li>
