@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { sendStudyReminderEmail } from '@/lib/email';
 
+function redactEmail(email: string): string {
+  const [name, domain] = String(email || '').split('@');
+  if (!name || !domain) return 'redacted';
+  if (name.length <= 2) return `**@${domain}`;
+  return `${name.slice(0, 2)}***@${domain}`;
+}
+
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -130,10 +137,10 @@ export async function GET(request: NextRequest) {
 
         if (result.success) {
           sentCount++;
-          console.log(`[Cron] Sent email to ${user.email}`);
+          console.log(`[Cron] Sent email to ${redactEmail(user.email)}`);
         } else {
-          errors.push(`Failed to send email to ${user.email}`);
-          console.error(`[Cron] Failed to send email to ${user.email}:`, result.error);
+          errors.push(`Failed to send email to ${redactEmail(user.email)}`);
+          console.error(`[Cron] Failed to send email to ${redactEmail(user.email)}:`, result.error);
         }
       } catch (error) {
         console.error(`[Cron] Error processing user ${userId}:`, error);
