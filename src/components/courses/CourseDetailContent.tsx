@@ -111,6 +111,11 @@ interface CourseDetailContentProps {
     focus: string | null;
     durationMinutes: number | null;
   }>;
+  studyLogs?: Array<{
+    planId: number;
+    logDate: string;
+    isCompleted: boolean;
+  }>;
 }
 
 type PlanCalendarEvent = CourseDetailCalendarEvent;
@@ -390,6 +395,7 @@ export default function CourseDetailContent({
   projectSeminarRef = null,
   assignments = [],
   scheduleItems = [],
+  studyLogs = [],
 }: CourseDetailContentProps) {
   const [enrolled, setEnrolled] = useState(isEnrolled);
   const [isEnrolling, setIsEnrolling] = useState(false);
@@ -551,6 +557,18 @@ export default function CourseDetailContent({
     ? localResources
     : localResources.slice(0, 5);
   const hasMoreResources = localResources.length > 5;
+  const completionByDate = useMemo(() => {
+    const next = new Map<string, boolean>();
+    for (const log of studyLogs || []) {
+      if (!log.isCompleted) continue;
+      const dateIso = String(log.logDate || "").includes("T")
+        ? String(log.logDate).split("T")[0]
+        : String(log.logDate || "");
+      if (!dateIso) continue;
+      next.set(dateIso, true);
+    }
+    return next;
+  }, [studyLogs]);
 
   useEffect(() => {
     setLocalResources(course.resources || []);
@@ -563,8 +581,9 @@ export default function CourseDetailContent({
       assignments,
       scheduleItems,
       studyPlans: editablePlans,
+      completionByDate,
     });
-  }, [assignments, course.title, editablePlans, scheduleItems]);
+  }, [assignments, completionByDate, course.title, editablePlans, scheduleItems]);
 
   useEffect(() => {
     if (!studyPlanCalendar.range) {
@@ -1844,7 +1863,7 @@ export default function CourseDetailContent({
                                     ) : null}
                                     <div className="flex items-center justify-between gap-2">
                                       <span className="text-[11px] font-medium text-[#666]">
-                                        {selectedCalendarDate < todayIso ? "Completed" : "Not completed"}
+                                        {event.isCompleted ? "Completed" : "Not completed"}
                                       </span>
                                       <Badge
                                         variant="secondary"

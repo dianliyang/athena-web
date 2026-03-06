@@ -32,6 +32,7 @@ export interface CourseDetailCalendarEvent {
   kind: string;
   badgeLabel: string;
   timeLabel: string | null;
+  isCompleted: boolean;
 }
 
 export interface CourseDetailCalendarResult {
@@ -86,11 +87,13 @@ export function buildCourseDetailCalendar({
   assignments,
   scheduleItems,
   studyPlans: _studyPlans,
+  completionByDate = new Map<string, boolean>(),
 }: {
   courseTitle: string;
   assignments: CourseDetailCalendarAssignment[];
   scheduleItems: CourseDetailCalendarScheduleItem[];
   studyPlans: CourseDetailCalendarStudyPlan[];
+  completionByDate?: Map<string, boolean>;
 }): CourseDetailCalendarResult {
   const scheduleRows = scheduleItems
     .map((item) => {
@@ -105,9 +108,17 @@ export function buildCourseDetailCalendar({
       const explicitKind = String(item.kind || "").trim().toLowerCase();
       const kind = explicitKind || inferCalendarKind([item.title, item.focus]);
       const meta = [kind, duration].filter(Boolean).join(" · ") || "Scheduled";
-      return { dateIso, label, meta, kind, badgeLabel: kind, timeLabel: duration || null };
+      return {
+        dateIso,
+        label,
+        meta,
+        kind,
+        badgeLabel: kind,
+        timeLabel: duration || null,
+        isCompleted: completionByDate.get(dateIso) ?? false,
+      };
     })
-    .filter((row): row is { dateIso: string; label: string; meta: string; kind: string; badgeLabel: string; timeLabel: string | null } => row !== null);
+    .filter((row): row is { dateIso: string; label: string; meta: string; kind: string; badgeLabel: string; timeLabel: string | null; isCompleted: boolean } => row !== null);
 
   const deadlineRows = assignments
     .map((item) => {
@@ -124,9 +135,10 @@ export function buildCourseDetailCalendar({
         kind,
         badgeLabel: kind,
         timeLabel: null,
+        isCompleted: completionByDate.get(dateIso) ?? false,
       };
     })
-    .filter((row): row is { dateIso: string; label: string; meta: string; kind: string; badgeLabel: string; timeLabel: null } => row !== null);
+    .filter((row): row is { dateIso: string; label: string; meta: string; kind: string; badgeLabel: string; timeLabel: null; isCompleted: boolean } => row !== null);
 
   const rows = [...scheduleRows, ...deadlineRows];
   if (rows.length === 0) {
@@ -145,13 +157,14 @@ export function buildCourseDetailCalendar({
   const eventsByDate = new Map<string, CourseDetailCalendarEvent[]>();
   for (const row of rows) {
     const list = eventsByDate.get(row.dateIso) || [];
-    list.push({
-      label: row.label,
-      meta: row.meta,
-      kind: row.kind,
-      badgeLabel: row.badgeLabel,
-      timeLabel: row.timeLabel,
-    });
+      list.push({
+        label: row.label,
+        meta: row.meta,
+        kind: row.kind,
+        badgeLabel: row.badgeLabel,
+        timeLabel: row.timeLabel,
+        isCompleted: row.isCompleted,
+      });
     eventsByDate.set(row.dateIso, list);
   }
 

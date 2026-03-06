@@ -87,6 +87,13 @@ async function CourseDetailData({ id, dict }: {id: string;dict: Dictionary['dash
   order("start_date", { ascending: true }) :
   Promise.resolve({ data: [] });
 
+  const studyLogsPromise = user ?
+  supabase.
+  from("study_logs").
+  select("plan_id, log_date, is_completed").
+  eq("user_id", user.id) :
+  Promise.resolve({ data: [] });
+
   const syllabusPromise = supabase.
   from('course_syllabi').
   select('source_url, content, schedule, retrieved_at').
@@ -113,6 +120,7 @@ async function CourseDetailData({ id, dict }: {id: string;dict: Dictionary['dash
   { data: topicRows },
   { data: semesterRows },
   { data: studyPlanRows },
+  { data: studyLogRows },
   { data: syllabusData },
   { data: assignmentRows },
   { data: courseScheduleRows }] =
@@ -122,6 +130,7 @@ async function CourseDetailData({ id, dict }: {id: string;dict: Dictionary['dash
   topicsPromise,
   semestersPromise,
   studyPlansPromise,
+  studyLogsPromise,
   syllabusPromise,
   assignmentsPromise,
   courseSchedulesPromise]
@@ -165,6 +174,14 @@ async function CourseDetailData({ id, dict }: {id: string;dict: Dictionary['dash
     kind: p.kind || "",
     timezone: p.timezone || "UTC"
   }));
+  const studyPlanIds = new Set(editableStudyPlans.map((plan) => plan.id));
+  const courseStudyLogs = (studyLogRows || [])
+  .filter((log) => studyPlanIds.has(log.plan_id))
+  .map((log) => ({
+    planId: log.plan_id,
+    logDate: log.log_date,
+    isCompleted: Boolean(log.is_completed),
+  }));
 
   return (
     <CourseDetailContent
@@ -205,7 +222,8 @@ async function CourseDetailData({ id, dict }: {id: string;dict: Dictionary['dash
         kind: row.task_kind,
         focus: row.focus,
         durationMinutes: row.duration_minutes
-      }))} />);
+      }))}
+      studyLogs={courseStudyLogs} />);
 
 
 }

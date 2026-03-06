@@ -173,4 +173,78 @@ describe("CourseDetailContent tabs", () => {
     expect(screen.getAllByText("45m").length).toBeGreaterThan(0);
     expect(screen.getAllByText("reading").length).toBeGreaterThan(0);
   });
+
+  test("course detail calendar does not mark past tasks completed without a study log", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-15T12:00:00Z"));
+
+    try {
+      const { default: CourseDetailContent } = await import("@/components/courses/CourseDetailContent");
+      mockSearchParams = new URLSearchParams("tab=schedule");
+      render(
+        <CourseDetailContent
+          course={baseCourse}
+          isEnrolled={true}
+          descriptionEmptyText="No description"
+          availableTopics={[]}
+          availableSemesters={[]}
+          studyPlans={[]}
+          scheduleItems={[
+            {
+              date: "2026-03-10",
+              title: "Review lecture notes",
+              kind: "review",
+              focus: "Week 2",
+              durationMinutes: 30,
+            },
+          ]}
+        />,
+      );
+
+      expect(screen.getAllByText("Not completed").length).toBeGreaterThan(0);
+      expect(screen.queryAllByText("Completed")).toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("course detail calendar marks tasks completed when a study log exists for that date", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-15T12:00:00Z"));
+
+    try {
+      const { default: CourseDetailContent } = await import("@/components/courses/CourseDetailContent");
+      mockSearchParams = new URLSearchParams("tab=schedule");
+      render(
+        <CourseDetailContent
+          course={baseCourse}
+          isEnrolled={true}
+          descriptionEmptyText="No description"
+          availableTopics={[]}
+          availableSemesters={[]}
+          studyPlans={[]}
+          studyLogs={[
+            {
+              planId: 99,
+              logDate: "2026-03-10",
+              isCompleted: true,
+            },
+          ]}
+          scheduleItems={[
+            {
+              date: "2026-03-10",
+              title: "Review lecture notes",
+              kind: "review",
+              focus: "Week 2",
+              durationMinutes: 30,
+            },
+          ]}
+        />,
+      );
+
+      expect(screen.getAllByText("Completed").length).toBeGreaterThan(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

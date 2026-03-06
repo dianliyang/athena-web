@@ -48,7 +48,28 @@ describe("buildCourseDetailCalendar", () => {
         kind: "reading",
         badgeLabel: "reading",
         timeLabel: "45m",
+        isCompleted: false,
       },
     ]);
+  });
+
+  test("marks scheduled tasks completed only when the date exists in completion logs", () => {
+    const result = buildCourseDetailCalendar({
+      courseTitle: "Fundamentals of Programming",
+      assignments: [],
+      scheduleItems: [
+        {
+          date: "2026-03-10",
+          title: "Read cache notes",
+          kind: null,
+          focus: "Caching",
+          durationMinutes: 45,
+        },
+      ],
+      studyPlans: [],
+      completionByDate: new Map([["2026-03-10", true]]),
+    });
+
+    expect(result.eventsByDate.get("2026-03-10")?.[0]?.isCompleted).toBe(true);
   });
 });
