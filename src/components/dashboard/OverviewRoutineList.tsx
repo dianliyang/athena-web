@@ -92,22 +92,22 @@ export default function OverviewRoutineList({
         const isPending = Boolean(pendingKeys[item.key]);
         const content = (
           <div
-            className="grid gap-3 border-b border-border/50 pb-4 last:border-b-0 last:pb-0 sm:grid-cols-[96px_minmax(0,1fr)_auto] sm:items-center group/item"
+            className="grid gap-3 border-b border-border/50 pb-4 last:border-b-0 last:pb-0 sm:grid-cols-[100px_minmax(0,1fr)_auto] sm:items-center group/item"
           >
-            <div className="flex flex-col items-start gap-1 sm:items-center sm:text-center">
-              <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/80">{item.timeLabel}</p>
-              <Badge variant="outline" className="rounded-full px-1.5 text-[9px] uppercase tracking-[0.18em]">
+            <div className="flex flex-col items-start gap-1">
+              <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/80 leading-none">{item.timeLabel}</p>
+              <Badge variant="outline" className="rounded-full px-1.5 text-[9px] uppercase tracking-[0.12em] border-muted-foreground/20 text-muted-foreground/70 font-medium">
                 {item.kind}
               </Badge>
             </div>
             <div className="min-w-0 space-y-1">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <p className={`text-sm font-medium tracking-tight ${item.isDone ? "text-muted-foreground line-through" : "text-[#0f172a]"}`}>
+                <p className={`text-sm font-medium tracking-tight leading-tight ${item.isDone ? "text-muted-foreground line-through" : "text-[#0f172a]"}`}>
                   {item.title}
                 </p>
               </div>
-              <div className="flex flex-wrap items-center gap-x-2 text-[11px] font-medium text-muted-foreground/70">
-                <span className="truncate max-w-[240px] uppercase">{item.meta}</span>
+              <div className="flex flex-wrap items-center gap-x-2 text-[11px] font-medium text-muted-foreground/60 leading-tight">
+                <span className="truncate max-w-[240px]">{item.meta}</span>
                 {item.location && (
                   <>
                     <span className="text-muted-foreground/30 text-[8px] tracking-normal">·</span>
@@ -116,10 +116,7 @@ export default function OverviewRoutineList({
                 )}
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-3 sm:justify-self-end">
-              {item.courseId && (
-                <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/0 group-hover/item:text-muted-foreground/40 transition-all translate-x-[-4px] group-hover/item:translate-x-0" />
-              )}
+            <div className="flex items-center gap-3 sm:justify-self-end">
               {item.action ? (
                 <Button
                   variant={item.isDone ? "secondary" : "outline"}
@@ -130,13 +127,14 @@ export default function OverviewRoutineList({
                     void handleAction(item);
                   }}
                   disabled={isPending}
-                  className="h-7 px-2 text-[11px] uppercase font-bold tracking-wider"
+                  className="h-7 px-2 text-[10px] uppercase font-bold tracking-wider"
                 >
                   {isPending ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
                   {item.statusLabel}
                 </Button>
-              ) : item.sourceType === "assignment" ? (
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              ) : null}
+              {item.courseId ? (
+                <ChevronRight className="h-4 w-4 text-muted-foreground/30" />
               ) : null}
             </div>
           </div>
@@ -144,13 +142,13 @@ export default function OverviewRoutineList({
 
         if (item.courseId) {
           return (
-            <Link key={item.key} href={`/courses/${item.courseId}`} className="block">
+            <Link key={item.key} href={`/courses/${item.courseId}`} className="block py-1 hover:bg-muted/5 transition-colors">
               {content}
             </Link>
           );
         }
 
-        return <div key={item.key}>{content}</div>;
+        return <div key={item.key} className="py-1">{content}</div>;
       })}
     </div>
   );
