@@ -365,7 +365,12 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
         >
           <section className="flex min-h-0 flex-1 flex-col rounded-lg py-0 pr-0">
             <div className="flex h-12 items-center pb-3" data-testid="today-heading">
-              <h3 className="text-xl font-semibold leading-none text-[#1f2937]">Today</h3>
+              <h3
+                className="text-xl font-semibold leading-none text-[#1f2937]"
+                data-testid="today-header-title"
+              >
+                Today
+              </h3>
             </div>
             <div className="min-h-0 flex-1 space-y-2 overflow-auto pr-1" data-testid="today-events-list">
               {todayEvents.length > 0 ?
@@ -419,7 +424,7 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
             </div>
           </section>
 
-          <div className="mt-auto rounded-lg px-0 pb-4 pt-1" data-testid="mini-calendar-section">
+          <div className="mt-auto rounded-lg px-0 pt-1" data-testid="mini-calendar-section">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-semibold text-[#1f2937]">{smallCalendarLabel}</h3>
               <div className="flex items-center gap-1" data-testid="mini-calendar-controls">
@@ -501,11 +506,11 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
 
         <section className="bg-transparent overflow-hidden h-full min-h-0 relative flex flex-col">
           <div className="mb-2 grid h-12 grid-cols-[1fr_auto] items-center rounded-lg px-2" data-testid="week-header">
-            <div className="grid h-full min-w-0 grid-cols-[1fr_auto] items-center">
-              <p className="text-sm font-semibold leading-none text-[#1f2937]">Today</p>
-              <div className="flex justify-center">
-                <p className="text-sm font-semibold leading-none text-[#0f172a]">{`Week ${weekNumber} ${weekLabel}`}</p>
-              </div>
+            <div className="min-w-0">
+              <p
+                className="truncate text-xl font-semibold leading-none text-[#0f172a]"
+                data-testid="week-header-title"
+              >{`Week ${weekNumber} ${weekLabel}`}</p>
             </div>
             <div className="ml-3 flex items-center gap-1">
               <Button variant="outline"
@@ -690,12 +695,18 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
                   style={{ top: 40 + Math.max(currentTimeTop, 0) }}
                 >
                   <div className="relative flex items-center">
-                    <div className="flex w-[56px] justify-center pr-1">
+                    <div
+                      className="flex w-[56px] items-center justify-end"
+                      data-testid="current-time-label-slot"
+                    >
                       <span className="inline-flex h-5 shrink-0 items-center rounded-full bg-[#ef4444] px-1.5 text-[10px] font-semibold text-white">
                         {currentTimeLabel}
                       </span>
                     </div>
-                    <div className="h-px flex-1 bg-[#ef4444]" />
+                    <div
+                      className="h-px flex-1 bg-[#ef4444]"
+                      data-testid="current-time-line-segment"
+                    />
                   </div>
                 </div>
               ) : null}

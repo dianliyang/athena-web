@@ -136,29 +136,40 @@ describe("StudyCalendar redesign", () => {
 
     const timelineScroller = screen.getAllByTestId("calendar-timeline-scroll")[0];
     const currentTimeLine = screen.getAllByTestId("current-time-line")[0];
+    const currentTimeLabelSlot = screen.getAllByTestId("current-time-label-slot")[0];
+    const currentTimeLineSegment = screen.getAllByTestId("current-time-line-segment")[0];
 
     expect(currentTimeLine).toBeDefined();
     expect(currentTimeLine.textContent).toContain("10:00");
     expect(currentTimeLine.className).toContain("left-0");
+    expect(currentTimeLabelSlot.className).toContain("justify-end");
+    expect(currentTimeLabelSlot.className).not.toContain("justify-center");
+    expect(currentTimeLabelSlot.className).not.toContain("pr-1");
+    expect(currentTimeLineSegment.className).toContain("bg-[#ef4444]");
 
     await waitFor(() => {
       expect((timelineScroller as HTMLElement).scrollTop).toBeGreaterThan(0);
     });
   });
 
-  test("separates the week header labels and pads the mini calendar bottom edge", () => {
+  test("separates the week header labels and removes the mini calendar bottom padding", () => {
     render(<StudyCalendar {...makeProps()} />);
 
     const weekHeader = screen.getAllByTestId("week-header")[0];
     const miniCalendarSection = screen.getAllByTestId("mini-calendar-section")[0];
     const todayHeading = screen.getAllByTestId("today-heading")[0];
+    const todayHeaderTitle = screen.getAllByTestId("today-header-title")[0];
+    const weekHeaderTitle = screen.getAllByTestId("week-header-title")[0];
 
-    expect(screen.getAllByText("Today").length).toBeGreaterThan(1);
-    expect(within(weekHeader).getByText("Week 5 Feb 1 - Feb 7, 2026")).toBeDefined();
+    expect(todayHeaderTitle.textContent).toBe("Today");
+    expect(weekHeaderTitle.textContent).toBe("Week 5 Feb 1 - Feb 7, 2026");
+    expect(todayHeaderTitle.className).toContain("text-xl");
+    expect(weekHeaderTitle.className).toContain("text-xl");
     expect(weekHeader.className).toContain("items-center");
     expect(weekHeader.className).toContain("h-12");
     expect(todayHeading.className).toContain("h-12");
-    expect(miniCalendarSection.className).toContain("pb-4");
+    expect(miniCalendarSection.className).not.toContain("pb-4");
+    expect(within(weekHeader).getAllByText("Today")).toHaveLength(1);
   });
 
   test("navigates weeks by prev/next controls", { timeout: 10000 }, () => {

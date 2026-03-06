@@ -1,0 +1,38 @@
+import React from "react";
+import { describe, expect, test, vi, beforeEach } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import UsageStatisticsPanel from "@/app/(dashboard)/settings/usage/UsageStatisticsPanel";
+
+const statsPayload = {
+  totals: { requests: 12, tokens_input: 1000, tokens_output: 2000, cost_usd: 1.23 },
+  byFeature: { chat: { requests: 8, cost_usd: 0.7 } },
+  byModel: { "gpt-test": { requests: 8, cost_usd: 0.7 } },
+  recentTotals: { requests: 4, cost_usd: 0.2 },
+  recentResponses: [],
+  daily: { "2026-03-01": { requests: 2, cost_usd: 0.1 } },
+};
+
+describe("UsageStatisticsPanel", () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => statsPayload,
+      }),
+    );
+  });
+
+  test("does not add extra horizontal page padding at the panel root", async () => {
+    const { container } = render(<UsageStatisticsPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Usage Statistics")).toBeDefined();
+    });
+
+    const root = container.firstElementChild as HTMLElement;
+
+    expect(root.className).toContain("space-y-3");
+    expect(root.className).not.toContain("px-4");
+  });
+});

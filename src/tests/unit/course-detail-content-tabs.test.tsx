@@ -174,6 +174,60 @@ describe("CourseDetailContent tabs", () => {
     expect(screen.getAllByText("reading").length).toBeGreaterThan(0);
   });
 
+  test("course detail calendar month cell bars reflect preview task kinds", async () => {
+    const { default: CourseDetailContent } = await import("@/components/courses/CourseDetailContent");
+    mockSearchParams = new URLSearchParams("tab=schedule");
+    render(
+      <CourseDetailContent
+        course={baseCourse}
+        isEnrolled={true}
+        descriptionEmptyText="No description"
+        availableTopics={[]}
+        availableSemesters={[]}
+        studyPlans={[]}
+        scheduleItems={[
+          {
+            date: "2026-03-10",
+            title: "Lecture recap",
+            kind: "lecture",
+            focus: "Week 1",
+            durationMinutes: 45,
+          },
+          {
+            date: "2026-03-10",
+            title: "Assignment 1",
+            kind: "assignment",
+            focus: "Week 1",
+            durationMinutes: 60,
+          },
+          {
+            date: "2026-03-10",
+            title: "Quiz prep",
+            kind: "quiz",
+            focus: "Week 1",
+            durationMinutes: 30,
+          },
+        ]}
+      />,
+    );
+
+    expect(
+      screen
+        .getAllByTestId("calendar-bar-2026-03-10-0")
+        .some((element) => element.getAttribute("data-kind") === "lecture"),
+    ).toBe(true);
+    expect(
+      screen
+        .getAllByTestId("calendar-bar-2026-03-10-1")
+        .some((element) => element.getAttribute("data-kind") === "assignment"),
+    ).toBe(true);
+    expect(
+      screen
+        .getAllByTestId("calendar-bar-2026-03-10-2")
+        .some((element) => element.getAttribute("data-kind") === "quiz"),
+    ).toBe(true);
+  });
+
   test("course detail calendar does not mark past tasks completed without a study log", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-03-15T12:00:00Z"));

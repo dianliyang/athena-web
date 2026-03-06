@@ -8,11 +8,11 @@ import { getUser, createClient, mapCourseFromRow } from "@/lib/supabase/server";
 import { getLanguage } from "@/actions/language";
 import { getDictionary, Dictionary } from "@/lib/dictionary";
 import { calculateAttendance } from "@/lib/attendance";
+import { groupRoadmapCoursesByPlan } from "@/lib/roadmap-groups";
 import { ExternalLink, Ghost } from "lucide-react";
 import CourseIntelSyncWindow from "@/components/home/CourseIntelSyncWindow";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 
 export const dynamic = "force-dynamic";
 
@@ -55,7 +55,17 @@ export default async function StudyPlanPage() {
   }
 
   return (
-    <main className="h-full w-full">
+    <main className="h-full w-full px-4 pb-4">
+      <div className="sticky top-0 z-20 -mx-4 bg-background/95 px-4 pb-5 pt-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+            Roadmap
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Track active courses, projects, schedule coverage, and completion momentum.
+          </p>
+        </div>
+      </div>
       <Suspense fallback={null}>
         <StudyPlanContent userId={user.id} dict={dict} />
       </Suspense>
@@ -70,6 +80,7 @@ async function StudyPlanContent({
 
 }: {userId: string;dict: Dictionary;}) {
   const supabase = await createClient();
+  const todayIso = new Date().toISOString().slice(0, 10);
 
   // Parallelize all DB fetches
   const [coursesRes, plansRes, logsRes, projectsSeminarsRes] = await Promise.all([
@@ -246,37 +257,66 @@ async function StudyPlanContent({
   const inProgress = enrolledWithAttendance.filter((c) => c.status === 'in_progress');
   const inProgressProjectsSeminars = enrolledProjectsSeminars.filter((item) => item.status === 'in_progress');
   const completed = enrolledWithAttendance.filter((c) => c.status === 'completed' && !c.isHidden);
+  const { active: activeCourses, planning: planningCourses } =
+    groupRoadmapCoursesByPlan(inProgress, plans, todayIso);
+  const hasActiveItems = activeCourses.length > 0 || inProgressProjectsSeminars.length > 0;
+  const hasPlanningItems = planningCourses.length > 0;
 
   return (
     <div className="h-full w-full flex flex-col gap-2">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-[#1f1f1f]">
-          {dict.navbar?.roadmap || "Roadmap"}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Review your active focus and upcoming study schedule.
-        </p>
-      </div>
-      <Separator />
       <CourseIntelSyncWindow />
 
       <section>
+        <div className="mb-3 space-y-1">
+          <h2 className="text-lg font-semibold tracking-tight text-[#1f1f1f]">
+            Active
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Courses already started and in-progress project work.
+          </p>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {inProgress.length > 0 && inProgress.map((course) =>
+          {activeCourses.length > 0 && activeCourses.map(({ course, plan }) =>
           <ActiveCourseTrack
             key={`course-${course.id}`}
             course={course}
             initialProgress={course.progress}
-            plan={plans.find((p: {course_id: number;}) => p.course_id === course.id)} />
+            plan={plan} />
 
           )}
           {inProgressProjectsSeminars.length > 0 && inProgressProjectsSeminars.map((item) =>
           <ActiveProjectSeminarTrack key={`project-seminar-${item.id}`} item={item} />
           )}
         </div>
-        {inProgress.length === 0 && inProgressProjectsSeminars.length === 0 &&
+        {!hasActiveItems &&
           <p className="text-sm text-muted-foreground mt-4">{dict.dashboard.roadmap.no_active}</p>
         }
+      </section>
+
+      <section>
+        <div className="mb-3 space-y-1">
+          <h2 className="text-lg font-semibold tracking-tight text-[#1f1f1f]">
+            Planning
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            In-progress courses without a plan yet or with a start date after today.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {planningCourses.map(({ course, plan }) => (
+            <ActiveCourseTrack
+              key={`planning-course-${course.id}`}
+              course={course}
+              initialProgress={course.progress}
+              plan={plan}
+            />
+          ))}
+        </div>
+        {!hasPlanningItems ? (
+          <p className="text-sm text-muted-foreground mt-4">
+            No planning items right now.
+          </p>
+        ) : null}
       </section>
 
       {enrolledCourses.length === 0 && enrolledProjectsSeminars.length === 0 &&

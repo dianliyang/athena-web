@@ -18,7 +18,17 @@ export default async function CoursesPage({ searchParams }: PageProps) {
   const dict = await getDictionary(lang);
 
   return (
-    <div className="h-full min-h-0 flex flex-col gap-5">
+    <div className="h-full min-h-0 flex flex-col px-4 pb-4">
+      <div className="sticky top-0 z-20 -mx-4 bg-background/95 px-4 pb-5 pt-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+            Courses
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Explore the catalog and enroll in courses.
+          </p>
+        </div>
+      </div>
       <div className="flex-1 min-h-0">
         <Suspense fallback={null}>
           <CourseListData params={params} dict={dict.dashboard.courses} />

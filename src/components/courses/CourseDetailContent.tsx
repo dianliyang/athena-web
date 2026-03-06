@@ -656,6 +656,47 @@ export default function CourseDetailContent({
         return "bg-slate-100 text-slate-700";
     }
   };
+  const getEventKindBarClass = (kind: string, isSelected: boolean) => {
+    if (isSelected) {
+      switch (kind) {
+        case "lecture":
+          return "bg-blue-200";
+        case "reading":
+          return "bg-indigo-200";
+        case "assignment":
+          return "bg-amber-200";
+        case "project":
+          return "bg-emerald-200";
+        case "lab":
+          return "bg-cyan-200";
+        case "quiz":
+        case "exam":
+        case "deadline":
+          return "bg-rose-200";
+        default:
+          return "bg-white/80";
+      }
+    }
+
+    switch (kind) {
+      case "lecture":
+        return "bg-blue-500";
+      case "reading":
+        return "bg-indigo-500";
+      case "assignment":
+        return "bg-amber-500";
+      case "project":
+        return "bg-emerald-500";
+      case "lab":
+        return "bg-cyan-500";
+      case "quiz":
+      case "exam":
+      case "deadline":
+        return "bg-rose-500";
+      default:
+        return "bg-slate-500";
+    }
+  };
 
   const handleGeneratePlans = async () => {
     setIsGeneratingPlans(true);
@@ -1762,9 +1803,6 @@ export default function CourseDetailContent({
                                   events.length - previewEvents.length,
                                   0,
                                 );
-                                const barColors = isSelected
-                                  ? ["bg-white", "bg-white/80", "bg-white/60"]
-                                  : ["bg-[#111111]", "bg-[#3a3a3a]", "bg-[#6b6b6b]"];
                                 return (
                                   <Button
                                     variant="outline"
@@ -1805,10 +1843,12 @@ export default function CourseDetailContent({
                                       </span>
                                     </div>
                                     <div className="mt-1 space-y-1 overflow-hidden">
-                                      {previewEvents.map((_, idx) => (
+                                      {previewEvents.map((event, idx) => (
                                         <div
                                           key={`${cell.dateIso}-bar-${idx}`}
-                                          className={`h-1 w-full rounded-full ${barColors[idx % barColors.length]}`}
+                                          data-kind={event.kind}
+                                          data-testid={`calendar-bar-${cell.dateIso}-${idx}`}
+                                          className={`h-1 w-full rounded-full ${getEventKindBarClass(event.kind, isSelected)}`}
                                         />
                                       ))}
                                       {remainingEventsCount > 0 ? (

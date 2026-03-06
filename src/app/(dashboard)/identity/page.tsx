@@ -172,12 +172,14 @@ export default async function IdentityPage() {
   ];
 
   return (
-    <main className="w-full space-y-6 pb-6">
-      <section className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Identity</h1>
-        <p className="text-sm text-muted-foreground">
-          Profile, learning signals, and account posture.
-        </p>
+    <main className="w-full space-y-6 px-4 pb-4">
+      <section className="sticky top-0 z-20 -mx-4 bg-background/95 px-4 pb-5 pt-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Identity</h1>
+          <p className="text-sm text-muted-foreground">
+            Profile, learning signals, and account posture.
+          </p>
+        </div>
       </section>
 
       <section className="overflow-hidden rounded-[28px] border border-[#e7e2d8]">

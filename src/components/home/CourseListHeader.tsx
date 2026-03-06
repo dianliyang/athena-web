@@ -50,8 +50,6 @@ interface CourseListHeaderProps {
   dict: Dictionary["dashboard"]["courses"];
   filterUniversities: string[];
   filterSemesters: string[];
-  title?: string;
-  description?: string;
 }
 
 export default function CourseListHeader({
@@ -60,8 +58,6 @@ export default function CourseListHeader({
   dict,
   filterUniversities,
   filterSemesters,
-  title,
-  description,
 }: CourseListHeaderProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -158,16 +154,7 @@ export default function CourseListHeader({
     (showEnrolledOnly ? 1 : 0);
 
   return (
-    <div className="flex flex-col gap-2.5 md:flex-row md:items-start md:justify-between">
-      <div className="min-w-0">
-        <h1 className="text-2xl font-semibold tracking-tight text-[#1f1f1f]">
-          {title || "Courses"}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {description || "Explore the catalog and enroll in courses."}
-        </p>
-      </div>
-
+    <div className="flex flex-col gap-2.5">
       <div className="flex w-full items-center justify-between gap-2 md:w-auto md:flex-row md:items-center md:justify-start md:gap-2">
         <Tabs
           value={viewMode}

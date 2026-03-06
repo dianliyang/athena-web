@@ -6,7 +6,6 @@ import { getLanguage } from "@/actions/language";
 import { getDictionary, Dictionary } from "@/lib/dictionary";
 import { getWorkoutLastUpdateTime } from "@/actions/scrapers";
 import { aggregateWorkoutsByName } from "@/lib/workouts";
-import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 
 interface PageProps {
@@ -30,23 +29,24 @@ export default async function WorkoutsPage({ searchParams }: PageProps) {
     : null;
 
   return (
-    <div className="h-full flex flex-col gap-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            Workouts
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Browse classes by category, compare options, and book quickly.
-          </p>
+    <div className="h-full flex flex-col gap-4 px-4 pb-4">
+      <div className="sticky top-0 z-20 -mx-4 bg-background/95 px-4 pb-5 pt-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+              Workouts
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Browse classes by category, compare options, and book quickly.
+            </p>
+          </div>
+          {formattedUpdate ? (
+            <Badge variant="secondary" className="mt-1">
+              Updated {formattedUpdate}
+            </Badge>
+          ) : null}
         </div>
-        {formattedUpdate ? (
-          <Badge variant="secondary" className="mt-1">
-            Updated {formattedUpdate}
-          </Badge>
-        ) : null}
       </div>
-      <Separator />
       <Suspense fallback={null}>
         <SidebarData dict={dict.dashboard.workouts} />
       </Suspense>

@@ -142,7 +142,7 @@ export default function LeftRail({ labels }: LeftRailProps) {
         <SidebarTrigger className={collapsed ? "absolute left-1/2 -translate-x-1/2" : ""} />
       </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent className="px-2">
         <SidebarGroup>
           <SidebarGroupLabel>{labels.command}</SidebarGroupLabel>
           <SidebarGroupContent>
@@ -206,7 +206,7 @@ export default function LeftRail({ labels }: LeftRailProps) {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="sticky bottom-0 z-10 bg-sidebar">
+      <SidebarFooter className="sticky bottom-0 z-10 bg-sidebar px-2">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton tooltip="Help">

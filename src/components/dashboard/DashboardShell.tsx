@@ -61,9 +61,7 @@ export default function DashboardShell({ labels, children }: DashboardShellProps
       <SidebarInset className="h-svh min-w-0 overflow-hidden overscroll-none">
         <div
           id="dashboard-scroll"
-          className={`h-full w-full overflow-y-auto overflow-x-hidden overscroll-contain px-4 ${
-            isCalendarPage ? "" : "pb-8"
-          }`}
+          className="h-full w-full overflow-y-auto overflow-x-hidden overscroll-contain"
         >
           {children}
         </div>

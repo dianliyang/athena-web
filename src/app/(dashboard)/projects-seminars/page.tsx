@@ -3,7 +3,6 @@ import ProjectsSeminarsToolbar from "@/components/projects-seminars/ProjectsSemi
 import { ProjectSeminarTableRow } from "@/components/projects-seminars/table/columns";
 import { getLanguage } from "@/actions/language";
 import { getDictionary } from "@/lib/dictionary";
-import { Separator } from "@/components/ui/separator";
 import ProjectsSeminarsInfiniteContent from "@/components/projects-seminars/ProjectsSeminarsInfiniteContent";
 
 interface PageProps {
@@ -193,21 +192,21 @@ export default async function ProjectsSeminarsPage({
   });
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          Seminar & Project
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Explore projects and seminars with focused filters and fast enrollment.
-        </p>
+    <div className="flex h-full min-h-0 flex-col px-4 pb-4">
+      <div className="sticky top-0 z-20 -mx-4 bg-background/95 px-4 pb-5 pt-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+            Seminar & Project
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Explore projects and seminars with focused filters and fast enrollment.
+          </p>
+        </div>
       </div>
-      <Separator className="my-3" />
       <ProjectsSeminarsToolbar
         categories={uniqueCategories}
         semesters={uniqueSemesters}
       />
-      <Separator className="my-3" />
 
       <div className="min-h-0 flex-1 overflow-hidden">
         {(items || []).length === 0 ? (

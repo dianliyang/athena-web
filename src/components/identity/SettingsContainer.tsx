@@ -18,7 +18,6 @@ import {
   getSettingsSectionFromPathname } from
 "./settings-route";
 import { Button } from "@/components/ui/button";import { Card } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 
 const AISettingsCard = dynamic(() => import("./AISettingsCard"), {
   ssr: false
@@ -258,16 +257,16 @@ export default function SettingsContainer({
         }
 
         {/* Section header */}
-        <div className="mb-3 shrink-0 flex items-start justify-between gap-3">
-          <div>
-            <h3 className="text-2xl font-semibold tracking-tight text-[#1f1f1f]">
-              {meta.title}
-            </h3>
-            <p className="mt-1 text-sm text-muted-foreground">{meta.desc}</p>
+        <div className="sticky top-0 z-20 -mx-4 shrink-0 bg-background/95 px-4 pb-5 pt-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="text-2xl font-semibold tracking-tight text-[#1f1f1f]">
+                {meta.title}
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">{meta.desc}</p>
+            </div>
           </div>
         </div>
-
-        <Separator className="mb-3" />
 
         {active === "engine" ?
         <div className="flex-1 min-h-0 flex flex-col">

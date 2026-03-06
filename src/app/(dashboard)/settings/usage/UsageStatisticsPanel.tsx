@@ -98,7 +98,7 @@ export default function UsageStatisticsPanel() {
   }
 
   return (
-    <div className="px-4 space-y-3">
+    <div className="space-y-3">
       <div>
         <h3 className="text-2xl font-semibold tracking-tight text-[#1f1f1f]">Usage Statistics</h3>
         <p className="mt-1 text-sm text-muted-foreground">Requests, token usage, cost trends, and recent AI responses.</p>

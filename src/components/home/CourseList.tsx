@@ -24,7 +24,6 @@ import {
 import UniversityIcon from "@/components/common/UniversityIcon";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 
 interface CourseListProps {
   initialCourses: Course[];
@@ -246,10 +245,7 @@ export default function CourseList({
         dict={dict}
         filterUniversities={filterUniversities}
         filterSemesters={filterSemesters}
-        title="Courses"
-        description="Explore the catalog and enroll in courses."
       />
-      <Separator />
 
       {effectiveViewMode === "list" ? (
         <div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-y-auto">
