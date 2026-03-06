@@ -1,74 +1,3 @@
-type OverviewStudyPlan = {
-  id: number;
-  course_id: number;
-  start_date: string;
-  end_date: string;
-  days_of_week: number[];
-  start_time: string | null;
-  end_time: string | null;
-  kind: string | null;
-  location: string | null;
-  courses: {
-    title: string;
-    course_code: string;
-    university: string;
-  } | null;
-};
-
-type OverviewStudyLog = {
-  plan_id: number | null;
-  log_date: string;
-  is_completed: boolean | null;
-};
-
-type OverviewWorkout = {
-  id: number;
-  title: string;
-  category: string | null;
-  source: string | null;
-  day_of_week: string | null;
-  start_date: string | null;
-  end_date: string | null;
-  start_time: string | null;
-  end_time: string | null;
-  location: string | null;
-};
-
-type OverviewWorkoutLog = {
-  workout_id: number;
-  log_date: string;
-  is_attended: boolean | null;
-};
-
-type OverviewAssignment = {
-  id: number;
-  course_id: number;
-  label: string;
-  kind: string;
-  due_on: string | null;
-  url: string | null;
-  courses: {
-    title: string;
-    course_code: string;
-    university: string;
-  } | null;
-};
-
-type OverviewSchedule = {
-  id: number;
-  course_id: number;
-  schedule_date: string;
-  task_title: string;
-  task_kind: string | null;
-  focus: string | null;
-  duration_minutes: number | null;
-  courses: {
-    title: string;
-    course_code: string;
-    university: string;
-  } | null;
-};
-
 export type OverviewRoutineItem = {
   key: string;
   sourceType: "study_plan" | "workout" | "assignment";
@@ -88,201 +17,79 @@ export type OverviewRoutineItem = {
     | null;
 };
 
-function toDateOnly(value: string | null | undefined) {
-  if (!value) return "";
-  return value.includes("T") ? value.split("T")[0] : value;
-}
+export type DatabaseScheduleRow = {
+  event_date: string;
+  course_id: number | null;
+  title: string;
+  course_code: string;
+  university: string;
+  kind: string;
+  start_time: string | null;
+  end_time: string | null;
+  location: string | null;
+  is_completed: boolean;
+  plan_id: number | null;
+  schedule_id: number | null;
+  assignment_id: number | null;
+  workout_id: number | null;
+  source_type: string;
+};
 
-function parseWorkoutDayOfWeek(value: string | null) {
-  if (!value) return null;
-  const normalized = value.trim().toLowerCase();
-  const dayMap: Record<string, number> = {
-    sun: 0,
-    sunday: 0,
-    mon: 1,
-    monday: 1,
-    tue: 2,
-    tues: 2,
-    tuesday: 2,
-    wed: 3,
-    wednesday: 3,
-    thu: 4,
-    thur: 4,
-    thurs: 4,
-    thursday: 4,
-    fri: 5,
-    friday: 5,
-    sat: 6,
-    saturday: 6,
-  };
-  return Number.isInteger(dayMap[normalized]) ? dayMap[normalized] : null;
-}
-
-function getTimeLabel(start: string | null, end: string | null) {
+function getTimeLabel(start: string | null, end: string | null, sourceType: string) {
+  if (sourceType === 'assignment') return "Due today";
   if (!start && !end) return "All day";
   if (!start) return end ? `Until ${end.slice(0, 5)}` : "All day";
   if (!end) return start.slice(0, 5);
   return `${start.slice(0, 5)} - ${end.slice(0, 5)}`;
 }
 
-function getSortTime(start: string | null) {
+function getSortTime(start: string | null, sourceType: string) {
+  if (sourceType === 'assignment') return "98:00";
   return start?.slice(0, 5) || "99:99";
 }
 
-export function buildOverviewRoutineItems({
-  date,
-  plans,
-  logs,
-  workouts,
-  workoutLogs,
-  assignments,
-  schedules = [],
-}: {
-  date: string;
-  plans: OverviewStudyPlan[];
-  logs: Array<OverviewStudyLog & { course_schedule_id?: number | null; course_assignment_id?: number | null }>;
-  workouts: OverviewWorkout[];
-  workoutLogs: OverviewWorkoutLog[];
-  assignments: OverviewAssignment[];
-  schedules?: OverviewSchedule[];
-}): OverviewRoutineItem[] {
-  const targetDay = new Date(date).getDay();
-  const logMap = new Map(
-    logs
-      .filter(log => log.plan_id)
-      .map((log) => [`${log.plan_id}:${toDateOnly(log.log_date)}`, Boolean(log.is_completed)])
-  );
-  const taskLogMap = new Map(
-    logs
-      .filter(log => log.course_schedule_id)
-      .map((log) => [log.course_schedule_id!, Boolean(log.is_completed)])
-  );
-  const assignmentLogMap = new Map(
-    logs
-      .filter(log => log.course_assignment_id)
-      .map((log) => [log.course_assignment_id!, Boolean(log.is_completed)])
-  );
-  
-  const workoutLogMap = new Map(
-    workoutLogs.map((log) => [`${log.workout_id}:${toDateOnly(log.log_date)}`, Boolean(log.is_attended)])
-  );
+export function buildOverviewRoutineItems(rows: DatabaseScheduleRow[]): OverviewRoutineItem[] {
+  return rows.map((row) => {
+    const isWorkout = row.source_type === "workout";
+    const isAssignment = row.source_type === "assignment" || (row.assignment_id != null && row.source_type === 'study_plan');
+    
+    // Determine sourceType for the UI
+    let uiSourceType: "study_plan" | "workout" | "assignment" = "study_plan";
+    if (isWorkout) uiSourceType = "workout";
+    else if (isAssignment) uiSourceType = "assignment";
 
-  const coursesWithTasksToday = new Set<number>();
-  const scheduleItems = (schedules || [])
-    .filter((sch) => toDateOnly(sch.schedule_date) === date)
-    .map((sch) => {
-      coursesWithTasksToday.add(sch.course_id);
-      const isDone = Boolean(taskLogMap.get(sch.id));
-      const metaBits = [
-        sch.courses?.course_code || "Task",
-        sch.courses?.title || null,
-      ].filter(Boolean);
-      
-      const startMin = 600; // Default 10:00
-      const duration = sch.duration_minutes || 60;
-      const endMin = startMin + duration;
-      const timeLabel = `${Math.floor(startMin/60).toString().padStart(2, "0")}:00 - ${Math.floor(endMin/60).toString().padStart(2, "0")}:${(endMin%60).toString().padStart(2, "0")}`;
-
-      return {
-        key: `task:${sch.id}:${date}`,
-        sourceType: "study_plan" as const,
-        courseId: sch.course_id,
-        title: sch.task_title,
-        meta: metaBits.join(" · "),
-        timeLabel,
-        statusLabel: isDone ? "Completed" : "Mark complete",
-        kind: sch.task_kind || "task",
-        location: sch.focus,
-        href: null,
-        startsAtSort: "10:00",
-        isDone,
-        action: { type: "toggle_complete" as const, planId: null, date, scheduleId: sch.id },
+    const metaBits = [row.course_code, row.university].filter(Boolean);
+    
+    const isDone = Boolean(row.is_completed);
+    
+    let action: OverviewRoutineItem["action"] = null;
+    if (isWorkout && row.workout_id) {
+      action = { type: "toggle_attended", workoutId: row.workout_id, date: row.event_date };
+    } else {
+      action = { 
+        type: "toggle_complete", 
+        planId: row.plan_id, 
+        date: row.event_date,
+        scheduleId: row.schedule_id || undefined,
+        assignmentId: row.assignment_id || undefined
       };
-    });
+    }
 
-  const studyItems = plans
-    .filter((plan) => {
-      const inRange = plan.start_date <= date && plan.end_date >= date;
-      // Skip study plan if this course has specific tasks for this date
-      if (coursesWithTasksToday.has(plan.course_id)) return false;
-      return inRange && plan.days_of_week.includes(targetDay);
-    })
-    .map((plan) => {
-      const isDone = Boolean(logMap.get(`${plan.id}:${date}`));
-      const metaBits = [
-        plan.courses?.course_code || "Study plan",
-        plan.courses?.title || null,
-      ].filter(Boolean);
-      return {
-        key: `study:${plan.id}:${date}`,
-        sourceType: "study_plan" as const,
-        courseId: plan.course_id,
-        title: plan.courses?.title || "Study session",
-        meta: metaBits.join(" · "),
-        timeLabel: getTimeLabel(plan.start_time, plan.end_time),
-        statusLabel: isDone ? "Completed" : "Mark complete",
-        kind: plan.kind || "study",
-        location: plan.location,
-        href: null,
-        startsAtSort: getSortTime(plan.start_time),
-        isDone,
-        action: { type: "toggle_complete" as const, planId: plan.id, date },
-      };
-    });
-
-  const workoutItems = workouts
-    .filter((workout) => {
-      const dayOfWeek = parseWorkoutDayOfWeek(workout.day_of_week);
-      if (dayOfWeek == null) return false;
-      if (!workout.start_date || !workout.end_date) return false;
-      return workout.start_date <= date && workout.end_date >= date && dayOfWeek === targetDay;
-    })
-    .map((workout) => {
-      const isDone = Boolean(workoutLogMap.get(`${workout.id}:${date}`));
-      const metaBits = [workout.category, workout.source].filter(Boolean);
-      return {
-        key: `workout:${workout.id}:${date}`,
-        sourceType: "workout" as const,
-        courseId: null,
-        title: workout.title,
-        meta: metaBits.join(" · ") || "Workout",
-        timeLabel: getTimeLabel(workout.start_time, workout.end_time),
-        statusLabel: isDone ? "Attended" : "Mark attended",
-        kind: "workout",
-        location: workout.location,
-        href: null,
-        startsAtSort: getSortTime(workout.start_time),
-        isDone,
-        action: { type: "toggle_attended" as const, workoutId: workout.id, date },
-      };
-    });
-
-  const assignmentItems = assignments
-    .filter((assignment) => toDateOnly(assignment.due_on) === date)
-    .map((assignment) => {
-      const isDone = Boolean(assignmentLogMap.get(assignment.id));
-      const metaBits = [
-        assignment.courses?.course_code || "Assignment",
-        assignment.courses?.title || null,
-      ].filter(Boolean);
-      return {
-        key: `assignment:${assignment.id}`,
-        sourceType: "assignment" as const,
-        courseId: assignment.course_id,
-        title: assignment.label,
-        meta: metaBits.join(" · "),
-        timeLabel: "Due today",
-        statusLabel: isDone ? "Completed" : "Mark complete",
-        kind: assignment.kind,
-        location: null,
-        href: assignment.url,
-        startsAtSort: "98:00",
-        isDone,
-        action: { type: "toggle_complete" as const, planId: null, date, assignmentId: assignment.id },
-      };
-    });
-
-  return [...studyItems, ...workoutItems, ...assignmentItems, ...scheduleItems].sort((a, b) => {
+    return {
+      key: `${row.source_type}:${row.plan_id || row.schedule_id || row.assignment_id || row.workout_id}:${row.event_date}`,
+      sourceType: uiSourceType,
+      courseId: row.course_id,
+      title: row.title,
+      meta: metaBits.join(" · "),
+      timeLabel: getTimeLabel(row.start_time, row.end_time, row.source_type),
+      statusLabel: isDone ? (isWorkout ? "Attended" : "Completed") : (isWorkout ? "Mark attended" : "Mark complete"),
+      kind: row.kind,
+      location: row.location,
+      startsAtSort: getSortTime(row.start_time, row.source_type),
+      isDone,
+      action,
+    };
+  }).sort((a, b) => {
     if (a.startsAtSort !== b.startsAtSort) return a.startsAtSort.localeCompare(b.startsAtSort);
     return a.title.localeCompare(b.title);
   });

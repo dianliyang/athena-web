@@ -50,7 +50,15 @@ async function OverviewContent({ userId }: { userId: string }) {
   const todayIso = new Date().toISOString().slice(0, 10);
   const referenceNowMs = new Date(`${todayIso}T23:59:59.999Z`).getTime();
 
-  const [coursesRes, plansRes, logsRes, workoutsRes, workoutLogsRes, schedulesRes] = await Promise.all([
+  // 1. Fetch Today's Schedule via RPC (Deduplicated & Expanded)
+  const { data: scheduleRows } = await (supabase as any).rpc("get_user_schedule", { // eslint-disable-line @typescript-eslint/no-explicit-any
+    p_user_id: userId,
+    p_start_date: todayIso,
+    p_end_date: todayIso,
+  });
+
+  // 2. Fetch other metrics
+  const [coursesRes, logsRes, workoutLogsRes] = await Promise.all([
     supabase
       .from("courses")
       .select(`
@@ -60,62 +68,13 @@ async function OverviewContent({ userId }: { userId: string }) {
       .eq("user_courses.user_id", userId)
       .neq("user_courses.status", "hidden"),
     supabase
-      .from("study_plans")
-      .select(`
-        id,
-        course_id,
-        start_date,
-        end_date,
-        days_of_week,
-        start_time,
-        end_time,
-        kind,
-        location,
-        courses(id, title, course_code, university)
-      `)
-      .eq("user_id", userId),
-    supabase
       .from("study_logs")
       .select("plan_id, log_date, is_completed, course_schedule_id, course_assignment_id")
-      .eq("user_id", userId),
-    supabase
-      .from("user_workouts")
-      .select(`
-        workout_id,
-        workouts!inner(
-          id,
-          title,
-          title_en,
-          category,
-          category_en,
-          source,
-          day_of_week,
-          start_date,
-          end_date,
-          start_time,
-          end_time,
-          location,
-          location_en
-        )
-      `)
       .eq("user_id", userId),
     supabase
       .from("user_workout_logs")
       .select("workout_id, log_date, is_attended")
       .eq("user_id", userId),
-    supabase
-      .from("course_schedules")
-      .select(`
-        id,
-        course_id,
-        schedule_date,
-        task_title,
-        task_kind,
-        focus,
-        duration_minutes,
-        courses(id, title, course_code, university)
-      `)
-      .eq("schedule_date", todayIso),
   ]);
 
   const enrolledCourses = (coursesRes.data || []).map((row) => mapCourseFromRow(row));
@@ -129,26 +88,12 @@ async function OverviewContent({ userId }: { userId: string }) {
   });
   const enrolledCourseIds = enrolledCourses.map((course) => course.id);
 
-  const [fieldsRes, assignmentsRes] =
+  const [fieldsRes] =
     enrolledCourseIds.length > 0
       ? await Promise.all([
           supabase.from("course_fields").select("fields(name)").in("course_id", enrolledCourseIds),
-          supabase
-            .from("course_assignments")
-            .select(`
-              id,
-              course_id,
-              label,
-              kind,
-              due_on,
-              url,
-              courses(title, course_code, university)
-            `)
-            .in("course_id", enrolledCourseIds)
-            .eq("due_on", todayIso),
         ])
       : [
-          { data: [], error: null },
           { data: [], error: null },
         ];
 
@@ -185,76 +130,7 @@ async function OverviewContent({ userId }: { userId: string }) {
       ? Math.round(inProgressRows.reduce((sum, row) => sum + row.progress, 0) / inProgressRows.length)
       : 0;
 
-  const plans: Parameters<typeof buildOverviewRoutineItems>[0]["plans"] = (plansRes.data || []).map(
-    (plan: Record<string, unknown>) => ({
-      id: Number(plan.id),
-      course_id: Number(plan.course_id),
-      start_date: typeof plan.start_date === "string" ? plan.start_date.slice(0, 10) : "",
-      end_date: typeof plan.end_date === "string" ? plan.end_date.slice(0, 10) : "",
-      days_of_week: Array.isArray(plan.days_of_week)
-        ? plan.days_of_week.map((value) => Number(value)).filter((value) => Number.isInteger(value))
-        : [],
-      start_time: typeof plan.start_time === "string" ? plan.start_time : null,
-      end_time: typeof plan.end_time === "string" ? plan.end_time : null,
-      kind: typeof plan.kind === "string" ? plan.kind : null,
-      location: typeof plan.location === "string" ? plan.location : null,
-      courses: Array.isArray(plan.courses) ? plan.courses[0] : plan.courses as {
-        title: string;
-        course_code: string;
-        university: string;
-      } | null,
-    })
-  );
-
-  const workouts: Parameters<typeof buildOverviewRoutineItems>[0]["workouts"] = (workoutsRes.data || [])
-    .map((row: Record<string, unknown>) => {
-      const raw = Array.isArray(row.workouts) ? row.workouts[0] : row.workouts;
-      if (!raw || typeof raw !== "object") return null;
-      const workout = raw as Record<string, unknown>;
-      return {
-        id: Number(workout.id),
-        title: String(workout.title_en || workout.title || ""),
-        category: workout.category_en ? String(workout.category_en) : workout.category ? String(workout.category) : null,
-        source: workout.source ? String(workout.source) : null,
-        day_of_week: workout.day_of_week ? String(workout.day_of_week) : null,
-        start_date: typeof workout.start_date === "string" ? workout.start_date.slice(0, 10) : null,
-        end_date: typeof workout.end_date === "string" ? workout.end_date.slice(0, 10) : null,
-        start_time: workout.start_time ? String(workout.start_time) : null,
-        end_time: workout.end_time ? String(workout.end_time) : null,
-        location: workout.location_en ? String(workout.location_en) : workout.location ? String(workout.location) : null,
-      };
-    })
-    .filter((workout): workout is NonNullable<typeof workout> => Boolean(workout));
-
-  const workoutLogs: Parameters<typeof buildOverviewRoutineItems>[0]["workoutLogs"] = (workoutLogsRes.data || []).map((log) => ({
-    workout_id: Number(log.workout_id),
-    log_date: String(log.log_date),
-    is_attended: Boolean(log.is_attended),
-  }));
-
-  const assignments: Parameters<typeof buildOverviewRoutineItems>[0]["assignments"] = (assignmentsRes.data || []).map((row) => ({
-    id: Number(row.id),
-    course_id: Number(row.course_id),
-    label: String(row.label || ""),
-    kind: String(row.kind || "assignment"),
-    due_on: typeof row.due_on === "string" ? row.due_on : null,
-    url: typeof row.url === "string" ? row.url : null,
-    courses: Array.isArray(row.courses) ? row.courses[0] : row.courses as {
-      title: string;
-      course_code: string;
-      university: string;
-    } | null,
-  }));
-
-  const routineItems = buildOverviewRoutineItems({
-    date: todayIso,
-    plans,
-    logs: logsRes.data || [],
-    workouts,
-    workoutLogs,
-    assignments,
-    schedules: (schedulesRes.data || []) as unknown as Parameters<typeof buildOverviewRoutineItems>[0]["schedules"],
-  });
+  const routineItems = buildOverviewRoutineItems(scheduleRows || []);
 
   const inProgressCount = statusCounts.in_progress || 0;
   const attendedToday = routineItems.filter((item) => item.sourceType === "workout" && item.isDone).length;

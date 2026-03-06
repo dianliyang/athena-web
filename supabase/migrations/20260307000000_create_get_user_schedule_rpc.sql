@@ -180,7 +180,7 @@ BEGIN
   LEFT JOIN user_workout_logs uwl ON uwl.user_id = p_user_id
     AND uwl.workout_id = ae.workout_id
     AND uwl.log_date = ae.event_date
-  GROUP BY ae.event_date, ae.course_id, ae.title, ae.course_code, ae.university, ae.source_type
+  GROUP BY ae.event_date, COALESCE(ae.course_id, 0), ae.title, ae.course_code, ae.university, ae.source_type
   ORDER BY ae.event_date, start_time;
 END;
 $$;
