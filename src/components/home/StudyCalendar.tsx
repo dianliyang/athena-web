@@ -415,12 +415,12 @@ export default function StudyCalendar({ courses, plans, workouts = [], schedules
   const todayKey = formatDateKey(anchorToday);
   const activeDateKey = selectedSmallDateKey || todayKey;
   const todayEvents = useMemo(() => {
-    const list = eventsByDate.get(todayKey) || [];
+    const list = eventsByDate.get(activeDateKey) || [];
     return [...list].sort((a, b) => {
       if (a.isCompleted !== b.isCompleted) return a.isCompleted ? 1 : -1;
       return a.startMinutes - b.startMinutes || a.endMinutes - b.endMinutes;
     });
-  }, [eventsByDate, todayKey]);
+  }, [eventsByDate, activeDateKey]);
 
   const weekDates = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
 
@@ -574,7 +574,7 @@ export default function StudyCalendar({ courses, plans, workouts = [], schedules
                 className="text-xl font-medium tracking-tight text-[#1f2937]"
                 data-testid="today-header-title"
               >
-                Today&apos;s Routine
+                {activeDateKey === todayKey ? "Today's Routine" : `${new Date(activeDateKey).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} Routine`}
               </h3>
             </div>
             <div className="min-h-0 flex-1 space-y-2 overflow-auto pb-4 pr-1" data-testid="today-events-list">
