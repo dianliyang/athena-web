@@ -7,6 +7,10 @@ import { Dictionary } from "@/lib/dictionary";
 import { BookOpen, Check, ChevronLeft, ChevronRight, Clock, Coffee, Loader2, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
+  Card,
+  CardContent,
+} from "@/components/ui/card";
+import {
   Item,
   ItemContent,
   ItemTitle,
@@ -591,39 +595,46 @@ export default function StudyCalendar({ courses, plans, workouts = [], schedules
                       }
                     }}
                   >
-                    <div className={`flex w-full items-start gap-2 rounded-md border px-2 py-2 ${getTodayRowClassName(event)}`}>
-                      {event.sourceType === "study_plan" ? (
-                        <span
-                          aria-hidden="true"
-                          className={`mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border ${
-                            event.isCompleted ? "border-stone-400 bg-stone-400 text-white" : "border-stone-300 bg-white"
-                          }`}
-                        >
-                          {event.isCompleted ? "✓" : ""}
-                        </span>
-                      ) : (
-                        <span
-                          aria-hidden="true"
-                          className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border border-stone-300 bg-white text-[#64748b]"
-                        >
-                          <Coffee className="h-2.5 w-2.5" />
-                        </span>
-                      )}
-                      <Item size="sm" className="w-full px-0 py-0">
-                        <ItemContent className="gap-0.5">
-                          <p className={`text-xs leading-5 ${event.isCompleted ? "text-stone-400" : "text-[#475569]"}`}>
-                            {event.startTime.slice(0, 5)} - {event.endTime.slice(0, 5)}
-                          </p>
-                          <ItemTitle className={`w-full whitespace-normal break-words text-sm leading-5 font-semibold ${event.isCompleted ? "text-stone-500 line-through" : "text-[#0f172a]"}`}>
-                            {event.title}
-                          </ItemTitle>
-                          <p className={`w-full whitespace-normal break-words text-xs leading-5 ${event.isCompleted ? "text-stone-400" : "text-[#334155]"}`}>
-                            {getEventMetaLine(event)}
-                            {event.location ? ` · ${event.location}` : ""}
-                          </p>
-                        </ItemContent>
-                      </Item>
-                    </div>
+                    <Card className={`w-full transition-colors border-border shadow-none ${getTodayRowClassName(event)}`}>
+                      <CardContent className="flex items-start gap-2 p-3">
+                        {event.sourceType === "study_plan" ? (
+                          <span
+                            aria-hidden="true"
+                            className={`mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border ${
+                              event.isCompleted ? "border-stone-400 bg-stone-400 text-white" : "border-stone-300 bg-white"
+                            }`}
+                          >
+                            {event.isCompleted ? "✓" : ""}
+                          </span>
+                        ) : (
+                          <span
+                            aria-hidden="true"
+                            className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border border-stone-300 bg-white text-[#64748b]"
+                          >
+                            <Coffee className="h-2.5 w-2.5" />
+                          </span>
+                        )}
+                        <Item size="sm" className="w-full px-0 py-0 bg-transparent border-0 shadow-none">
+                          <ItemContent className="gap-0.5">
+                            <p className={`text-[10px] font-bold uppercase tracking-wider ${event.isCompleted ? "text-stone-400" : "text-muted-foreground/80"}`}>
+                              {event.startTime.slice(0, 5)} - {event.endTime.slice(0, 5)}
+                            </p>
+                            <ItemTitle className={`w-full whitespace-normal break-words text-sm font-bold tracking-tight ${event.isCompleted ? "text-stone-500 line-through" : "text-[#0f172a]"}`}>
+                              {event.title}
+                            </ItemTitle>
+                            <div className={`w-full flex flex-wrap items-center gap-x-2 text-[11px] font-bold uppercase tracking-wider ${event.isCompleted ? "text-stone-400" : "text-muted-foreground/70"}`}>
+                              <span>{getEventMetaLine(event).split(' · ')[0]}</span>
+                              {event.location && (
+                                <>
+                                  <span className="text-muted-foreground/30 text-[8px] tracking-normal">·</span>
+                                  <span>{event.location}</span>
+                                </>
+                              )}
+                            </div>
+                          </ItemContent>
+                        </Item>
+                      </CardContent>
+                    </Card>
                   </Button>
                     </div>
                 )}
