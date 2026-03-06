@@ -603,37 +603,37 @@ export default function StudyCalendar({ courses, plans, workouts = [], schedules
                     }}
                   >
                     <Card className={`w-full transition-colors border-border shadow-none ${getTodayRowClassName(event)}`}>
-                      <CardContent className="flex items-start gap-2 p-2">
+                      <CardContent className="flex items-start gap-1.5 p-1.5">
                         {event.sourceType === "study_plan" ? (
                           <span
                             aria-hidden="true"
-                            className={`mt-0.5 inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm border ${
+                            className={`mt-0.5 inline-flex h-3 w-3 shrink-0 items-center justify-center rounded-sm border ${
                               event.isCompleted ? "border-stone-400 bg-stone-400 text-white" : "border-stone-300 bg-white"
                             }`}
                           >
-                            {event.isCompleted ? <span className="text-[10px] leading-none">✓</span> : ""}
+                            {event.isCompleted ? <span className="text-[8px] leading-none">✓</span> : ""}
                           </span>
                         ) : (
                           <span
                             aria-hidden="true"
-                            className="mt-0.5 inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm border border-stone-300 bg-white text-[#64748b]"
+                            className="mt-0.5 inline-flex h-3 w-3 shrink-0 items-center justify-center rounded-sm border border-stone-300 bg-white text-[#64748b]"
                           >
                             <Coffee className="h-2 w-2" />
                           </span>
                         )}
-                        <Item size="sm" className="w-full px-0 py-0 bg-transparent border-0 shadow-none">
+                        <Item size="sm" className="w-full px-0 py-0 bg-transparent border-0 shadow-none h-auto min-h-0">
                           <ItemContent className="gap-0">
-                            <p className={`text-[9px] font-bold uppercase tracking-wider ${event.isCompleted ? "text-stone-400" : "text-muted-foreground/80"}`}>
+                            <p className={`text-[8px] font-bold uppercase tracking-wider leading-none mb-0.5 ${event.isCompleted ? "text-stone-400" : "text-muted-foreground/80"}`}>
                               {event.startTime.slice(0, 5)} - {event.endTime.slice(0, 5)}
                             </p>
-                            <ItemTitle className={`w-full whitespace-normal break-words text-[13px] font-bold tracking-tight leading-tight ${event.isCompleted ? "text-stone-500 line-through" : "text-[#0f172a]"}`}>
+                            <ItemTitle className={`w-full whitespace-normal break-words text-[12px] font-bold tracking-tight leading-[1.1] ${event.isCompleted ? "text-stone-500 line-through" : "text-[#0f172a]"}`}>
                               {event.title}
                             </ItemTitle>
-                            <div className={`w-full flex flex-wrap items-center gap-x-1.5 text-[10px] font-bold uppercase tracking-wider ${event.isCompleted ? "text-stone-400" : "text-muted-foreground/70"}`}>
+                            <div className={`w-full flex flex-wrap items-center gap-x-1 text-[9px] font-bold uppercase tracking-wider mt-0.5 ${event.isCompleted ? "text-stone-400" : "text-muted-foreground/70"}`}>
                               <span>{getEventMetaLine(event).split(' · ')[0]}</span>
                               {event.location && (
                                 <>
-                                  <span className="text-muted-foreground/30 text-[8px] tracking-normal">·</span>
+                                  <span className="text-muted-foreground/30 text-[7px] tracking-normal">·</span>
                                   <span>{event.location}</span>
                                 </>
                               )}
