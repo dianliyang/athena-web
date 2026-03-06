@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
+import { cn } from "@/lib/utils";
 import {
   BrainCog,
   BarChart3,
@@ -63,58 +64,84 @@ interface LeftRailProps {
 }
 
 const commandNavItems = [
-  { href: "/overview", key: "overview", icon: LayoutGrid },
-  { href: "/roadmap", key: "studyPlan", icon: Map },
-  { href: "/assist", key: "smartPlanner", icon: Sparkles },
-  { href: "/calendar", key: "studySchedule", icon: CalendarDays },
-  { href: "/identity", key: "identity", icon: User },
+  { href: "/overview", key: "overview", icon: LayoutGrid, color: "stone" },
+  { href: "/roadmap", key: "studyPlan", icon: Map, color: "blue" },
+  { href: "/assist", key: "smartPlanner", icon: Sparkles, color: "purple" },
+  { href: "/calendar", key: "studySchedule", icon: CalendarDays, color: "emerald" },
+  { href: "/identity", key: "identity", icon: User, color: "orange" },
 ] as const;
 
 const hubNavItems = [
-  { href: "/courses", key: "courses", icon: GraduationCap },
-  { href: "/projects-seminars", key: "projectsSeminars", icon: FolderKanban },
-  { href: "/workouts", key: "workouts", icon: Dumbbell },
+  { href: "/courses", key: "courses", icon: GraduationCap, color: "indigo" },
+  { href: "/projects-seminars", key: "projectsSeminars", icon: FolderKanban, color: "amber" },
+  { href: "/workouts", key: "workouts", icon: Dumbbell, color: "rose" },
 ] as const;
 
 const settingsNavItems = [
-  { href: "/settings/engine", key: "settingsEngine", icon: BrainCog },
-  { href: "/settings/usage", key: "settingsUsage", icon: BarChart3 },
-  { href: "/settings/system", key: "settingsSystem", icon: Settings2 },
-  { href: "/settings/api-management", key: "settingsApiControl", icon: KeyRound },
-  { href: "/settings/import", key: "import", icon: FileUp },
+  { href: "/settings/engine", key: "settingsEngine", icon: BrainCog, color: "cyan" },
+  { href: "/settings/usage", key: "settingsUsage", icon: BarChart3, color: "teal" },
+  { href: "/settings/system", key: "settingsSystem", icon: Settings2, color: "slate" },
+  { href: "/settings/api-management", key: "settingsApiControl", icon: KeyRound, color: "violet" },
+  { href: "/settings/import", key: "import", icon: FileUp, color: "brown" },
 ] as const;
 
 const docsNavItems = [
-  { href: "/settings/api-reference", key: "settingsApiReference", icon: BookOpen },
+  { href: "/settings/api-reference", key: "settingsApiReference", icon: BookOpen, color: "sky" },
 ] as const;
+
+type NavColor = "stone" | "blue" | "purple" | "emerald" | "orange" | "indigo" | "amber" | "rose" | "cyan" | "teal" | "slate" | "violet" | "brown" | "sky";
 
 function SidebarLinkItem({
   href,
   title,
   icon: Icon,
   active,
+  color = "stone",
   trailingSpin = false,
 }: {
   href: string;
   title: string;
   icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
   active: boolean;
+  color?: NavColor;
   trailingSpin?: boolean;
 }) {
+  const colorMap: Record<NavColor, { bg: string; text: string; icon: string }> = {
+    stone: { bg: "bg-stone-100", text: "text-stone-900", icon: "text-stone-600" },
+    blue: { bg: "bg-blue-50", text: "text-blue-900", icon: "text-blue-600" },
+    purple: { bg: "bg-purple-50", text: "text-purple-900", icon: "text-purple-600" },
+    emerald: { bg: "bg-emerald-50", text: "text-emerald-900", icon: "text-emerald-600" },
+    orange: { bg: "bg-orange-50", text: "text-orange-900", icon: "text-orange-600" },
+    indigo: { bg: "bg-indigo-50", text: "text-indigo-900", icon: "text-indigo-600" },
+    amber: { bg: "bg-amber-50", text: "text-amber-900", icon: "text-amber-600" },
+    rose: { bg: "bg-rose-50", text: "text-rose-900", icon: "text-rose-600" },
+    cyan: { bg: "bg-cyan-50", text: "text-cyan-900", icon: "text-cyan-600" },
+    teal: { bg: "bg-teal-50", text: "text-teal-900", icon: "text-teal-600" },
+    slate: { bg: "bg-slate-100", text: "text-slate-900", icon: "text-slate-600" },
+    violet: { bg: "bg-violet-50", text: "text-violet-900", icon: "text-violet-600" },
+    brown: { bg: "bg-stone-100", text: "text-stone-900", icon: "text-stone-600" }, // Approximate
+    sky: { bg: "bg-sky-50", text: "text-sky-900", icon: "text-sky-600" },
+  };
+
+  const c = colorMap[color];
+
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
         asChild
         isActive={active}
         tooltip={title}
-        className={active ? "bg-sidebar-accent text-sidebar-accent-foreground font-bold shadow-sm" : ""}
+        className={cn(
+          "transition-all duration-200",
+          active ? cn(c.bg, c.text, "font-bold shadow-sm") : "hover:bg-sidebar-accent/50"
+        )}
       >
         <Link
           href={href}
           prefetch={false}
-          className={active ? "font-bold text-sidebar-accent-foreground" : ""}
+          className={active ? "font-bold" : ""}
         >
-          <Icon className={active ? "text-sidebar-accent-foreground" : ""} />
+          <Icon className={cn("transition-colors", active ? c.icon : "text-muted-foreground/70")} strokeWidth={active ? 2.5 : 2} />
           <span>{title}</span>
           {trailingSpin ? <Loader2 className="ml-auto animate-spin" /> : null}
         </Link>
@@ -160,6 +187,7 @@ export default function LeftRail({ labels }: LeftRailProps) {
                     title={title}
                     icon={item.icon}
                     active={active}
+                    color={item.color as NavColor}
                     trailingSpin={item.href === "/roadmap" && hasActive}
                   />
                 );
@@ -175,7 +203,16 @@ export default function LeftRail({ labels }: LeftRailProps) {
               {hubNavItems.map((item) => {
                 const active = pathname === item.href || (item.href === "/courses" && pathname.startsWith("/courses/"));
                 const title = labels[item.key as keyof typeof labels] || item.key;
-                return <SidebarLinkItem key={item.href} href={item.href} title={title} icon={item.icon} active={active} />;
+                return (
+                  <SidebarLinkItem
+                    key={item.href}
+                    href={item.href}
+                    title={title}
+                    icon={item.icon}
+                    active={active}
+                    color={item.color as NavColor}
+                  />
+                );
               })}
             </SidebarMenu>
           </SidebarGroupContent>
@@ -190,7 +227,16 @@ export default function LeftRail({ labels }: LeftRailProps) {
                   pathname === item.href ||
                   (item.href === "/settings/engine" && (pathname === "/settings" || pathname === "/settings/intelligence"));
                 const title = labels[item.key as keyof typeof labels] || item.key;
-                return <SidebarLinkItem key={item.href} href={item.href} title={title} icon={item.icon} active={active} />;
+                return (
+                  <SidebarLinkItem
+                    key={item.href}
+                    href={item.href}
+                    title={title}
+                    icon={item.icon}
+                    active={active}
+                    color={item.color as NavColor}
+                  />
+                );
               })}
             </SidebarMenu>
           </SidebarGroupContent>
@@ -202,7 +248,16 @@ export default function LeftRail({ labels }: LeftRailProps) {
             <SidebarMenu>
               {docsNavItems.map((item) => {
                 const title = labels[item.key as keyof typeof labels] || item.key;
-                return <SidebarLinkItem key={item.href} href={item.href} title={title} icon={item.icon} active={pathname === item.href} />;
+                return (
+                  <SidebarLinkItem
+                    key={item.href}
+                    href={item.href}
+                    title={title}
+                    icon={item.icon}
+                    active={pathname === item.href}
+                    color={item.color as NavColor}
+                  />
+                );
               })}
             </SidebarMenu>
           </SidebarGroupContent>

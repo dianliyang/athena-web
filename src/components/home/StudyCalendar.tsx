@@ -558,9 +558,9 @@ export default function StudyCalendar({ courses, plans, workouts = [], schedules
           data-testid="calendar-left-column"
         >
           <section className="flex min-h-0 flex-1 flex-col rounded-lg py-0 pr-0">
-            <div className="mb-2 flex h-12 items-center rounded-lg px-2" data-testid="today-heading">
+            <div className="mb-2 flex h-14 items-center rounded-lg px-2" data-testid="today-heading">
               <h3
-                className="text-xl font-semibold leading-none text-[#1f2937]"
+                className="text-xl font-bold tracking-tight text-[#1f2937]"
                 data-testid="today-header-title"
               >
                 Today
@@ -630,23 +630,20 @@ export default function StudyCalendar({ courses, plans, workouts = [], schedules
                 </div> :
 
               <div
-                className="flex min-h-[180px] flex-col items-center justify-center px-5 text-center text-muted-foreground"
+                className="flex min-h-[240px] flex-col items-center justify-center px-5 text-center"
                 data-testid="today-empty-state"
               >
-                <div
-                  className="mb-3 flex h-8 w-8 items-center justify-center text-muted-foreground/70"
-                  data-testid="today-empty-state-icon"
-                >
-                  <Coffee className="h-4 w-4" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border">
+                  <Coffee className="h-5 w-5 text-muted-foreground" />
                 </div>
-                <p className="text-sm font-medium tracking-[-0.02em] text-muted-foreground">
-                  {dict.calendar_rest_day}
+                <h3 className="mt-4 text-base font-semibold tracking-[-0.02em] text-foreground">
+                  Rest Day
+                </h3>
+                <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground/70">
+                  No activities
                 </p>
-                <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground/70">
-                  {dict.calendar_no_events}
-                </p>
-                <p className="mt-3 max-w-[240px] text-sm leading-6 text-muted-foreground">
-                  {dict.calendar_rest_message}
+                <p className="mt-3 max-w-[200px] text-sm leading-6 text-muted-foreground">
+                  Rest today, study tomorrow.
                 </p>
               </div>
               }
@@ -734,12 +731,17 @@ export default function StudyCalendar({ courses, plans, workouts = [], schedules
         </div>
 
         <section className="bg-transparent overflow-hidden h-full min-h-0 relative flex flex-col">
-          <div className="mb-2 grid h-12 grid-cols-[1fr_auto] items-center rounded-lg px-2" data-testid="week-header">
+          <div className="mb-2 flex h-14 items-center justify-between rounded-lg px-2" data-testid="week-header">
             <div className="min-w-0">
-              <p
-                className="truncate text-xl font-semibold leading-none text-[#0f172a]"
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80 leading-none mb-1.5">
+                Week {weekNumber}
+              </p>
+              <h2
+                className="truncate text-xl font-bold tracking-tight text-[#0f172a] leading-none"
                 data-testid="week-header-title"
-              >{`Week ${weekNumber} ${weekLabel}`}</p>
+              >
+                {weekLabel}
+              </h2>
             </div>
             <div className="ml-3 flex items-center gap-1">
               <Button variant="outline"

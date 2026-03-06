@@ -52,7 +52,7 @@ export default function SecurityIdentitySection({
   if (view === "identity") {
     return (
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        <Card>
+        <Card className="flex flex-col h-full">
           <CardHeader>
             <div className="flex items-center gap-2">
               <Fingerprint className="h-4 w-4 text-muted-foreground" />
@@ -62,7 +62,7 @@ export default function SecurityIdentitySection({
               Authentication and verification status for your account.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="mt-auto space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Provider</span>
               <span className="text-sm font-medium">{normalizeProvider(provider)}</span>
@@ -77,7 +77,7 @@ export default function SecurityIdentitySection({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="flex flex-col h-full">
           <CardHeader>
             <div className="flex items-center gap-2">
               <Mail className="h-4 w-4 text-muted-foreground" />
@@ -87,7 +87,7 @@ export default function SecurityIdentitySection({
               Notification routing for security and account events.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="mt-auto space-y-3">
             <p className="text-sm text-muted-foreground">
               System notifications and security alerts are dispatched through your authentication
               provider endpoint.
@@ -103,26 +103,31 @@ export default function SecurityIdentitySection({
   }
 
   return (
-    <Card>
+    <Card className="flex flex-col h-full border-rose-100 bg-rose-50/10">
       <CardHeader>
-        <div className="flex items-center gap-2">
-          <AlertTriangle className="h-4 w-4 text-destructive" />
+        <div className="flex items-center gap-2 text-rose-600">
+          <AlertTriangle className="h-4 w-4" />
           <CardTitle>Danger Zone</CardTitle>
         </div>
         <CardDescription>
           Irreversible account operations.
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <CardContent className="mt-auto flex flex-col gap-3 md:flex-row md:items-center md:justify-between pt-4">
         <div className="space-y-1">
-          <h4 className="text-sm font-medium text-destructive">Delete Account</h4>
+          <h4 className="text-sm font-medium text-rose-600">Delete Account</h4>
           <p className="max-w-xl text-sm text-muted-foreground">
             This will permanently purge your profile, enrollment history, and scheduling data.
             This operation is irreversible.
           </p>
         </div>
-        <Button variant="outline" onClick={handleDeleteAccount} disabled={isPending}>
-          <Trash2 />
+        <Button 
+          variant="outline" 
+          onClick={handleDeleteAccount} 
+          disabled={isPending}
+          className="border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 shrink-0"
+        >
+          <Trash2 className="mr-2 h-4 w-4" />
           Purge Account
         </Button>
       </CardContent>

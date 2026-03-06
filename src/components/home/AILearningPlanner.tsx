@@ -19,7 +19,18 @@ type PlannerResult = {
   study_plan: Array<{week: number;focus: string;tasks: string[];}>;
 };
 
-const PRESETS = ["AI Infra", "ML Systems", "LLM Engineering", "Data Engineering", "Security Engineering"];
+const PRESETS = [
+  "AI Infra",
+  "ML Systems",
+  "LLM Engineering",
+  "AI Safety & Alignment",
+  "Distributed Systems",
+  "Quantitative Finance",
+  "Bioinformatics",
+  "Security Engineering",
+  "Data Engineering",
+  "Quantum Computing",
+];
 
 const COOKING_FRAMES = [
 { icon: "🍳", text: "Analyzing courses..." },
