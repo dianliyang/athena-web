@@ -52,8 +52,8 @@ export default function CourseStatusChart({
   const peakActivity = Math.max(1, ...weeklyActivity);
 
   return (
-    <div className="space-y-3 rounded-sm p-3">
-      <div className="flex items-end justify-between gap-2">
+    <div className="space-y-4">
+      <div className="flex items-end justify-between gap-2 px-1">
         <div>
           <p className="text-xs text-muted-foreground">Total Enrollments</p>
           <p className="text-xl font-semibold leading-none">{total}</p>

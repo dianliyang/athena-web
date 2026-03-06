@@ -89,6 +89,25 @@ interface StudyCalendarProps {
   courses: EnrolledCourse[];
   plans: StudyPlan[];
   workouts?: WorkoutSchedule[];
+  schedules?: Array<{
+    id: number;
+    course_id: number;
+    schedule_date: string;
+    task_title: string;
+    task_kind: string | null;
+    focus: string | null;
+    duration_minutes: number | null;
+    courses: { title: string; course_code: string; university: string } | null;
+  }>;
+  assignments?: Array<{
+    id: number;
+    course_id: number;
+    label: string;
+    kind: string;
+    due_on: string | null;
+    url: string | null;
+    courses: { title: string; course_code: string; university: string } | null;
+  }>;
   logs: StudyLog[];
   dict: Dictionary["dashboard"]["roadmap"];
   initialDate?: Date;
@@ -164,7 +183,7 @@ function formatTimeLabel(date: Date) {
   return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
-export default function StudyCalendar({ courses, plans, workouts = [], logs, dict, initialDate }: StudyCalendarProps) {
+export default function StudyCalendar({ courses, plans, workouts = [], schedules = [], assignments = [], logs, dict, initialDate }: StudyCalendarProps) {
   const router = useRouter();
   const anchorToday = initialDate ?? new Date();
   const timelineScrollRef = useRef<HTMLDivElement | null>(null);
@@ -198,7 +217,71 @@ export default function StudyCalendar({ courses, plans, workouts = [], logs, dic
 
     const dateStart = new Date(monthCursor.getFullYear(), monthCursor.getMonth() - 2, 1);
     const dateEnd = new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 3, 0);
+    const todayIso = formatDateKey(new Date());
 
+    // 1. Assignments
+    for (const ass of assignments) {
+      if (!ass.due_on) continue;
+      const date = toDateOnly(ass.due_on);
+      const cursor = new Date(date);
+      if (cursor < dateStart || cursor > dateEnd) continue;
+
+      items.push({
+        key: `assignment:${ass.id}`,
+        planId: null,
+        courseId: ass.course_id,
+        date,
+        dayOfWeek: cursor.getDay(),
+        startTime: "09:00:00",
+        endTime: "10:00:00",
+        startMinutes: 540,
+        endMinutes: 600,
+        isCompleted: false,
+        title: ass.label,
+        courseCode: ass.courses?.course_code || "Assignment",
+        university: ass.courses?.university || "",
+        location: null,
+        kind: ass.kind || "assignment",
+        sourceType: "study_plan",
+      });
+    }
+
+    // 2. Schedules (Tasks)
+    const coursesWithTasksToday = new Set<number>();
+    for (const sch of schedules) {
+      const date = toDateOnly(sch.schedule_date);
+      const cursor = new Date(date);
+      if (cursor < dateStart || cursor > dateEnd) continue;
+      
+      if (date === todayIso) {
+        coursesWithTasksToday.add(sch.course_id);
+      }
+
+      const startMin = 600; 
+      const duration = sch.duration_minutes || 60;
+      const endMin = startMin + duration;
+
+      items.push({
+        key: `task:${sch.id}`,
+        planId: null,
+        courseId: sch.course_id,
+        date,
+        dayOfWeek: cursor.getDay(),
+        startTime: "10:00:00",
+        endTime: "11:00:00",
+        startMinutes: startMin,
+        endMinutes: endMin,
+        isCompleted: false,
+        title: sch.task_title,
+        courseCode: sch.courses?.course_code || "Task",
+        university: sch.courses?.university || "",
+        location: sch.focus,
+        kind: sch.task_kind || "task",
+        sourceType: "study_plan",
+      });
+    }
+
+    // 3. Study Plans
     for (const plan of plans) {
       if (!plan.courses) continue;
       const days = (plan.days_of_week || []).
@@ -218,6 +301,12 @@ export default function StudyCalendar({ courses, plans, workouts = [], logs, dic
         if (!days.includes(dayOfWeek)) continue;
 
         const date = formatDateKey(cursor);
+        
+        // If today has specific tasks for this course, skip the recurring study plan
+        if (date === todayIso && coursesWithTasksToday.has(plan.course_id)) {
+          continue;
+        }
+
         const log = localLogs.find((entry) => entry.plan_id === plan.id && toDateOnly(entry.log_date) === date);
         const startMinutes = parseMinutes(plan.start_time);
         const endMinutes = parseMinutes(plan.end_time);
@@ -290,7 +379,7 @@ export default function StudyCalendar({ courses, plans, workouts = [], logs, dic
     }
 
     return items.sort((a, b) => a.date.localeCompare(b.date) || a.startMinutes - b.startMinutes);
-  }, [courseMap, localLogs, plans, monthCursor, workouts]);
+  }, [courseMap, localLogs, plans, monthCursor, workouts, schedules, assignments]);
 
   const eventsByDate = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();

@@ -54,6 +54,21 @@ type OverviewAssignment = {
   } | null;
 };
 
+type OverviewSchedule = {
+  id: number;
+  course_id: number;
+  schedule_date: string;
+  task_title: string;
+  task_kind: string | null;
+  focus: string | null;
+  duration_minutes: number | null;
+  courses: {
+    title: string;
+    course_code: string;
+    university: string;
+  } | null;
+};
+
 export type OverviewRoutineItem = {
   key: string;
   sourceType: "study_plan" | "workout" | "assignment";
@@ -120,6 +135,7 @@ export function buildOverviewRoutineItems({
   workouts,
   workoutLogs,
   assignments,
+  schedules = [],
 }: {
   date: string;
   plans: OverviewStudyPlan[];
@@ -127,6 +143,7 @@ export function buildOverviewRoutineItems({
   workouts: OverviewWorkout[];
   workoutLogs: OverviewWorkoutLog[];
   assignments: OverviewAssignment[];
+  schedules?: OverviewSchedule[];
 }): OverviewRoutineItem[] {
   const targetDay = new Date(date).getDay();
   const logMap = new Map(
@@ -136,9 +153,42 @@ export function buildOverviewRoutineItems({
     workoutLogs.map((log) => [`${log.workout_id}:${toDateOnly(log.log_date)}`, Boolean(log.is_attended)])
   );
 
+  const coursesWithTasksToday = new Set<number>();
+  const scheduleItems = (schedules || [])
+    .filter((sch) => toDateOnly(sch.schedule_date) === date)
+    .map((sch) => {
+      coursesWithTasksToday.add(sch.course_id);
+      const metaBits = [
+        sch.courses?.course_code || sch.courses?.title || "Task",
+        sch.courses?.university || null,
+      ].filter(Boolean);
+      
+      const startMin = 600; // 10:00
+      const duration = sch.duration_minutes || 60;
+      const endMin = startMin + duration;
+      const timeLabel = `${Math.floor(startMin/60).toString().padStart(2, "0")}:00 - ${Math.floor(endMin/60).toString().padStart(2, "0")}:${(endMin%60).toString().padStart(2, "0")}`;
+
+      return {
+        key: `task:${sch.id}:${date}`,
+        sourceType: "study_plan" as const,
+        title: sch.task_title,
+        meta: metaBits.join(" · "),
+        timeLabel,
+        statusLabel: sch.task_kind || "task",
+        kind: sch.task_kind || "task",
+        location: sch.focus,
+        href: null,
+        startsAtSort: "10:00",
+        isDone: false,
+        action: null,
+      };
+    });
+
   const studyItems = plans
     .filter((plan) => {
       const inRange = plan.start_date <= date && plan.end_date >= date;
+      // Skip study plan if this course has specific tasks for this date
+      if (coursesWithTasksToday.has(plan.course_id)) return false;
       return inRange && plan.days_of_week.includes(targetDay);
     })
     .map((plan) => {
@@ -212,7 +262,7 @@ export function buildOverviewRoutineItems({
       };
     });
 
-  return [...studyItems, ...workoutItems, ...assignmentItems].sort((a, b) => {
+  return [...studyItems, ...workoutItems, ...assignmentItems, ...scheduleItems].sort((a, b) => {
     if (a.startsAtSort !== b.startsAtSort) return a.startsAtSort.localeCompare(b.startsAtSort);
     return a.title.localeCompare(b.title);
   });

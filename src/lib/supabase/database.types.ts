@@ -69,6 +69,7 @@ export type Database = {
           id: number
           course_id: number
           syllabus_id: number | null
+          course_schedule_id: number | null
           kind: string
           label: string
           due_on: string | null
@@ -85,6 +86,7 @@ export type Database = {
           id?: number
           course_id: number
           syllabus_id?: number | null
+          course_schedule_id?: number | null
           kind: string
           label: string
           due_on?: string | null
@@ -101,6 +103,7 @@ export type Database = {
           id?: number
           course_id?: number
           syllabus_id?: number | null
+          course_schedule_id?: number | null
           kind?: string
           label?: string
           due_on?: string | null
@@ -123,6 +126,76 @@ export type Database = {
           },
           {
             foreignKeyName: "course_assignments_syllabus_id_fkey"
+            columns: ["syllabus_id"]
+            isOneToOne: false
+            referencedRelation: "course_syllabi"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_assignments_course_schedule_id_fkey"
+            columns: ["course_schedule_id"]
+            isOneToOne: false
+            referencedRelation: "course_schedules"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      course_schedules: {
+        Row: {
+          id: number
+          course_id: number
+          syllabus_id: number | null
+          schedule_date: string
+          focus: string | null
+          task_kind: string | null
+          task_title: string
+          duration_minutes: number | null
+          source: string
+          metadata: Json
+          retrieved_at: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          course_id: number
+          syllabus_id?: number | null
+          schedule_date: string
+          focus?: string | null
+          task_kind?: string | null
+          task_title: string
+          duration_minutes?: number | null
+          source?: string
+          metadata?: Json
+          retrieved_at?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          course_id?: number
+          syllabus_id?: number | null
+          schedule_date?: string
+          focus?: string | null
+          task_kind?: string | null
+          task_title?: string
+          duration_minutes?: number | null
+          source?: string
+          metadata?: Json
+          retrieved_at?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_schedules_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_schedules_syllabus_id_fkey"
             columns: ["syllabus_id"]
             isOneToOne: false
             referencedRelation: "course_syllabi"

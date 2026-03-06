@@ -72,9 +72,30 @@ async function StudyScheduleContent({
     location: string | null;
   };
 
+  type ScheduleItem = {
+    id: number;
+    course_id: number;
+    schedule_date: string;
+    task_title: string;
+    task_kind: string | null;
+    focus: string | null;
+    duration_minutes: number | null;
+    courses: { title: string; course_code: string; university: string } | null;
+  };
+
+  type AssignmentItem = {
+    id: number;
+    course_id: number;
+    label: string;
+    kind: string;
+    due_on: string | null;
+    url: string | null;
+    courses: { title: string; course_code: string; university: string } | null;
+  };
+
   const supabase = await createClient();
 
-  const [coursesRes, plansRes, logsRes, workoutsRes] = await Promise.all([
+  const [coursesRes, plansRes, logsRes, workoutsRes, schedulesRes, assignmentsRes] = await Promise.all([
     supabase
       .from('courses')
       .select(`
@@ -125,12 +146,38 @@ async function StudyScheduleContent({
         )
       `)
       .eq("user_id", userId),
+    supabase
+      .from("course_schedules")
+      .select(`
+        id,
+        course_id,
+        schedule_date,
+        task_title,
+        task_kind,
+        focus,
+        duration_minutes,
+        courses(id, title, course_code, university)
+      `),
+    supabase
+      .from("course_assignments")
+      .select(`
+        id,
+        course_id,
+        label,
+        kind,
+        due_on,
+        url,
+        courses(id, title, course_code, university)
+      `),
   ]);
 
   const enrolledCourses = (coursesRes.data || []).map(row => mapCourseFromRow(row));
+  const enrolledCourseIds = new Set(enrolledCourses.map((course) => course.id));
   const rawPlans = plansRes.data || [];
   const logs = logsRes.data || [];
   const rawWorkouts = workoutsRes.data || [];
+  const rawSchedules = ((schedulesRes.data || []) as unknown as ScheduleItem[]).filter(s => enrolledCourseIds.has(s.course_id));
+  const rawAssignments = ((assignmentsRes.data || []) as unknown as AssignmentItem[]).filter(a => enrolledCourseIds.has(a.course_id));
 
   const toDateOnly = (value: unknown) => {
     if (typeof value !== "string") return "";
@@ -172,7 +219,6 @@ async function StudyScheduleContent({
     days_of_week: normalizeDays(plan.days_of_week),
   })) as NormalizedPlan[];
 
-  const enrolledCourseIds = new Set(enrolledCourses.map((course) => course.id));
   const plans = allPlans.filter((plan) => enrolledCourseIds.has(plan.course_id));
   const validPlanIds = new Set(plans.map((plan) => plan.id));
   const filteredLogs = (logs || []).filter((log: { plan_id: number }) => validPlanIds.has(log.plan_id));
@@ -213,6 +259,8 @@ async function StudyScheduleContent({
         courses={enrolledCourses as unknown as Parameters<typeof StudyCalendar>[0]["courses"]}
         plans={plans}
         workouts={workouts}
+        schedules={rawSchedules}
+        assignments={rawAssignments}
         logs={filteredLogs}
         dict={dict.dashboard.roadmap}
       />

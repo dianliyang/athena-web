@@ -49,7 +49,7 @@ async function OverviewContent({ userId }: { userId: string }) {
   const todayIso = new Date().toISOString().slice(0, 10);
   const referenceNowMs = new Date(`${todayIso}T23:59:59.999Z`).getTime();
 
-  const [coursesRes, plansRes, logsRes, workoutsRes, workoutLogsRes] = await Promise.all([
+  const [coursesRes, plansRes, logsRes, workoutsRes, workoutLogsRes, schedulesRes] = await Promise.all([
     supabase
       .from("courses")
       .select(`
@@ -102,6 +102,19 @@ async function OverviewContent({ userId }: { userId: string }) {
       .from("user_workout_logs")
       .select("workout_id, log_date, is_attended")
       .eq("user_id", userId),
+    supabase
+      .from("course_schedules")
+      .select(`
+        id,
+        course_id,
+        schedule_date,
+        task_title,
+        task_kind,
+        focus,
+        duration_minutes,
+        courses(id, title, course_code, university)
+      `)
+      .eq("schedule_date", todayIso),
   ]);
 
   const enrolledCourses = (coursesRes.data || []).map((row) => mapCourseFromRow(row));
@@ -239,6 +252,7 @@ async function OverviewContent({ userId }: { userId: string }) {
     workouts,
     workoutLogs,
     assignments,
+    schedules: (schedulesRes.data || []) as unknown as Parameters<typeof buildOverviewRoutineItems>[0]["schedules"],
   });
 
   const inProgressCount = statusCounts.in_progress || 0;
@@ -279,13 +293,14 @@ async function OverviewContent({ userId }: { userId: string }) {
       </section>
 
       <section className="grid gap-4 xl:grid-cols-2">
-        <section className="space-y-3">
-            <div className="space-y-1">
-              <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">Course momentum</h2>
-              <p className="text-sm text-muted-foreground">
-                Status mix, update cadence, and current progress.
-              </p>
-            </div>
+        <section className="overflow-hidden rounded-2xl border border-border bg-background">
+          <div className="border-b border-border px-6 py-5">
+            <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">Course momentum</h2>
+            <p className="text-sm text-muted-foreground">
+              Status mix, update cadence, and current progress.
+            </p>
+          </div>
+          <div className="p-4">
             <CourseStatusChart
               data={Object.entries(statusCounts)}
               emptyText="No course status data yet"
@@ -295,19 +310,23 @@ async function OverviewContent({ userId }: { userId: string }) {
               avgProgress={avgProgress}
               weeklyActivity={buildWeeklyActivity(userCourseRows.map((row) => row.updated_at))}
             />
+          </div>
         </section>
-        <section className="space-y-3">
-            <div className="space-y-1">
-              <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">Learning identity</h2>
-              <p className="text-sm text-muted-foreground">
-                Field distribution across your current learning graph.
-              </p>
-            </div>
+
+        <section className="overflow-hidden rounded-2xl border border-border bg-background">
+          <div className="border-b border-border px-6 py-5">
+            <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">Learning identity</h2>
+            <p className="text-sm text-muted-foreground">
+              Field distribution across your current learning graph.
+            </p>
+          </div>
+          <div className="p-4">
             <LearningProfileChart
               data={fieldStats}
               unitLabel="units"
               emptyText="No learning units yet"
             />
+          </div>
         </section>
       </section>
     </div>
