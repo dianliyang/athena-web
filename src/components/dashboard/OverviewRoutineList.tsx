@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, ChevronRight, Dumbbell, ExternalLink, Loader2, NotebookPen, Coffee } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,10 @@ export default function OverviewRoutineList({
 }) {
   const [items, setItems] = useState(initialItems);
   const [pendingKeys, setPendingKeys] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    setItems(initialItems);
+  }, [initialItems]);
 
   const sortedItems = useMemo(
     () => [...items].sort((a, b) => a.startsAtSort.localeCompare(b.startsAtSort) || a.title.localeCompare(b.title)),

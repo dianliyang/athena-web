@@ -214,10 +214,15 @@ export async function POST(request: Request) {
       }
 
       // Build match criteria
-      const matchCriteria: Record<string, number | string> = { user_id: userId, log_date: date };
-      if (planId) matchCriteria.plan_id = planId;
-      if (scheduleId) matchCriteria.course_schedule_id = scheduleId;
-      if (assignmentId) matchCriteria.course_assignment_id = assignmentId;
+      const matchCriteria: Record<string, number | string> = { user_id: userId };
+      if (planId) {
+        matchCriteria.plan_id = planId;
+        matchCriteria.log_date = date;
+      } else if (scheduleId) {
+        matchCriteria.course_schedule_id = scheduleId;
+      } else if (assignmentId) {
+        matchCriteria.course_assignment_id = assignmentId;
+      }
 
       // Check if log exists
       const { data: existingLog, error: fetchError } = await supabase
