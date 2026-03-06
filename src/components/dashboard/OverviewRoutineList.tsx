@@ -19,7 +19,11 @@ export default function OverviewRoutineList({
   }, [initialItems]);
 
   const sortedItems = useMemo(
-    () => [...items].sort((a, b) => a.startsAtSort.localeCompare(b.startsAtSort) || a.title.localeCompare(b.title)),
+    () =>
+      [...items].sort((a, b) => {
+        if (a.isDone !== b.isDone) return a.isDone ? 1 : -1;
+        return a.startsAtSort.localeCompare(b.startsAtSort) || a.title.localeCompare(b.title);
+      }),
     [items]
   );
 

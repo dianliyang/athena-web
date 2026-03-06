@@ -414,7 +414,13 @@ export default function StudyCalendar({ courses, plans, workouts = [], schedules
 
   const todayKey = formatDateKey(anchorToday);
   const activeDateKey = selectedSmallDateKey || todayKey;
-  const todayEvents = eventsByDate.get(todayKey) || [];
+  const todayEvents = useMemo(() => {
+    const list = eventsByDate.get(todayKey) || [];
+    return [...list].sort((a, b) => {
+      if (a.isCompleted !== b.isCompleted) return a.isCompleted ? 1 : -1;
+      return a.startMinutes - b.startMinutes || a.endMinutes - b.endMinutes;
+    });
+  }, [eventsByDate, todayKey]);
 
   const weekDates = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
 
