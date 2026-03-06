@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Course } from "@/types";
 import { Dictionary } from "@/lib/dictionary";
@@ -10,8 +10,6 @@ import { Button } from "@/components/ui/button";
 import {
   Item,
   ItemContent,
-  ItemGroup,
-  ItemSeparator,
   ItemTitle,
 } from "@/components/ui/item";
 import {
@@ -126,6 +124,7 @@ function getIsoWeekNumber(date: Date) {
 export default function StudyCalendar({ courses, plans, logs, dict, initialDate }: StudyCalendarProps) {
   const router = useRouter();
   const anchorToday = initialDate ?? new Date();
+  const timelineScrollRef = useRef<HTMLDivElement | null>(null);
   const [monthCursor, setMonthCursor] = useState(new Date(anchorToday.getFullYear(), anchorToday.getMonth(), 1));
   const [weekStart, setWeekStart] = useState(startOfWeek(anchorToday));
   const [selectedEventKey, setSelectedEventKey] = useState<string | null>(null);
@@ -238,6 +237,20 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
   const weekNumber = getIsoWeekNumber(weekDates[0]);
 
   const timelineHeight = (HOUR_END - HOUR_START) * PIXELS_PER_HOUR;
+  const currentDayKey = formatDateKey(anchorToday);
+  const isTodayVisibleInWeek = weekDates.some((date) => formatDateKey(date) === currentDayKey);
+  const currentTimeTop =
+    ((anchorToday.getHours() * 60 + anchorToday.getMinutes()) - HOUR_START * 60) / 60 * PIXELS_PER_HOUR;
+
+  useEffect(() => {
+    if (!isTodayVisibleInWeek || !timelineScrollRef.current) return;
+
+    const container = timelineScrollRef.current;
+    const maxScrollTop = Math.max(container.scrollHeight - container.clientHeight, 0);
+    const nextScrollTop = Math.min(Math.max(currentTimeTop - container.clientHeight / 2, 0), maxScrollTop);
+
+    container.scrollTo({ top: nextScrollTop, behavior: "smooth" });
+  }, [currentTimeTop, isTodayVisibleInWeek, weekStart]);
 
   const setOptimisticCompletion = (planId: number, date: string, isCompleted: boolean) => {
     setLocalLogs((current) => {
@@ -341,16 +354,19 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
   return (
     <div className="h-full overflow-hidden">
       <div className="h-full lg:grid lg:grid-cols-[280px_1fr] xl:grid-cols-[300px_1fr] gap-0">
-        <div className="flex h-full flex-col border-r border-[#f5f5f5] pr-2">
-          <section className="min-h-0 rounded-lg py-0 pr-0">
-            <div className="flex h-10 items-center">
+        <div
+          className="flex h-full min-h-0 flex-col border-r border-[#f5f5f5] pr-2"
+          data-testid="calendar-left-column"
+        >
+          <section className="flex min-h-0 flex-1 flex-col rounded-lg py-0 pr-0">
+            <div className="flex h-10 items-center pb-3" data-testid="today-heading">
               <h3 className="text-xl font-semibold leading-none text-[#1f2937]">Today</h3>
             </div>
-            <div className="max-h-56 overflow-auto pr-1" data-testid="today-events-list">
+            <div className="min-h-0 flex-1 space-y-2 overflow-auto pr-1" data-testid="today-events-list">
               {todayEvents.length > 0 ?
-              <ItemGroup>
-                  {todayEvents.map((event, idx) =>
-                <div key={event.key}>
+              <div className="space-y-2">
+                  {todayEvents.map((event) =>
+                <div key={event.key} data-testid="today-event-card">
                   <Button
                     variant="ghost"
                     className={`h-auto w-full justify-start px-0 py-0 text-left hover:bg-transparent ${event.isCompleted ? "opacity-80" : ""}`}
@@ -389,10 +405,9 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
                       </Item>
                     </div>
                   </Button>
-                      {idx < todayEvents.length - 1 ? <ItemSeparator /> : null}
                     </div>
                 )}
-                </ItemGroup> :
+                </div> :
 
               <p className="py-4 text-center text-xs text-[#64748b]">{dict.calendar_no_events}</p>
               }
@@ -402,17 +417,7 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
           <div className="mt-auto rounded-lg px-0 pb-0 pt-1">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-semibold text-[#1f2937]">{smallCalendarLabel}</h3>
-              <div className="flex gap-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 px-2 text-[11px]"
-                  type="button"
-                  onClick={resetToToday}
-                  aria-label="Mini calendar today"
-                >
-                  Today
-                </Button>
+              <div className="flex items-center gap-1" data-testid="mini-calendar-controls">
                 <Button variant="outline"
                 size="icon"
                 className="h-7 w-7"
@@ -422,6 +427,16 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
                 aria-label="Previous month">
                   
                   <ChevronLeft className="mx-auto" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-[11px]"
+                  type="button"
+                  onClick={resetToToday}
+                  aria-label="Mini calendar today"
+                >
+                  Today
                 </Button>
                 <Button variant="outline"
                 size="icon"
@@ -516,8 +531,13 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
-            <div className="grid grid-cols-[56px_repeat(7,minmax(0,1fr))] w-full">
+          <div
+            ref={timelineScrollRef}
+            className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
+            data-testid="calendar-timeline-scroll"
+          >
+            <div className="relative w-full">
+              <div className="grid grid-cols-[56px_repeat(7,minmax(0,1fr))] w-full">
               <div className="border-r border-[#f5f5f5] bg-[#fafafa]">
                 <div className="h-10 sticky top-0 z-30 bg-[#f5f5f5]" />
                 {Array.from({ length: HOUR_END - HOUR_START }).map((_, hourIndex) =>
@@ -655,6 +675,19 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
                   </div>);
 
               })}
+              </div>
+              {isTodayVisibleInWeek ? (
+                <div
+                  className="pointer-events-none absolute left-[56px] right-0 z-40"
+                  data-testid="current-time-line"
+                  style={{ top: 40 + Math.max(currentTimeTop, 0) }}
+                >
+                  <div className="relative flex items-center">
+                    <span className="absolute -left-2.5 h-2.5 w-2.5 rounded-full bg-[#ef4444]" />
+                    <div className="h-px w-full bg-[#ef4444]" />
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
         </section>

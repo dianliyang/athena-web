@@ -63,6 +63,21 @@ const makeProps = () => ({
 describe("StudyCalendar redesign", () => {
   beforeEach(() => {
     refreshMock.mockReset();
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      value: 400,
+    });
+    Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+      configurable: true,
+      value: 1200,
+    });
+    HTMLElement.prototype.scrollTo = vi.fn(function scrollTo(this: HTMLElement, options?: number | ScrollToOptions, y?: number) {
+      if (typeof options === "number") {
+        this.scrollTop = y ?? 0;
+        return;
+      }
+      this.scrollTop = options?.top ?? 0;
+    });
   });
 
   afterEach(() => {
@@ -101,6 +116,34 @@ describe("StudyCalendar redesign", () => {
     expect(todayList.textContent).not.toContain("Course B");
   });
 
+  test("stretches the left sidebar to full height and spaces today event cards", () => {
+    render(<StudyCalendar {...makeProps()} />);
+
+    const leftColumn = screen.getAllByTestId("calendar-left-column")[0];
+    const todayHeader = screen.getAllByTestId("today-heading")[0];
+    const todayList = screen.getAllByTestId("today-events-list")[0];
+    const eventCards = screen.getAllByTestId("today-event-card");
+
+    expect(leftColumn.className).toContain("h-full");
+    expect(todayHeader.className).toContain("pb-3");
+    expect(todayList.className).toContain("flex-1");
+    expect(todayList.className).toContain("space-y-2");
+    expect(eventCards.length).toBeGreaterThan(0);
+  });
+
+  test("shows a current time line and auto-scrolls the timeline when today is visible", async () => {
+    render(<StudyCalendar {...makeProps()} />);
+
+    const timelineScroller = screen.getAllByTestId("calendar-timeline-scroll")[0];
+    const currentTimeLine = screen.getAllByTestId("current-time-line")[0];
+
+    expect(currentTimeLine).toBeDefined();
+
+    await waitFor(() => {
+      expect((timelineScroller as HTMLElement).scrollTop).toBeGreaterThan(0);
+    });
+  });
+
   test("navigates weeks by prev/next controls", () => {
     render(<StudyCalendar {...makeProps()} />);
 
@@ -121,6 +164,18 @@ describe("StudyCalendar redesign", () => {
 
     expect(screen.getAllByText("Feb 2026").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Feb 1 - Feb 7, 2026").length).toBeGreaterThan(0);
+  });
+
+  test("mini calendar places today button between previous and next month controls", () => {
+    render(<StudyCalendar {...makeProps()} />);
+
+    const controls = screen.getAllByTestId("mini-calendar-controls")[0];
+    const buttons = controls.querySelectorAll("button");
+
+    expect(buttons).toHaveLength(3);
+    expect(buttons[0].getAttribute("aria-label")).toBe("Previous month");
+    expect(buttons[1].getAttribute("aria-label")).toBe("Mini calendar today");
+    expect(buttons[2].getAttribute("aria-label")).toBe("Next month");
   });
 
   test("clicking another event focuses a different course event", () => {
