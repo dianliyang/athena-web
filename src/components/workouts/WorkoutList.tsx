@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Workout } from "@/types";
 import { Dictionary } from "@/lib/dictionary";
+import { cn } from "@/lib/utils";
 import WorkoutCard from "./WorkoutCard";
 import WorkoutListHeader from "./WorkoutListHeader";
 import { Check, ChevronDown, ExternalLink, Plus } from "lucide-react";
@@ -48,49 +49,84 @@ function IconActionGroup({
   onToggleEnroll,
   workoutId,
   bookingHref,
+  standalone = false,
 }: {
   isEnrolled: boolean;
   isEnrollmentPending: boolean;
   onToggleEnroll: (workoutId: number) => void;
   workoutId: number;
   bookingHref: string | null;
+  standalone?: boolean;
 }) {
-  const buttonClass = "h-7 w-7 rounded-none border-0 px-0 shadow-none first:rounded-l-md last:rounded-r-md";
+  const buttonClass = standalone
+    ? "h-8 w-8 rounded-md"
+    : "h-7 w-7 rounded-none border-0 px-0 shadow-none first:rounded-l-md last:rounded-r-md";
+
+  const enrollButton = (
+    <Button
+      variant={isEnrolled ? "secondary" : "outline"}
+      size="icon"
+      type="button"
+      className={cn(
+        buttonClass,
+        isEnrolled && !standalone && "bg-muted text-foreground",
+        standalone && "border-border"
+      )}
+      disabled={isEnrollmentPending}
+      onClick={() => void onToggleEnroll(workoutId)}
+      aria-label={isEnrolled ? "Enrolled" : "Enroll"}
+      title={isEnrolled ? "Enrolled" : "Enroll"}
+    >
+      {isEnrolled ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+    </Button>
+  );
+
+  const bookingButton = bookingHref ? (
+    <Button
+      variant="outline"
+      size="icon"
+      asChild
+      className={cn(buttonClass, standalone && "border-border")}
+    >
+      <a
+        href={bookingHref}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Open booking"
+        title="Open booking"
+      >
+        <ExternalLink className="h-3.5 w-3.5" />
+      </a>
+    </Button>
+  ) : (
+    <Button
+      variant="outline"
+      size="icon"
+      disabled
+      className={cn(
+        buttonClass,
+        "bg-muted text-muted-foreground",
+        standalone && "border-border"
+      )}
+    >
+      <ExternalLink className="h-3.5 w-3.5" />
+    </Button>
+  );
+
+  if (standalone) {
+    return (
+      <div className="flex items-center gap-2">
+        {enrollButton}
+        {bookingButton}
+      </div>
+    );
+  }
 
   return (
     <div className="inline-flex overflow-hidden rounded-md border border-input bg-background">
-      <Button
-        variant={isEnrolled ? "secondary" : "ghost"}
-        size="icon"
-        type="button"
-        className={`${buttonClass} ${isEnrolled ? "bg-muted text-foreground" : ""}`}
-        disabled={isEnrollmentPending}
-        onClick={() => void onToggleEnroll(workoutId)}
-        aria-label={isEnrolled ? "Enrolled" : "Enroll"}
-        title={isEnrolled ? "Enrolled" : "Enroll"}
-      >
-        {isEnrolled ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
-      </Button>
-      {bookingHref ? (
-        <a
-          href={bookingHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={`${buttonClass} inline-flex items-center justify-center border-l border-input text-foreground transition-colors hover:bg-muted`}
-          aria-label="Open booking"
-          title="Open booking"
-        >
-          <ExternalLink className="h-3.5 w-3.5" />
-        </a>
-      ) : (
-        <span
-          className={`${buttonClass} inline-flex items-center justify-center border-l border-input bg-muted text-muted-foreground`}
-          aria-label="Booking unavailable"
-          title="Booking unavailable"
-        >
-          <ExternalLink className="h-3.5 w-3.5" />
-        </span>
-      )}
+      {enrollButton}
+      <div className="w-px bg-input" />
+      {bookingButton}
     </div>
   );
 }
@@ -305,8 +341,8 @@ export default function WorkoutList({
                               key={w.id}
                               className={`grid gap-3 px-4 py-3 lg:items-center ${
                                 selectedCategory === "Semester Fee"
-                                  ? "lg:grid-cols-[minmax(0,1fr)_220px_150px_auto]"
-                                  : "lg:grid-cols-[minmax(0,1fr)_220px_150px]"
+                                  ? "lg:grid-cols-[minmax(0,1fr)_220px_150px_100px_auto]"
+                                  : "lg:grid-cols-[minmax(0,1fr)_220px_150px_100px]"
                               }`}
                             >
                               <div className="min-w-0">
@@ -336,18 +372,19 @@ export default function WorkoutList({
 
                               <div className="text-sm lg:text-right">
                                 <p>Student: €{formatPrice(w.priceStudent)}</p>
-                                <p className="text-muted-foreground">
+                                <p className="text-muted-foreground text-[10px]">
                                   Staff: €{formatPrice(w.priceStaff)}
                                 </p>
-                                <div className="mt-2 flex justify-end">
-                                  <IconActionGroup
-                                    isEnrolled={isEnrolled}
-                                    isEnrollmentPending={Boolean(pendingIds[w.id])}
-                                    onToggleEnroll={handleToggleEnroll}
-                                    workoutId={w.id}
-                                    bookingHref={bookingHref || null}
-                                  />
-                                </div>
+                              </div>
+
+                              <div className="flex justify-end">
+                                <IconActionGroup
+                                  isEnrolled={isEnrolled}
+                                  isEnrollmentPending={Boolean(pendingIds[w.id])}
+                                  onToggleEnroll={handleToggleEnroll}
+                                  workoutId={w.id}
+                                  bookingHref={bookingHref || null}
+                                />
                               </div>
                             </div>
                           );
@@ -460,9 +497,20 @@ export default function WorkoutList({
                       }
                     >
                       <CardHeader>
-                        <CardTitle>{title}</CardTitle>
-                        <CardAction>
-                          {bookingHref ? <ExternalLink className="size-4" /> : null}
+                        <CardTitle className="pr-12">{title}</CardTitle>
+                        <CardAction
+                          onClick={(event) => {
+                            event.stopPropagation();
+                          }}
+                        >
+                          <IconActionGroup
+                            isEnrolled={isEnrolled}
+                            isEnrollmentPending={Boolean(pendingIds[workout.id])}
+                            onToggleEnroll={handleToggleEnroll}
+                            workoutId={workout.id}
+                            bookingHref={bookingHref || null}
+                            standalone
+                          />
                         </CardAction>
                         <CardDescription className="text-xs">
                           <div className="space-y-1">
@@ -474,20 +522,6 @@ export default function WorkoutList({
                       </CardHeader>
                       <CardFooter className="mt-auto text-xs text-muted-foreground">
                         <Badge className={statusClass}>{statusLabel}</Badge>
-                        <div
-                          className="ml-2"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                          }}
-                        >
-                          <IconActionGroup
-                            isEnrolled={isEnrolled}
-                            isEnrollmentPending={Boolean(pendingIds[workout.id])}
-                            onToggleEnroll={handleToggleEnroll}
-                            workoutId={workout.id}
-                            bookingHref={bookingHref || null}
-                          />
-                        </div>
                         <p className="ml-auto font-medium text-foreground">
                           €{formatPrice(workout.priceStudent)}
                         </p>

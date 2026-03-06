@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { runManualScraperAction } from "@/actions/scrapers";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
-import { Loader2, Play, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
+import { Loader2, Play, CheckCircle2, AlertCircle, RefreshCw, Landmark, CalendarRange, Zap } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -210,20 +210,29 @@ export default function SystemMaintenanceCard() {
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Card>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">Institutions</p>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2">
+              <Landmark className="h-4 w-4 text-muted-foreground" />
+              <p className="text-xs text-muted-foreground">Institutions</p>
+            </div>
             <p className="mt-1 text-2xl font-semibold">{selectedUnis.length}</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">Years</p>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2">
+              <CalendarRange className="h-4 w-4 text-muted-foreground" />
+              <p className="text-xs text-muted-foreground">Years</p>
+            </div>
             <p className="mt-1 text-2xl font-semibold">{selectedYears.length}</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">Execution Mode</p>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2">
+              <Zap className="h-4 w-4 text-muted-foreground" />
+              <p className="text-xs text-muted-foreground">Execution Mode</p>
+            </div>
             <p className="mt-1 text-base font-semibold capitalize">{executionMode}</p>
           </CardContent>
         </Card>
@@ -359,27 +368,31 @@ export default function SystemMaintenanceCard() {
               {recentJobs.length === 0 ? (
                 <div className="text-xs text-muted-foreground">No scraper tasks yet.</div>
               ) : (
-                <div className="space-y-2">
-                  {recentJobs.map((job) => (
-                    <div key={job.id} className="text-xs text-muted-foreground">
-                      <div className="flex items-center justify-between gap-2">
-                        <span>
-                          {job.university.toUpperCase()} {job.semester ? `· ${job.semester.toUpperCase()}` : ""}
-                        </span>
-                        <Badge
-                          variant={
-                            String(job.status || "").toLowerCase() === "failed"
-                              ? "destructive"
-                              : "secondary"
-                          }
-                        >
-                          {job.status}
-                        </Badge>
+                <div className="space-y-4">
+                  {recentJobs.map((job, idx) => (
+                    <div key={job.id}>
+                      <div className="text-xs text-muted-foreground">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-medium text-foreground">
+                            {job.university.toUpperCase()} {job.semester ? `· ${job.semester.toUpperCase()}` : ""}
+                          </span>
+                          <Badge
+                            variant={
+                              String(job.status || "").toLowerCase() === "failed"
+                                ? "destructive"
+                                : "secondary"
+                            }
+                            className="h-5 px-1.5 text-[10px]"
+                          >
+                            {job.status}
+                          </Badge>
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {job.job_type || "courses"} · {job.triggered_by || "manual"} · {job.course_count ?? 0} items · {job.duration_ms ? `${Math.round(job.duration_ms / 1000)}s` : "-"}
+                        </p>
+                        {job.error ? <p className="mt-1 text-xs text-destructive line-clamp-2" title={job.error}>{job.error}</p> : null}
                       </div>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {job.job_type || "courses"} · {job.triggered_by || "manual"} · {job.course_count ?? 0} items · {job.duration_ms ? `${Math.round(job.duration_ms / 1000)}s` : "-"}
-                      </p>
-                      {job.error ? <p className="mt-1 text-xs text-destructive">{job.error}</p> : null}
+                      {idx < recentJobs.length - 1 && <div className="mt-4 border-b border-border/50" />}
                     </div>
                   ))}
                 </div>

@@ -248,7 +248,7 @@ export default function Home() {
         </div>
 
         <Link
-          href="/courses"
+          href="/overview"
           className="border border-stone-900 px-4 py-2 text-xs uppercase tracking-widest text-stone-900 transition hover:bg-stone-900 hover:text-white"
           style={{ fontFamily: "var(--font-landing-mono)" }}
         >

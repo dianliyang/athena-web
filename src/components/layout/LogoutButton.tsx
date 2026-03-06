@@ -22,15 +22,15 @@ export default function LogoutButton({ showLabel, dict, fullWidth, className }: 
       <Button
         variant="ghost"
         className={cn(
-          "group text-sidebar-foreground hover:text-red-600",
+          "group/logout text-sidebar-foreground hover:text-red-600",
           fullWidth ? "w-full justify-start" : "",
           className,
         )}
         onClick={handleLogout}
         type="button"
       >
-        <LogOut className="transition-colors group-hover:text-red-600" />
-        <span className="transition-colors group-hover:text-red-600">
+        <LogOut className="transition-colors group-hover/logout:text-red-600" />
+        <span className="transition-colors group-hover/logout:text-red-600">
           {dict?.dashboard.identity.sign_out || "Sign Out"}
         </span>
       </Button>
