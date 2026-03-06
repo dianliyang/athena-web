@@ -59,7 +59,21 @@ export default function OverviewRoutineList({
 
       // Optimistic update
       setItems((prev) =>
-        prev.map((it) => (it.key === item.key ? { ...it, isDone: !it.isDone, statusLabel: !it.isDone ? (it.sourceType === "workout" ? "Attended" : "Completed") : (it.sourceType === "workout" ? "Mark attended" : "Mark complete") } : it))
+        prev.map((it) => {
+          if (it.key === item.key) {
+            const nextDone = !it.isDone;
+            let nextStatusLabel = it.statusLabel;
+            
+            if (it.sourceType === "workout") {
+              nextStatusLabel = nextDone ? "Attended" : "Mark attended";
+            } else {
+              nextStatusLabel = nextDone ? "Completed" : "Mark complete";
+            }
+
+            return { ...it, isDone: nextDone, statusLabel: nextStatusLabel };
+          }
+          return it;
+        })
       );
     } catch (error) {
       console.error(error);
