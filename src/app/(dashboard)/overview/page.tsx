@@ -5,6 +5,7 @@ import { getDictionary } from "@/lib/dictionary";
 import { createClient, getUser, mapCourseFromRow } from "@/lib/supabase/server";
 import LearningProfileChart from "@/components/identity/LearningProfileChart";
 import CourseStatusChart from "@/components/identity/CourseStatusChart";
+import AttendanceLearningChart from "@/components/dashboard/AttendanceLearningChart";
 import OverviewRoutineList from "@/components/dashboard/OverviewRoutineList";
 import CourseMomentumCard from "@/components/dashboard/CourseMomentumCard";
 import { Button } from "@/components/ui/button";
@@ -292,7 +293,7 @@ async function OverviewContent({ userId }: { userId: string }) {
         </aside>
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-2">
+      <section className="grid gap-4 xl:grid-cols-3">
         <section className="overflow-hidden rounded-2xl border border-border bg-background">
           <div className="border-b border-border px-6 py-5">
             <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">Course momentum</h2>
@@ -309,6 +310,21 @@ async function OverviewContent({ userId }: { userId: string }) {
               stalledCount={stalledCount}
               avgProgress={avgProgress}
               weeklyActivity={buildWeeklyActivity(userCourseRows.map((row) => row.updated_at))}
+            />
+          </div>
+        </section>
+
+        <section className="overflow-hidden rounded-2xl border border-border bg-background">
+          <div className="border-b border-border px-6 py-5">
+            <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">Execution metrics</h2>
+            <p className="text-sm text-muted-foreground">
+              Attendance and study consistency over last 7 days.
+            </p>
+          </div>
+          <div className="p-4">
+            <AttendanceLearningChart
+              studyLogs={(logsRes.data || []).map(l => ({ log_date: String(l.log_date), is_completed: Boolean(l.is_completed) }))}
+              workoutLogs={(workoutLogsRes.data || []).map(l => ({ log_date: String(l.log_date), is_attended: Boolean(l.is_attended) }))}
             />
           </div>
         </section>
