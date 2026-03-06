@@ -571,7 +571,7 @@ export default function StudyCalendar({ courses, plans, workouts = [], schedules
           <section className="flex min-h-0 flex-1 flex-col rounded-lg py-0 pr-0">
             <div className="mb-2 flex h-14 items-center rounded-lg px-2" data-testid="today-heading">
               <h3
-                className="text-xl font-bold tracking-tight text-[#1f2937]"
+                className="text-xl font-medium tracking-tight text-[#1f2937]"
                 data-testid="today-header-title"
               >
                 Today
@@ -623,13 +623,13 @@ export default function StudyCalendar({ courses, plans, workouts = [], schedules
                         )}
                         <Item size="sm" className="w-full px-0 py-0 bg-transparent border-0 shadow-none h-auto min-h-0">
                           <ItemContent className="gap-0">
-                            <p className={`text-[8px] font-bold uppercase tracking-wider leading-none mb-0.5 ${event.isCompleted ? "text-stone-400" : "text-muted-foreground/80"}`}>
+                            <p className={`text-[8px] font-medium uppercase tracking-wider leading-none mb-0.5 ${event.isCompleted ? "text-stone-400" : "text-muted-foreground/80"}`}>
                               {event.startTime.slice(0, 5)} - {event.endTime.slice(0, 5)}
                             </p>
-                            <ItemTitle className={`w-full whitespace-normal break-words text-[12px] font-bold tracking-tight leading-[1.1] ${event.isCompleted ? "text-stone-500 line-through" : "text-[#0f172a]"}`}>
+                            <ItemTitle className={`w-full whitespace-normal break-words text-[12px] font-medium tracking-tight leading-[1.1] ${event.isCompleted ? "text-stone-500 line-through" : "text-[#0f172a]"}`}>
                               {event.title}
                             </ItemTitle>
-                            <div className={`w-full flex flex-wrap items-center gap-x-1 text-[9px] font-bold uppercase tracking-wider mt-0.5 ${event.isCompleted ? "text-stone-400" : "text-muted-foreground/70"}`}>
+                            <div className={`w-full flex flex-wrap items-center gap-x-1 text-[9px] font-medium uppercase tracking-wider mt-0.5 ${event.isCompleted ? "text-stone-400" : "text-muted-foreground/70"}`}>
                               <span>{getEventMetaLine(event).split(' · ')[0]}</span>
                               {event.location && (
                                 <>
@@ -751,11 +751,11 @@ export default function StudyCalendar({ courses, plans, workouts = [], schedules
         <section className="bg-transparent overflow-hidden h-full min-h-0 relative flex flex-col">
           <div className="mb-2 flex h-14 items-center justify-between rounded-lg px-2" data-testid="week-header">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80 leading-none mb-1.5">
+              <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground/80 leading-none mb-1.5">
                 Week {weekNumber}
               </p>
               <h2
-                className="truncate text-xl font-bold tracking-tight text-[#0f172a] leading-none"
+                className="truncate text-xl font-medium tracking-tight text-[#0f172a] leading-none"
                 data-testid="week-header-title"
               >
                 {weekLabel}
@@ -898,17 +898,17 @@ export default function StudyCalendar({ courses, plans, workouts = [], schedules
                                     ) : null}
                                     <div className="flex flex-col h-full justify-between">
                                       <div>
-                                        <p className={`truncate text-[9px] font-bold uppercase tracking-wider ${isSelected ? "text-[#d1d5db]" : "text-[#475569]"}`}>
+                                        <p className={`truncate text-[9px] font-medium uppercase tracking-wider ${isSelected ? "text-[#d1d5db]" : "text-[#475569]"}`}>
                                           {event.startTime.slice(0, 5)} - {event.endTime.slice(0, 5)}
                                         </p>
                                         <p className={cn(
-                                          "truncate text-[11px] font-bold leading-tight mt-0.5",
+                                          "truncate text-[11px] font-medium leading-tight mt-0.5",
                                           isSelected ? "text-white" : "text-[#0f172a]"
                                         )}>
                                           {event.title}
                                         </p>
                                       </div>
-                                      <p className={`truncate text-[9px] font-bold uppercase tracking-wider ${isSelected ? "text-[#e5e7eb]" : "text-[#334155]"}`}>
+                                      <p className={`truncate text-[9px] font-medium uppercase tracking-wider ${isSelected ? "text-[#e5e7eb]" : "text-[#334155]"}`}>
                                         {getEventMetaLine(event).split(' · ')[0]}
                                       </p>
                                     </div>
