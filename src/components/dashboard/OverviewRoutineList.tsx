@@ -59,7 +59,7 @@ export default function OverviewRoutineList({
 
       // Optimistic update
       setItems((prev) =>
-        prev.map((it) => (it.key === item.key ? { ...it, isDone: !it.isDone } : it))
+        prev.map((it) => (it.key === item.key ? { ...it, isDone: !it.isDone, statusLabel: !it.isDone ? (it.sourceType === "workout" ? "Attended" : "Completed") : (it.sourceType === "workout" ? "Mark attended" : "Mark complete") } : it))
       );
     } catch (error) {
       console.error(error);
