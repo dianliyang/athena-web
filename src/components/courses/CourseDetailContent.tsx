@@ -80,7 +80,7 @@ import {
 } from "@/components/ui/combobox";
 import { format, parseISO } from "date-fns";
 import { type DateRange } from "react-day-picker";
-import { buildCourseDetailCalendar, type CourseDetailCalendarEvent } from "@/lib/course-detail-calendar";
+import { buildCourseDetailCalendar } from "@/lib/course-detail-calendar";
 
 interface CourseDetailContentProps {
   course: Course;
@@ -594,10 +594,8 @@ export default function CourseDetailContent({
 
   const studyPlanCalendar = useMemo(() => {
     return buildCourseDetailCalendar({
-      courseTitle: course.title,
       assignments,
       scheduleItems,
-      studyPlans: editablePlans,
       completionByDate,
       scheduleCompletion,
       assignmentCompletion,
@@ -605,8 +603,6 @@ export default function CourseDetailContent({
   }, [
     assignments,
     completionByDate,
-    course.title,
-    editablePlans,
     scheduleItems,
     scheduleCompletion,
     assignmentCompletion,

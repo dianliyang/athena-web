@@ -134,7 +134,6 @@ export default function ProjectsSeminarsInfiniteContent({
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
           {gridItems.map((item) => {
             const semester = (item.latest_semester || {}) as { term?: string; year?: number };
-            const status = item.enrolled ? "Enrolled" : "Not Enrolled";
             const semesterLabel = semester.term && semester.year ? `${semester.term} ${semester.year}` : "-";
             return (
               <Card key={item.id} className="h-full">

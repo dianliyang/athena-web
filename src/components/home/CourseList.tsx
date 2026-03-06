@@ -27,7 +27,6 @@ import { Badge } from "@/components/ui/badge";
 
 interface CourseListProps {
   initialCourses: Course[];
-  totalItems: number;
   totalPages: number;
   currentPage: number;
   perPage: number;
@@ -39,7 +38,6 @@ interface CourseListProps {
 
 export default function CourseList({
   initialCourses,
-  totalItems,
   totalPages,
   currentPage,
   perPage,
@@ -383,7 +381,7 @@ export default function CourseList({
       ) : (
         <div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-y-auto py-3">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {courses.map((course, idx) => (
+            {courses.map((course) => (
               <CourseCard
                 key={course.id}
                 course={course}
@@ -391,7 +389,6 @@ export default function CourseList({
                 onEnrollToggle={fetchEnrolled}
                 onHide={handleHide}
                 viewMode="grid"
-                rowIndex={idx}
               />
             ))}
           </div>

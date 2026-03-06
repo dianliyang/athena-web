@@ -1,8 +1,6 @@
 import { createClient, getUser } from "@/lib/supabase/server";
 import ProjectsSeminarsToolbar from "@/components/projects-seminars/ProjectsSeminarsToolbar";
 import { ProjectSeminarTableRow } from "@/components/projects-seminars/table/columns";
-import { getLanguage } from "@/actions/language";
-import { getDictionary } from "@/lib/dictionary";
 import ProjectsSeminarsInfiniteContent from "@/components/projects-seminars/ProjectsSeminarsInfiniteContent";
 
 interface PageProps {

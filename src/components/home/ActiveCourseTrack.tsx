@@ -126,7 +126,6 @@ export default function ActiveCourseTrack({
     }
   };
 
-  const weekdaysShort = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const formatTimeLabel = (time?: string) => {
     if (!time) return "Not set";
     const [hoursText = "0", minutesText = "00"] = time.split(":");
@@ -137,8 +136,10 @@ export default function ActiveCourseTrack({
     const twelveHour = hours % 12 || 12;
     return `${twelveHour}:${minutes.toString().padStart(2, "0")} ${suffix}`;
   };
+
   const scheduleSummary = useMemo(() => {
     if (!localPlan) return null;
+    const weekdaysShort = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const dayIndexes = [...(localPlan.days_of_week || [])].sort((a, b) => a - b);
     const dayText = dayIndexes.map((idx) => weekdaysShort[idx]).join(", ");
     return {

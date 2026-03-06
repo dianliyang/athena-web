@@ -21,11 +21,8 @@ interface CourseCardProps {
   isInitialEnrolled: boolean;
   onEnrollToggle?: () => void;
   onHide?: (courseId: number) => void;
-  isSelected?: boolean;
-  onSelectChange?: (courseId: number, checked: boolean) => void;
   progress?: number;
   viewMode?: "list" | "grid";
-  rowIndex?: number;
 }
 
 export default function CourseCard({
@@ -33,11 +30,8 @@ export default function CourseCard({
   isInitialEnrolled,
   onEnrollToggle,
   onHide,
-  isSelected = false,
-  onSelectChange,
   progress,
   viewMode = "grid",
-  rowIndex = 0,
 }: CourseCardProps) {
   const router = useRouter();
   const searchParams = useSearchParams();

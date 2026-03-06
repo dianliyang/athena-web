@@ -233,15 +233,6 @@ export default function StudyCalendar({ courses, scheduleRows, dict, initialDate
     setSelectedSmallDateKey(nowKey);
     setMonthCursor(new Date(now.getFullYear(), now.getMonth(), 1));
   };
-  const getEventMetaLine = (event: CalendarEvent) => {
-    const parts: string[] = [];
-    if (typeof event.credit === "number") parts.push(`${event.credit}`);
-    parts.push(event.courseCode);
-    if (event.kind && event.kind !== "task" && event.kind !== "study") {
-      parts.push(event.kind);
-    }
-    return parts.join(" · ");
-  };
   const getEventDurationLabel = (event: CalendarEvent) => {
     const durationMinutes = Math.max(0, event.endMinutes - event.startMinutes);
     if (!durationMinutes) return "0m";

@@ -16,8 +16,6 @@ export default function Hero({ dict }: { dict?: any }) {
   const initialQuery = searchParams.get("q") || "";
   const [query, setQuery] = useState(initialQuery);
 
-  // Track the last pushed query to avoid redundant navigations
-  const lastPushedQuery = useRef(initialQuery);
   const inputRef = useRef<HTMLInputElement >(null);
 
   useEffect(() => {

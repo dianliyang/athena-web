@@ -1,12 +1,13 @@
 "use client";
 
-import { startTransition, useEffect, useMemo, useState } from "react";
+import { startTransition, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, ChevronDownIcon, Loader2, LocateFixed, X } from "lucide-react";
+import { Clock, Loader2, LocateFixed, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Toggle } from "@/components/ui/toggle";
+import { cn } from "@/lib/utils";
 import {
   InputGroup,
   InputGroupAddon,
@@ -26,18 +27,16 @@ import {
   CardHeader,
   CardTitle
 } from "@/components/ui/card";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
 import {
   Combobox,
-  ComboboxCollection,
   ComboboxContent,
   ComboboxEmpty,
   ComboboxGroup,
   ComboboxInput,
   ComboboxItem,
   ComboboxLabel,
-  ComboboxList,
   ComboboxSeparator
 } from "@/components/ui/combobox";
 import { format, parseISO } from "date-fns";
@@ -155,7 +154,7 @@ export default function AddPlanModal({
     }
   }, [currentTimeZone]);
 
-  const getInitialFormData = () => ({
+  const getInitialFormData = useCallback(() => ({
     startDate: existingPlan?.start_date || new Date().toISOString().split("T")[0],
     endDate:
       existingPlan?.end_date ||
@@ -166,7 +165,7 @@ export default function AddPlanModal({
     kind: existingPlan?.kind?.trim() || "Self-Study",
     location: existingPlan?.location || "Library",
     timezone: existingPlan?.timezone?.trim() || currentTimeZone
-  });
+  }), [existingPlan, currentTimeZone]);
 
   const [formData, setFormData] = useState(getInitialFormData);
 
@@ -174,7 +173,7 @@ export default function AddPlanModal({
     if (!isOpen) return;
     const next = getInitialFormData();
     setFormData(next);
-  }, [isOpen, existingPlan, currentTimeZone]);
+  }, [isOpen, getInitialFormData]);
 
   const timeZoneGroups = useMemo(() => {
     const zones = [...timeZoneOptions];
@@ -187,276 +186,391 @@ export default function AddPlanModal({
       let group = "Other";
       if (zone.startsWith("America/")) group = "Americas";
       else if (zone.startsWith("Europe/")) group = "Europe";
-      else if (
-        zone.startsWith("Asia/") ||
-        zone.startsWith("Pacific/") ||
-        zone.startsWith("Australia/")
-      ) group = "Asia/Pacific";
+      else if (zone.startsWith("Asia/")) group = "Asia";
       else if (zone.startsWith("Africa/")) group = "Africa";
-      const bucket = groups.get(group) || [];
-      bucket.push(zone);
-      groups.set(group, bucket);
+      else if (zone.startsWith("Australia/") || zone.startsWith("Pacific/"))
+        group = "Australia & Pacific";
+      else if (zone === "UTC") group = "Standard";
+
+      const list = groups.get(group) || [];
+      list.push(zone);
+      groups.set(group, list);
     });
-    const order = ["Americas", "Europe", "Asia/Pacific", "Africa", "Other"];
-    return order.
-    filter((key) => groups.has(key)).
-    map((key) => ({ value: key, items: groups.get(key) || [] }));
+    return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
   }, [timeZoneOptions, formData.timezone]);
 
-  if (!isOpen) return null;
-
-  const dayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-  const toggleDay = (dayIdx: number) => {
-    setFormData((prev) => {
-      const nextDays = prev.days.includes(dayIdx)
-        ? prev.days.filter((d) => d !== dayIdx)
-        : [...prev.days, dayIdx].sort((a, b) => a - b);
-      return { ...prev, days: nextDays };
-    });
-  };
-
-  const handleUseCurrentLocation = () => {
-    if (typeof navigator === "undefined" || !navigator.geolocation) return;
-    setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const locationName = await reverseGeocodeLocationName(
-          position.coords.latitude,
-          position.coords.longitude
-        );
-        setFormData((prev) => ({ ...prev, location: locationName }));
-        setLocating(false);
-      },
-      () => setLocating(false),
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (formData.days.length === 0) {
-      toast.error("Please select at least one day", { position: "bottom-right" });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const res = await fetch("/api/schedule", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+  const handleSave = () => {
+    startTransition(async () => {
+      setLoading(true);
+      try {
+        const payload = {
           action: existingPlan ? "update_plan" : "add_plan",
           planId: existingPlan?.id,
           courseId: course.id,
           startDate: formData.startDate,
           endDate: formData.endDate,
           daysOfWeek: formData.days,
-          startTime: `${formData.startTime}:00`,
-          endTime: `${formData.endTime}:00`,
-          kind: formData.kind || "Self-Study",
+          startTime: formData.startTime + ":00",
+          endTime: formData.endTime + ":00",
+          kind: formData.kind,
           location: formData.location,
-          timezone: formData.timezone || currentTimeZone
-        })
-      });
+          timezone: formData.timezone
+        };
 
-      if (!res.ok) {
-        toast.error("Failed to save schedule", { position: "bottom-right" });
-        return;
+        const res = await fetch("/api/schedule", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || "Failed to save study plan");
+        }
+
+        const savedPlan = await res.json();
+        toast.success(
+          existingPlan ? "Study plan updated" : "Study plan added successfully"
+        );
+        if (onSuccess) onSuccess(savedPlan);
+        onClose();
+        router.refresh();
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to save plan");
+      } finally {
+        setLoading(false);
       }
+    });
+  };
 
-      const saved: PlanData = await res.json();
-      onClose();
-      onSuccess?.(saved);
-      startTransition(() => router.refresh());
-    } catch (error) {
-      console.error(error);
-      toast.error("Error saving schedule", { position: "bottom-right" });
-    } finally {
-      setLoading(false);
+  const handleLocateMe = () => {
+    if (!navigator.geolocation) {
+      toast.error("Geolocation is not supported by your browser");
+      return;
+    }
+
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const name = await reverseGeocodeLocationName(
+            position.coords.latitude,
+            position.coords.longitude
+          );
+          setFormData((p) => ({ ...p, location: name }));
+          toast.success("Location updated");
+        } catch {
+          toast.error("Failed to resolve location name");
+        } finally {
+          setLocating(false);
+        }
+      },
+      () => {
+        setLocating(false);
+        toast.error("Failed to get your location");
+      },
+      { timeout: 10000 }
+    );
+  };
+
+  const dateRange: DateRange | undefined = useMemo(() => {
+    if (!formData.startDate || !formData.endDate) return undefined;
+    try {
+      return {
+        from: parseISO(formData.startDate),
+        to: parseISO(formData.endDate)
+      };
+    } catch {
+      return undefined;
+    }
+  }, [formData.startDate, formData.endDate]);
+
+  const handleDateRangeSelect = (range: DateRange | undefined) => {
+    if (range?.from) {
+      setFormData((p) => ({ ...p, startDate: format(range.from!, "yyyy-MM-dd") }));
+    }
+    if (range?.to) {
+      setFormData((p) => ({ ...p, endDate: format(range.to!, "yyyy-MM-dd") }));
     }
   };
 
-  const card = (
-    <Card className="w-full max-w-xl gap-3 py-3">
-        <form onSubmit={handleSubmit}>
-          <CardHeader className="px-3 pb-0">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                <CardTitle>{existingPlan ? "Edit Schedule" : "Add Schedule"}</CardTitle>
-                <CardDescription className="line-clamp-2 break-words">{course.title}</CardDescription>
-              </div>
-              <div className="flex shrink-0 items-center gap-1">
-                <Button variant="outline" size="icon-sm" type="button" onClick={onClose} aria-label="Cancel schedule">
-                  <X className="h-3.5 w-3.5" />
+  const content = (
+    <div className="space-y-6">
+      <div className="grid gap-6 sm:grid-cols-2">
+        <div className="space-y-4">
+          <FieldGroup>
+            <FieldLabel className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
+              Schedule Window
+            </FieldLabel>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal h-10 px-3 border-border/60 hover:border-primary/30 hover:bg-primary/[0.02] transition-colors",
+                    !dateRange && "text-muted-foreground"
+                  )}
+                >
+                  <Clock className="mr-2 h-4 w-4 opacity-50" />
+                  {dateRange?.from ? (
+                    dateRange.to ? (
+                      <>
+                        {format(dateRange.from, "LLL dd, y")} -{" "}
+                        {format(dateRange.to, "LLL dd, y")}
+                      </>
+                    ) : (
+                      format(dateRange.from, "LLL dd, y")
+                    )
+                  ) : (
+                    <span>Pick a date range</span>
+                  )}
                 </Button>
-                <Button variant="outline" size="icon-sm" type="submit" disabled={loading} aria-label={existingPlan ? "Confirm schedule update" : "Confirm schedule save"}>
-                  {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-                </Button>
-              </div>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  initialFocus
+                  mode="range"
+                  defaultMonth={dateRange?.from}
+                  selected={dateRange}
+                  onSelect={handleDateRangeSelect}
+                  numberOfMonths={2}
+                />
+              </PopoverContent>
+            </Popover>
+          </FieldGroup>
+
+          <FieldGroup>
+            <FieldLabel className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
+              Weekdays
+            </FieldLabel>
+            <div className="flex flex-wrap gap-1.5">
+              {["S", "M", "T", "W", "T", "F", "S"].map((day, i) => (
+                <Toggle
+                  key={i}
+                  size="sm"
+                  pressed={formData.days.includes(i)}
+                  onPressedChange={(pressed) => {
+                    setFormData((p) => ({
+                      ...p,
+                      days: pressed
+                        ? [...p.days, i].sort()
+                        : p.days.filter((d) => d !== i)
+                    }));
+                  }}
+                  className="h-8 w-8 p-0 text-[10px] font-bold border border-border/40 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground transition-all"
+                >
+                  {day}
+                </Toggle>
+              ))}
             </div>
-          </CardHeader>
-          <Separator />
-          <CardContent className="px-3">
-            <FieldGroup className="gap-3">
-              <Field>
-                <FieldLabel>Date Range</FieldLabel>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" type="button" className="w-full justify-between font-normal">
-                      {formData.startDate && formData.endDate ?
-                      `${format(parseISO(formData.startDate), "LLL dd, y")} - ${format(parseISO(formData.endDate), "LLL dd, y")}` :
-                      "Pick a date range"}
-                      <ChevronDownIcon />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="range"
-                      numberOfMonths={2}
-                      selected={{
-                        from: formData.startDate ? parseISO(formData.startDate) : undefined,
-                        to: formData.endDate ? parseISO(formData.endDate) : undefined
-                      } as DateRange}
-                      onSelect={(range) => {
-                        const from = range?.from;
-                        const to = range?.to || range?.from;
-                        if (!from) return;
-                        setFormData((prev) => ({
-                          ...prev,
-                          startDate: format(from, "yyyy-MM-dd"),
-                          endDate: format(to!, "yyyy-MM-dd")
-                        }));
-                      }}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </Field>
+          </FieldGroup>
+        </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                <Field>
-                  <FieldLabel>Start Time</FieldLabel>
-                  <Input
-                    type="time"
-                    step="1"
-                    required
-                    value={formData.startTime}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, startTime: e.target.value }))}
-                    className="appearance-none bg-background [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel>End Time</FieldLabel>
-                  <Input
-                    type="time"
-                    step="1"
-                    required
-                    value={formData.endTime}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, endTime: e.target.value }))}
-                    className="appearance-none bg-background [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
-                  />
-                </Field>
-              </div>
-
-              <Field>
-                <FieldLabel>Days of Week</FieldLabel>
-                <div className="grid grid-cols-7 gap-1">
-                  {dayLabels.map((day, dayIdx) => (
-                    <Toggle
-                      key={day}
-                      pressed={formData.days.includes(dayIdx)}
-                      onPressedChange={() => toggleDay(dayIdx)}
-                      variant="outline"
-                      size="sm"
-                      className="text-[11px] font-semibold data-[state=on]:border-black data-[state=on]:bg-black data-[state=on]:text-white"
-                    >
-                      {day}
-                    </Toggle>
-                  ))}
-                </div>
-              </Field>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
-                <Field>
-                  <FieldLabel>Kind</FieldLabel>
-                  <Input
-                    value={formData.kind}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, kind: e.target.value }))}
-                    placeholder="Study"
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel>Location</FieldLabel>
-                  <InputGroup>
-                    <InputGroupInput
-                      value={formData.location}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, location: e.target.value }))}
-                      placeholder="Location"
-                    />
-                    <InputGroupAddon align="inline-end">
-                      <InputGroupButton
-                        size="icon-xs"
-                        type="button"
-                        onClick={handleUseCurrentLocation}
-                        title="Use current location"
-                        aria-label="Use current location"
-                      >
-                        {locating ? <Loader2 className="animate-spin" /> : <LocateFixed />}
-                      </InputGroupButton>
-                    </InputGroupAddon>
-                  </InputGroup>
-                </Field>
-
-                <Field>
-                  <FieldLabel>Timezone</FieldLabel>
-                  <Combobox
-                    items={timeZoneGroups}
-                    value={formData.timezone}
-                    onValueChange={(next) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      timezone: String(next || currentTimeZone)
-                    }))
-                    }
-                  >
-                    <ComboboxInput placeholder="Select timezone" />
-                    <ComboboxContent>
-                      <ComboboxEmpty>No timezones found.</ComboboxEmpty>
-                      <ComboboxList>
-                        {(group, index) => (
-                          <ComboboxGroup key={group.value} items={group.items}>
-                            <ComboboxLabel>{group.value}</ComboboxLabel>
-                            <ComboboxCollection>
-                              {(item) => (
-                                <ComboboxItem key={item} value={item}>
-                                  {item}
-                                </ComboboxItem>
-                              )}
-                            </ComboboxCollection>
-                            {index < timeZoneGroups.length - 1 ? <ComboboxSeparator /> : null}
-                          </ComboboxGroup>
-                        )}
-                      </ComboboxList>
-                    </ComboboxContent>
-                  </Combobox>
-                </Field>
-              </div>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <FieldGroup>
+              <FieldLabel className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
+                Start
+              </FieldLabel>
+              <Input
+                type="time"
+                value={formData.startTime}
+                onChange={(e) =>
+                  setFormData((p) => ({ ...p, startTime: e.target.value }))
+                }
+                className="h-10 border-border/60 focus-visible:ring-primary/20"
+              />
             </FieldGroup>
-          </CardContent>
-        </form>
-      </Card>
+            <FieldGroup>
+              <FieldLabel className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
+                End
+              </FieldLabel>
+              <Input
+                type="time"
+                value={formData.endTime}
+                onChange={(e) =>
+                  setFormData((p) => ({ ...p, endTime: e.target.value }))
+                }
+                className="h-10 border-border/60 focus-visible:ring-primary/20"
+              />
+            </FieldGroup>
+          </div>
+
+          <FieldGroup>
+            <FieldLabel className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
+              Location
+            </FieldLabel>
+            <InputGroup>
+              <InputGroupInput
+                placeholder="Where will you study?"
+                value={formData.location}
+                onChange={(e) =>
+                  setFormData((p) => ({ ...p, location: e.target.value }))
+                }
+                className="h-10 border-border/60 focus-visible:ring-primary/20"
+              />
+              <InputGroupAddon className="p-0 border-border/60">
+                <InputGroupButton
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  disabled={locating}
+                  onClick={handleLocateMe}
+                  className="h-9 w-9 text-muted-foreground hover:text-primary transition-colors"
+                >
+                  {locating ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <LocateFixed className="h-4 w-4" />
+                  )}
+                </InputGroupButton>
+              </InputGroupAddon>
+            </InputGroup>
+          </FieldGroup>
+        </div>
+      </div>
+
+      <Separator className="bg-border/40" />
+
+      <div className="grid gap-6 sm:grid-cols-2">
+        <FieldGroup>
+          <FieldLabel className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
+            Session Type
+          </FieldLabel>
+          <Combobox
+            value={formData.kind}
+            onValueChange={(val) => setFormData((p) => ({ ...p, kind: val || "" }))}
+          >
+            <ComboboxInput
+              placeholder="Select type..."
+              className="h-10 border-border/60 focus-visible:ring-primary/20"
+            />
+            <ComboboxContent>
+              <ComboboxEmpty>No type found.</ComboboxEmpty>
+              <ComboboxGroup>
+                {[
+                  "Self-Study",
+                  "Lecture",
+                  "Lab",
+                  "Recitation",
+                  "Project",
+                  "Exam Prep"
+                ].map((type) => (
+                  <ComboboxItem key={type} value={type}>
+                    {type}
+                  </ComboboxItem>
+                ))}
+              </ComboboxGroup>
+            </ComboboxContent>
+          </Combobox>
+        </FieldGroup>
+
+        <FieldGroup>
+          <FieldLabel className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
+            Timezone
+          </FieldLabel>
+          <Combobox
+            value={formData.timezone || ""}
+            onValueChange={(val) => setFormData((p) => ({ ...p, timezone: val || "" }))}
+          >
+            <ComboboxInput
+              placeholder="Search timezone..."
+              className="h-10 border-border/60 focus-visible:ring-primary/20 font-mono text-[11px]"
+            />
+            <ComboboxContent className="max-h-[300px] overflow-auto">
+              <ComboboxEmpty>No timezone found.</ComboboxEmpty>
+              {timeZoneGroups.map(([group, zones]) => (
+                <div key={group}>
+                  <ComboboxLabel className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/50 py-2 px-3">
+                    {group}
+                  </ComboboxLabel>
+                  <ComboboxGroup>
+                    {zones.map((zone) => (
+                      <ComboboxItem
+                        key={zone}
+                        value={zone}
+                        className="font-mono text-[11px] py-2"
+                      >
+                        {zone.replace(/_/g, " ")}
+                      </ComboboxItem>
+                    ))}
+                  </ComboboxGroup>
+                  <ComboboxSeparator className="bg-border/30" />
+                </div>
+              ))}
+            </ComboboxContent>
+          </Combobox>
+        </FieldGroup>
+      </div>
+
+      <div className="flex items-center justify-end gap-3 pt-4">
+        <Button
+          variant="ghost"
+          onClick={onClose}
+          className="text-xs font-bold uppercase tracking-wider"
+        >
+          Cancel
+        </Button>
+        <Button
+          onClick={handleSave}
+          disabled={loading || formData.days.length === 0}
+          className="px-8 text-xs font-bold uppercase tracking-wider shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+        >
+          {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {existingPlan ? "Update Plan" : "Create Plan"}
+        </Button>
+      </div>
+    </div>
   );
 
   if (mode === "inline") {
-    return <div data-no-card-nav="true" className="w-[min(92vw,36rem)]">{card}</div>;
+    return (
+      <Card className="border-border/60 shadow-md">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-lg font-bold tracking-tight">
+            {existingPlan ? "Edit Study Plan" : "Add Study Plan"}
+          </CardTitle>
+          <CardDescription className="text-xs">
+            {course.courseCode ? `${course.courseCode} · ` : ""}
+            {course.title}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>{content}</CardContent>
+      </Card>
+    );
   }
 
   return (
-    <div
-      data-no-card-nav="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm"
-    >
-      {card}
-    </div>
+    <Popover open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <PopoverContent
+        className="w-[95vw] max-w-2xl p-6 shadow-2xl border-border/40 sm:rounded-2xl"
+        align="center"
+        sideOffset={8}
+      >
+        <div className="mb-6 flex items-start justify-between">
+          <div className="space-y-1">
+            <h2 className="text-xl font-bold tracking-tight text-foreground">
+              {existingPlan ? "Adjust Study Plan" : "New Study Plan"}
+            </h2>
+            <p className="text-xs text-muted-foreground font-medium">
+              {course.courseCode ? (
+                <span className="text-primary/80 font-bold">{course.courseCode}</span>
+              ) : null}
+              {course.courseCode ? " · " : ""}
+              {course.title}
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="h-8 w-8 rounded-full hover:bg-muted/80"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+        {content}
+      </PopoverContent>
+    </Popover>
   );
 }

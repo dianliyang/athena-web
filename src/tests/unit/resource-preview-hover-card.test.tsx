@@ -4,8 +4,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { ResourcePreviewHoverCard } from "@/components/courses/CourseDetailContent";
 
 vi.mock("next/image", () => ({
-  default: ({ unoptimized: _unoptimized, ...props }: React.ImgHTMLAttributes<HTMLImageElement> & { unoptimized?: boolean }) => (
-    <img {...props} />
+  default: ({ unoptimized: _unoptimized, ...props }: React.ImgHTMLAttributes<HTMLImageElement> & { unoptimized?: boolean }) => ( // eslint-disable-line @typescript-eslint/no-unused-vars
+    <img alt="" {...props} /> // eslint-disable-line @next/next/no-img-element
   ),
 }));
 

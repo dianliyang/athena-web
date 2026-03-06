@@ -6,7 +6,6 @@ import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { Loader2, Play, CheckCircle2, AlertCircle, RefreshCw, Landmark, CalendarRange, Zap } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Toggle } from "@/components/ui/toggle";
 

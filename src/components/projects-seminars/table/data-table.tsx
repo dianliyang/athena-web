@@ -45,7 +45,7 @@ export function DataTable<TData, TValue>({ columns, data }: DataTableProps<TData
       </TableHeader>
       <TableBody>
         {table.getRowModel().rows.length ?
-        table.getRowModel().rows.map((row, idx) =>
+        table.getRowModel().rows.map((row) =>
         <TableRow
           key={row.id}>
 

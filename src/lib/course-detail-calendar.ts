@@ -96,18 +96,14 @@ function normalizeCalendarKind(
 }
 
 export function buildCourseDetailCalendar({
-  courseTitle: _courseTitle,
   assignments,
   scheduleItems,
-  studyPlans: _studyPlans,
   completionByDate = new Map<string, boolean>(),
   scheduleCompletion = new Map<number, boolean>(),
   assignmentCompletion = new Map<number, boolean>(),
 }: {
-  courseTitle: string;
   assignments: CourseDetailCalendarAssignment[];
   scheduleItems: CourseDetailCalendarScheduleItem[];
-  studyPlans: CourseDetailCalendarStudyPlan[];
   completionByDate?: Map<string, boolean>;
   scheduleCompletion?: Map<number, boolean>;
   assignmentCompletion?: Map<number, boolean>;

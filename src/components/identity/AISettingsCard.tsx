@@ -13,7 +13,6 @@ import { AI_PROVIDERS, type AIProvider } from "@/lib/ai/models-client";
 import { useAppToast } from "@/components/common/AppToastProvider";
 import { Save, Loader2, BarChart2, Sparkles, Trash2, CheckCircle2, AlertTriangle, Plus } from "lucide-react";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";import { Card } from "@/components/ui/card";
 

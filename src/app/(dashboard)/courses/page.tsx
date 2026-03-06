@@ -104,7 +104,6 @@ async function CourseListData({ params, dict
   return (
     <CourseList
       initialCourses={dbCourses.items}
-      totalItems={dbCourses.total}
       totalPages={dbCourses.pages}
       currentPage={page}
       perPage={size}
