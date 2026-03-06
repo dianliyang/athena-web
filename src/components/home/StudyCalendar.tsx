@@ -121,6 +121,10 @@ function getIsoWeekNumber(date: Date) {
   return Math.ceil(((copy.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
 }
 
+function formatTimeLabel(date: Date) {
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
 export default function StudyCalendar({ courses, plans, logs, dict, initialDate }: StudyCalendarProps) {
   const router = useRouter();
   const anchorToday = initialDate ?? new Date();
@@ -241,6 +245,7 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
   const isTodayVisibleInWeek = weekDates.some((date) => formatDateKey(date) === currentDayKey);
   const currentTimeTop =
     ((anchorToday.getHours() * 60 + anchorToday.getMinutes()) - HOUR_START * 60) / 60 * PIXELS_PER_HOUR;
+  const currentTimeLabel = formatTimeLabel(anchorToday);
 
   useEffect(() => {
     if (!isTodayVisibleInWeek || !timelineScrollRef.current) return;
@@ -359,7 +364,7 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
           data-testid="calendar-left-column"
         >
           <section className="flex min-h-0 flex-1 flex-col rounded-lg py-0 pr-0">
-            <div className="flex h-10 items-center pb-3" data-testid="today-heading">
+            <div className="flex h-12 items-center pb-3" data-testid="today-heading">
               <h3 className="text-xl font-semibold leading-none text-[#1f2937]">Today</h3>
             </div>
             <div className="min-h-0 flex-1 space-y-2 overflow-auto pr-1" data-testid="today-events-list">
@@ -414,7 +419,7 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
             </div>
           </section>
 
-          <div className="mt-auto rounded-lg px-0 pb-0 pt-1">
+          <div className="mt-auto rounded-lg px-0 pb-4 pt-1" data-testid="mini-calendar-section">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-semibold text-[#1f2937]">{smallCalendarLabel}</h3>
               <div className="flex items-center gap-1" data-testid="mini-calendar-controls">
@@ -495,12 +500,14 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
         </div>
 
         <section className="bg-transparent overflow-hidden h-full min-h-0 relative flex flex-col">
-          <div className="mb-2 flex h-12 items-center justify-between rounded-lg px-2">
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl font-semibold leading-none text-[#0f172a]">{`Week ${weekNumber}`}</h2>
-              <p className="text-sm text-[#64748b]">{weekLabel}</p>
+          <div className="mb-2 flex h-12 items-center justify-between rounded-lg px-2" data-testid="week-header">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold leading-none text-[#1f2937]">Today</p>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center">
+              <p className="text-sm font-semibold leading-none text-[#0f172a]">{`Week ${weekNumber} ${weekLabel}`}</p>
+            </div>
+            <div className="ml-3 flex items-center gap-1">
               <Button variant="outline"
               size="sm"
               type="button"
@@ -683,7 +690,9 @@ export default function StudyCalendar({ courses, plans, logs, dict, initialDate 
                   style={{ top: 40 + Math.max(currentTimeTop, 0) }}
                 >
                   <div className="relative flex items-center">
-                    <span className="absolute -left-2.5 h-2.5 w-2.5 rounded-full bg-[#ef4444]" />
+                    <span className="inline-flex h-5 shrink-0 items-center rounded-full bg-[#ef4444] px-1.5 text-[10px] font-semibold text-white">
+                      {currentTimeLabel}
+                    </span>
                     <div className="h-px w-full bg-[#ef4444]" />
                   </div>
                 </div>

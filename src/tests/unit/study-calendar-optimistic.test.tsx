@@ -1,6 +1,6 @@
 import React from "react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import StudyCalendar from "@/components/home/StudyCalendar";
 
 const refreshMock = vi.fn();
@@ -138,20 +138,33 @@ describe("StudyCalendar redesign", () => {
     const currentTimeLine = screen.getAllByTestId("current-time-line")[0];
 
     expect(currentTimeLine).toBeDefined();
+    expect(currentTimeLine.textContent).toContain("10:00");
 
     await waitFor(() => {
       expect((timelineScroller as HTMLElement).scrollTop).toBeGreaterThan(0);
     });
   });
 
+  test("separates the week header labels and pads the mini calendar bottom edge", () => {
+    render(<StudyCalendar {...makeProps()} />);
+
+    const weekHeader = screen.getAllByTestId("week-header")[0];
+    const miniCalendarSection = screen.getAllByTestId("mini-calendar-section")[0];
+
+    expect(screen.getAllByText("Today").length).toBeGreaterThan(1);
+    expect(within(weekHeader).getByText("Week 5 Feb 1 - Feb 7, 2026")).toBeDefined();
+    expect(weekHeader.className).toContain("items-center");
+    expect(miniCalendarSection.className).toContain("pb-4");
+  });
+
   test("navigates weeks by prev/next controls", () => {
     render(<StudyCalendar {...makeProps()} />);
 
-    expect(screen.getAllByText("Feb 1 - Feb 7, 2026").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Week 5 Feb 1 - Feb 7, 2026").length).toBeGreaterThan(0);
     fireEvent.click(screen.getAllByRole("button", { name: "Next week" })[0]);
-    expect(screen.getAllByText("Feb 8 - Feb 14, 2026").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Week 6 Feb 8 - Feb 14, 2026").length).toBeGreaterThan(0);
     fireEvent.click(screen.getAllByRole("button", { name: "Previous week" })[0]);
-    expect(screen.getAllByText("Feb 1 - Feb 7, 2026").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Week 5 Feb 1 - Feb 7, 2026").length).toBeGreaterThan(0);
   });
 
   test("mini calendar today button resets month and week to today", () => {
@@ -163,7 +176,7 @@ describe("StudyCalendar redesign", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "Mini calendar today" })[0]);
 
     expect(screen.getAllByText("Feb 2026").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Feb 1 - Feb 7, 2026").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Week 5 Feb 1 - Feb 7, 2026").length).toBeGreaterThan(0);
   });
 
   test("mini calendar places today button between previous and next month controls", () => {
