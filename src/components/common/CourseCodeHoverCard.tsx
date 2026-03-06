@@ -46,7 +46,7 @@ export default function CourseCodeHoverCard({
       <HoverCardTrigger asChild>
         <div
           onClick={handleCopy}
-          className={`inline-flex items-center gap-1.5 cursor-copy hover:text-foreground transition-colors group ${className}`}
+          className={`inline-flex items-center gap-1.5 hover:text-foreground transition-colors group ${className}`}
         >
           {children || (
             <>
