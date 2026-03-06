@@ -95,8 +95,8 @@ export default function OverviewRoutineList({
             className="grid gap-3 border-b border-border/50 pb-4 last:border-b-0 last:pb-0 sm:grid-cols-[100px_minmax(0,1fr)_auto] sm:items-center group/item"
           >
             <div className="flex flex-col items-start gap-1">
-              <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/80 leading-none">{item.timeLabel}</p>
-              <Badge variant="outline" className="rounded-full px-1.5 text-[9px] uppercase tracking-[0.12em] border-muted-foreground/20 text-muted-foreground/70 font-medium">
+              <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground leading-none">{item.timeLabel}</p>
+              <Badge variant="outline" className="rounded-full px-1.5 text-[9px] uppercase tracking-[0.12em] border-muted-foreground/30 text-muted-foreground font-medium">
                 {item.kind}
               </Badge>
             </div>
