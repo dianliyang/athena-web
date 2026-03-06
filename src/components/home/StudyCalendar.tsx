@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Course } from "@/types";
 import { Dictionary } from "@/lib/dictionary";
+import { cn } from "@/lib/utils";
 import { BookOpen, Check, ChevronLeft, ChevronRight, Clock, Coffee, Loader2, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -596,33 +597,33 @@ export default function StudyCalendar({ courses, plans, workouts = [], schedules
                     }}
                   >
                     <Card className={`w-full transition-colors border-border shadow-none ${getTodayRowClassName(event)}`}>
-                      <CardContent className="flex items-start gap-2 p-3">
+                      <CardContent className="flex items-start gap-2 p-2">
                         {event.sourceType === "study_plan" ? (
                           <span
                             aria-hidden="true"
-                            className={`mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border ${
+                            className={`mt-0.5 inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm border ${
                               event.isCompleted ? "border-stone-400 bg-stone-400 text-white" : "border-stone-300 bg-white"
                             }`}
                           >
-                            {event.isCompleted ? "✓" : ""}
+                            {event.isCompleted ? <span className="text-[10px] leading-none">✓</span> : ""}
                           </span>
                         ) : (
                           <span
                             aria-hidden="true"
-                            className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border border-stone-300 bg-white text-[#64748b]"
+                            className="mt-0.5 inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm border border-stone-300 bg-white text-[#64748b]"
                           >
-                            <Coffee className="h-2.5 w-2.5" />
+                            <Coffee className="h-2 w-2" />
                           </span>
                         )}
                         <Item size="sm" className="w-full px-0 py-0 bg-transparent border-0 shadow-none">
-                          <ItemContent className="gap-0.5">
-                            <p className={`text-[10px] font-bold uppercase tracking-wider ${event.isCompleted ? "text-stone-400" : "text-muted-foreground/80"}`}>
+                          <ItemContent className="gap-0">
+                            <p className={`text-[9px] font-bold uppercase tracking-wider ${event.isCompleted ? "text-stone-400" : "text-muted-foreground/80"}`}>
                               {event.startTime.slice(0, 5)} - {event.endTime.slice(0, 5)}
                             </p>
-                            <ItemTitle className={`w-full whitespace-normal break-words text-sm font-bold tracking-tight ${event.isCompleted ? "text-stone-500 line-through" : "text-[#0f172a]"}`}>
+                            <ItemTitle className={`w-full whitespace-normal break-words text-[13px] font-bold tracking-tight leading-tight ${event.isCompleted ? "text-stone-500 line-through" : "text-[#0f172a]"}`}>
                               {event.title}
                             </ItemTitle>
-                            <div className={`w-full flex flex-wrap items-center gap-x-2 text-[11px] font-bold uppercase tracking-wider ${event.isCompleted ? "text-stone-400" : "text-muted-foreground/70"}`}>
+                            <div className={`w-full flex flex-wrap items-center gap-x-1.5 text-[10px] font-bold uppercase tracking-wider ${event.isCompleted ? "text-stone-400" : "text-muted-foreground/70"}`}>
                               <span>{getEventMetaLine(event).split(' · ')[0]}</span>
                               {event.location && (
                                 <>
@@ -864,12 +865,8 @@ export default function StudyCalendar({ courses, plans, workouts = [], schedules
                             }}
                           >
                             <PopoverTrigger asChild>
-                              <Button variant="outline"
-                              className={`absolute left-1 right-1 overflow-hidden rounded-md px-1.5 py-1 text-left ${
-                              isSelected ?
-                              "bg-[#111111] text-white hover:bg-[#111111] hover:text-white" :
-                              "bg-[#f8fafc] text-[#0f172a] hover:bg-[#eef2f7]"}`
-                              }
+                              <Button variant="ghost"
+                              className="absolute left-1 right-1 p-0 h-auto"
                               data-testid={`week-event-${event.key}`}
                               data-selected={isSelected ? "true" : "false"}
                               type="button"
@@ -878,27 +875,39 @@ export default function StudyCalendar({ courses, plans, workouts = [], schedules
                                 setOpenWeekPopoverKey(event.key);
                               }}
                               style={{ top, height }}>
-                                <div className="relative h-full w-full overflow-hidden">
-                                  {event.isCompleted ? (
-                                    <span
-                                      className={`absolute right-0 top-0 inline-flex h-4 w-4 items-center justify-center rounded-full ${
-                                        isSelected ? "bg-white/15 text-white" : "bg-emerald-100 text-emerald-700"
-                                      }`}
-                                      data-testid="week-event-complete-icon"
-                                    >
-                                      <Check className="h-2.5 w-2.5" />
-                                    </span>
-                                  ) : null}
-                                  <p className={`truncate text-[10px] font-medium ${isSelected ? "text-[#d1d5db]" : "text-[#475569]"}`}>
-                                    {event.startTime.slice(0, 5)} - {event.endTime.slice(0, 5)}
-                                  </p>
-                                  <p className={`mt-0.5 truncate text-[10px] font-semibold leading-tight ${isSelected ? "text-white" : ""}`}>
-                                    {event.title}
-                                  </p>
-                                  <p className={`mt-0.5 truncate text-[10px] ${isSelected ? "text-[#e5e7eb]" : "text-[#334155]"}`}>
-                                    {getEventMetaLine(event)}
-                                  </p>
-                                </div>
+                                <Card className={cn(
+                                  "h-full w-full overflow-hidden transition-all border-border shadow-none",
+                                  isSelected ? "bg-[#111111] text-white border-transparent" : "bg-[#f8fafc] text-[#0f172a] hover:bg-[#eef2f7]"
+                                )}>
+                                  <CardContent className="p-1.5 relative h-full w-full">
+                                    {event.isCompleted ? (
+                                      <span
+                                        className={`absolute right-1 top-1 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full ${
+                                          isSelected ? "bg-white/15 text-white" : "bg-emerald-100 text-emerald-700"
+                                        }`}
+                                        data-testid="week-event-complete-icon"
+                                      >
+                                        <Check className="h-2 w-2" />
+                                      </span>
+                                    ) : null}
+                                    <div className="flex flex-col h-full justify-between">
+                                      <div>
+                                        <p className={`truncate text-[9px] font-bold uppercase tracking-wider ${isSelected ? "text-[#d1d5db]" : "text-[#475569]"}`}>
+                                          {event.startTime.slice(0, 5)} - {event.endTime.slice(0, 5)}
+                                        </p>
+                                        <p className={cn(
+                                          "truncate text-[11px] font-bold leading-tight mt-0.5",
+                                          isSelected ? "text-white" : "text-[#0f172a]"
+                                        )}>
+                                          {event.title}
+                                        </p>
+                                      </div>
+                                      <p className={`truncate text-[9px] font-bold uppercase tracking-wider ${isSelected ? "text-[#e5e7eb]" : "text-[#334155]"}`}>
+                                        {getEventMetaLine(event).split(' · ')[0]}
+                                      </p>
+                                    </div>
+                                  </CardContent>
+                                </Card>
                               </Button>
                             </PopoverTrigger>
                             <PopoverContent align="start" className="w-80 rounded-xl px-4 py-3">
