@@ -848,13 +848,13 @@ export default function StudyCalendar({ courses, plans, workouts = [], schedules
                     </div>
 
                     <div className="relative" style={{ height: timelineHeight }}>
-                      {Array.from({ length: HOUR_END - HOUR_START }).map((_, hourIndex) =>
-                      <div
-                        key={hourIndex}
-                        className="absolute left-0 right-0"
-                        style={{ top: hourIndex * PIXELS_PER_HOUR }} />
-
-                      )}
+                      {Array.from({ length: HOUR_END - HOUR_START }).map((_, hourIndex) => (
+                        <div
+                          key={hourIndex}
+                          className="absolute left-0 right-0 border-b border-[#f5f5f5]"
+                          style={{ top: hourIndex * PIXELS_PER_HOUR, height: PIXELS_PER_HOUR }}
+                        />
+                      ))}
 
                       {dayEvents.map((event) => {
                         const top = (event.startMinutes - HOUR_START * 60) / 60 * PIXELS_PER_HOUR;
