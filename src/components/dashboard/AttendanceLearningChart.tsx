@@ -71,7 +71,12 @@ export default function AttendanceLearningChart({ studyLogs, workoutLogs }: Atte
               <span className="text-[9px] font-bold text-muted-foreground/60">{d.dayLabel}</span>
               
               {/* Tooltip */}
-              <div className="absolute -top-10 left-1/2 -translate-x-1/2 hidden group-hover:block z-10">
+              <div className={cn(
+                "absolute -top-10 hidden group-hover:block z-20",
+                i === 0 ? "left-0 translate-x-0" : 
+                i === data.length - 1 ? "right-0 translate-x-0" : 
+                "left-1/2 -translate-x-1/2"
+              )}>
                 <div className="bg-stone-900 text-white text-[9px] py-1 px-2 rounded whitespace-nowrap shadow-xl">
                   {d.studyCount} Study · {d.workoutCount} Workout
                 </div>

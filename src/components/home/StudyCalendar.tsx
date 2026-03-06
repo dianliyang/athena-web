@@ -393,7 +393,27 @@ export default function StudyCalendar({ courses, plans, workouts = [], schedules
       }
     }
 
-    return items.sort((a, b) => a.date.localeCompare(b.date) || a.startMinutes - b.startMinutes);
+    const merged = new Map<string, CalendarEvent>();
+    for (const item of items) {
+      const key = `${item.date}:${item.title}:${item.courseCode}`;
+      const existing = merged.get(key);
+      if (existing) {
+        existing.isCompleted = existing.isCompleted || item.isCompleted;
+        if (item.scheduleId && !existing.scheduleId) existing.scheduleId = item.scheduleId;
+        if (item.assignmentId && !existing.assignmentId) existing.assignmentId = item.assignmentId;
+        if (item.planId && !existing.planId) existing.planId = item.planId;
+        if (item.startMinutes !== item.endMinutes && existing.startMinutes === existing.endMinutes) {
+          existing.startMinutes = item.startMinutes;
+          existing.endMinutes = item.endMinutes;
+          existing.startTime = item.startTime;
+          existing.endTime = item.endTime;
+        }
+      } else {
+        merged.set(key, item);
+      }
+    }
+
+    return Array.from(merged.values()).sort((a, b) => a.date.localeCompare(b.date) || a.startMinutes - b.startMinutes);
   }, [courseMap, localLogs, plans, monthCursor, workouts, schedules, assignments]);
 
   const eventsByDate = useMemo(() => {

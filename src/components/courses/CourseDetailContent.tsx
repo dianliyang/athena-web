@@ -1870,7 +1870,7 @@ export default function CourseDetailContent({
                                         {cell.day}
                                       </span>
                                     </div>
-                                    <div className="mt-1 space-y-1 overflow-hidden">
+                                    <div className="mt-1 w-full space-y-1 overflow-hidden">
                                       {previewEvents.map((event, idx) => (
                                         <div
                                           key={`${cell.dateIso}-bar-${idx}`}

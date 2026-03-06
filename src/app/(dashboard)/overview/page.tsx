@@ -294,7 +294,7 @@ async function OverviewContent({ userId }: { userId: string }) {
       </section>
 
       <section className="grid gap-4 xl:grid-cols-3">
-        <section className="overflow-hidden rounded-2xl border border-border bg-background">
+        <section className="rounded-2xl border border-border bg-background relative">
           <div className="border-b border-border px-6 py-5">
             <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">Course momentum</h2>
             <p className="text-sm text-muted-foreground">
@@ -314,7 +314,7 @@ async function OverviewContent({ userId }: { userId: string }) {
           </div>
         </section>
 
-        <section className="overflow-hidden rounded-2xl border border-border bg-background">
+        <section className="rounded-2xl border border-border bg-background relative">
           <div className="border-b border-border px-6 py-5">
             <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">Execution metrics</h2>
             <p className="text-sm text-muted-foreground">
@@ -329,7 +329,7 @@ async function OverviewContent({ userId }: { userId: string }) {
           </div>
         </section>
 
-        <section className="overflow-hidden rounded-2xl border border-border bg-background">
+        <section className="rounded-2xl border border-border bg-background relative">
           <div className="border-b border-border px-6 py-5">
             <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">Learning identity</h2>
             <p className="text-sm text-muted-foreground">
