@@ -269,56 +269,52 @@ async function OverviewContent({ userId }: { userId: string }) {
             <OverviewRoutineList initialItems={routineItems} />
           </CardContent>
         </Card>
-        <div className="space-y-3">
-          <Card className="border-[#ebe6dc]">
-            <CardContent className="flex items-center gap-3 p-4">
-              <CalendarClock className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Today</p>
-                <p className="text-lg font-semibold text-foreground">{routineItems.length}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-[#ebe6dc]">
-            <CardContent className="flex items-center gap-3 p-4">
-              <Activity className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">In Progress</p>
-                <p className="text-lg font-semibold text-foreground">{inProgressCount}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-[#ebe6dc]">
-            <CardContent className="flex items-center gap-3 p-4">
-              <Dumbbell className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Checked In</p>
-                <p className="text-lg font-semibold text-foreground">{attendedToday}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-[#ebe6dc]">
-            <CardContent className="space-y-2 p-4">
+        <Card className="overflow-hidden border-[#ebe6dc]">
+          <CardContent className="p-0">
+            <div className="border-b border-black/5 p-4">
               <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Now</p>
-              <p className="text-sm leading-6 text-muted-foreground">
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
                 {routineItems[0]
                   ? `Start with ${routineItems[0].title} at ${routineItems[0].timeLabel}.`
                   : "No scheduled work is waiting right now."}
               </p>
-              <div className="flex flex-wrap gap-2 pt-1">
-                <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
-                  {routineItems.filter((item) => item.sourceType === "study_plan").length} study
-                </span>
-                <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
-                  {routineItems.filter((item) => item.sourceType === "workout").length} workouts
-                </span>
-                <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
-                  {routineItems.filter((item) => item.sourceType === "assignment").length} due
-                </span>
+            </div>
+            <div className="grid grid-cols-3 divide-x divide-black/5 border-b border-black/5">
+              <div className="flex items-center gap-3 p-4">
+                <CalendarClock className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Today</p>
+                  <p className="text-lg font-semibold text-foreground">{routineItems.length}</p>
+                </div>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+              <div className="flex items-center gap-3 p-4">
+                <Activity className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">In Progress</p>
+                  <p className="text-lg font-semibold text-foreground">{inProgressCount}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-4">
+                <Dumbbell className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Checked In</p>
+                  <p className="text-lg font-semibold text-foreground">{attendedToday}</p>
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 p-4">
+              <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
+                {routineItems.filter((item) => item.sourceType === "study_plan").length} study
+              </span>
+              <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
+                {routineItems.filter((item) => item.sourceType === "workout").length} workouts
+              </span>
+              <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
+                {routineItems.filter((item) => item.sourceType === "assignment").length} due
+              </span>
+            </div>
+          </CardContent>
+        </Card>
       </section>
 
       <section className="grid gap-4 xl:grid-cols-2">
