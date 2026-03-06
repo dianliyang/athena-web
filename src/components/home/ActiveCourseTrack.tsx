@@ -175,7 +175,6 @@ export default function ActiveCourseTrack({
       : typeof course.units === "number" && Number.isFinite(course.units)
         ? String(course.units)
         : null;
-  const creditLabel = creditValue ? `${creditValue} credits` : "No credit";
   const progressSegments = 10;
   const filledSegments = Math.max(0, Math.min(progressSegments, Math.round(progress / (100 / progressSegments))));
 

@@ -118,9 +118,8 @@ interface CourseDetailContentProps {
   }>;
 }
 
-type PlanCalendarEvent = CourseDetailCalendarEvent;
-
 type LinkPreviewData = {
+
   url: string;
   title: string | null;
   description: string | null;
@@ -141,13 +140,8 @@ function toIsoDateUtc(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-function addDaysUtc(date: Date, days: number): Date {
-  const next = new Date(date.getTime());
-  next.setUTCDate(next.getUTCDate() + days);
-  return next;
-}
-
 function parseDateAsLocal(value: string): Date | null {
+
   if (!value) return null;
   const isoOnly = /^(\d{4})-(\d{2})-(\d{2})$/;
   const match = value.match(isoOnly);

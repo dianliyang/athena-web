@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, ChevronRight, Dumbbell, ExternalLink, Loader2, NotebookPen, Coffee, ArrowRight } from "lucide-react";
+import { ChevronRight, Loader2, Coffee, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { OverviewRoutineItem } from "@/lib/overview-routine";

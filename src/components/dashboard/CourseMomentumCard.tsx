@@ -1,6 +1,5 @@
 "use client";
 
-import { Activity, CalendarClock, Dumbbell } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { OverviewRoutineItem } from "@/lib/overview-routine";
 

@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import { ExternalLink } from "lucide-react";
 import { createClient, getUser } from "@/lib/supabase/server";
-import ProjectSeminarContentsPanel from "@/components/projects-seminars/ProjectSeminarContentsPanel";
 import ProjectSeminarEnrollButton from "@/components/projects-seminars/ProjectSeminarEnrollButton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

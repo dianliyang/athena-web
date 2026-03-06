@@ -24,14 +24,6 @@ import {
 "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Popover,
-  PopoverContent,
-  PopoverDescription,
-  PopoverHeader,
-  PopoverTitle,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { toast } from "sonner";
 
 type AiSyncSourceMode = "auto" | "existing" | "fresh";
@@ -98,13 +90,11 @@ export default function CourseDetailHeader({
   enrolled = false,
   isEnrolling = false,
   onToggleEnroll,
-  codeBreakdown = [],
   showActions = true
 }: CourseDetailHeaderProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isDeleting, setIsDeleting] = useState(false);
-  const [aiStatus, setAiStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [aiJob, setAiJob] = useState<CourseIntelJob | null>(null);
   const [liveActivity, setLiveActivity] = useState<ActivityItem[]>([]);
   const [aiSourceMode, setAiSourceMode] = useState<AiSyncSourceMode>("auto");
@@ -266,26 +256,21 @@ export default function CourseDetailHeader({
     );
 
     if (aiJob.status === "completed") {
-      setAiStatus("success");
       if (fromActiveSameJob) {
         showToast({ type: "success", message: "AI sync completed." });
         trackAiUsage({ calls: 1, tokens: 1024 });
         router.refresh();
       }
     } else if (aiJob.status === "failed") {
-      setAiStatus("error");
       if (fromActiveSameJob) {
         showToast({ type: "error", message: aiJob.error || "AI sync failed." });
       }
-    } else {
-      setAiStatus("idle");
     }
     previousJobRef.current = { id: aiJob.id, status: aiJob.status };
   }, [aiJob, router, showToast]);
 
   const handleAiUpdate = async () => {
     if (isAiUpdating) return;
-    setAiStatus('idle');
     setLiveActivity([]);
     try {
       const res = await fetch('/api/ai/course-intel/jobs', {
@@ -306,7 +291,6 @@ export default function CourseDetailHeader({
         }showToast({ type: "success", message: `AI sync started in background (${aiSourceMode}).` });window.dispatchEvent(new Event("course-intel-job-started"));
         await loadLatestJob();
       } else {
-        setAiStatus('error');
         let errorMessage = "AI sync failed.";
         try {
           const payload = await res.json();
@@ -318,7 +302,6 @@ export default function CourseDetailHeader({
           // Ignore parse error and use default message.
         }showToast({ type: "error", message: errorMessage });}
     } catch {
-      setAiStatus('error');
       showToast({ type: "error", message: "Network error while running AI sync." });
     }
   };

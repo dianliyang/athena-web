@@ -247,15 +247,6 @@ async function StudyScheduleContent({
     .filter((workout): workout is NormalizedWorkout => workout !== null && Number.isFinite(workout.id));
 
   const courseIdsWithPlans = new Set(plans.map((p) => p.course_id));
-  const coursesWithoutPlans = enrolledCourses
-    .filter(c =>
-      c.university === 'CAU Kiel' &&
-      !courseIdsWithPlans.has(c.id) &&
-      c.details?.schedule &&
-      typeof c.details.schedule === 'object' &&
-      Object.keys(c.details.schedule as Record<string, unknown>).length > 0
-    )
-    .map(c => ({ id: c.id, courseCode: c.courseCode, title: c.title }));
 
   return (
     <div className="h-full min-h-0 flex flex-col">

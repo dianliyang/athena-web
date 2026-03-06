@@ -12,7 +12,7 @@ import { groupRoadmapCoursesByPlan } from "@/lib/roadmap-groups";
 import { ExternalLink, Ghost } from "lucide-react";
 import CourseIntelSyncWindow from "@/components/home/CourseIntelSyncWindow";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
 
@@ -258,7 +258,7 @@ async function StudyPlanContent({
 
   const inProgress = enrolledWithAttendance.filter((c) => c.status === 'in_progress');
   const inProgressProjectsSeminars = enrolledProjectsSeminars.filter((item) => item.status === 'in_progress');
-  const completed = enrolledWithAttendance.filter((c) => c.status === 'completed' && !c.isHidden);
+  
   const { active: activeCourses, planning: planningCourses } =
     groupRoadmapCoursesByPlan(inProgress, plans, todayIso);
   const hasActiveItems = activeCourses.length > 0 || inProgressProjectsSeminars.length > 0;

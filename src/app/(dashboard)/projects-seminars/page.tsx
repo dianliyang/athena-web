@@ -32,12 +32,10 @@ function readListParam(
 export default async function ProjectsSeminarsPage({
   searchParams,
 }: PageProps) {
-  const [params, user, lang] = await Promise.all([
+  const [params, user] = await Promise.all([
     searchParams,
     getUser(),
-    getLanguage(),
   ]);
-  const dict = await getDictionary(lang);
 
   const page = Math.max(1, parseInt(readParam(params, "page") || "1"));
   const allowedPerPage = [20];
