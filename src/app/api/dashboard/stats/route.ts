@@ -96,10 +96,8 @@ export async function GET() {
       ? Math.round(inProgressRows.reduce((sum, row) => sum + row.progress, 0) / inProgressRows.length)
       : 0;
 
-    // Routine Filtering (Generic sessions removed)
-    const routineItems = buildOverviewRoutineItems(
-      (scheduleRows || []).filter((row: any) => !(row.source_type === "study_plan" && row.plan_id && !row.schedule_id && !row.assignment_id)) // eslint-disable-line @typescript-eslint/no-explicit-any
-    );
+    // Routine Processing
+    const routineItems = buildOverviewRoutineItems(scheduleRows || []);
 
     const attendedToday = routineItems.filter((item) => item.sourceType === "workout" && item.isDone).length;
     const studyDoneToday = routineItems.filter((item) => (item.sourceType === "study_plan" || item.sourceType === "assignment") && item.isDone).length;

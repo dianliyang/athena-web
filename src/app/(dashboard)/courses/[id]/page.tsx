@@ -174,7 +174,6 @@ async function CourseDetailData({ id, dict }: {id: string;dict: Dictionary['dash
     kind: p.kind || "",
     timezone: p.timezone || "UTC"
   }));
-  const studyPlanIds = new Set(editableStudyPlans.map((plan) => plan.id));
   const courseStudyLogs = (studyLogRows || [])
   .map((log) => ({
     planId: log.plan_id || undefined,
