@@ -108,20 +108,20 @@ function formatTimeLabel(date: Date) {
   return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
-function getEventColorClass(kind: string, sourceType: string): { border: string, bg: string, hoverBg: string } {
-  if (sourceType === "workout") return { border: "border-emerald-500", bg: "bg-emerald-500/10", hoverBg: "hover:bg-emerald-500/20" };
-  if (sourceType === "assignment") return { border: "border-rose-500", bg: "bg-rose-500/10", hoverBg: "hover:bg-rose-500/20" };
+function getEventColorClass(kind: string, sourceType: string): { border: string, bg: string, hoverBg: string, text: string } {
+  if (sourceType === "workout") return { border: "border-emerald-500", bg: "bg-emerald-500/10", hoverBg: "hover:bg-emerald-500/20", text: "text-emerald-900" };
+  if (sourceType === "assignment") return { border: "border-rose-500", bg: "bg-rose-500/10", hoverBg: "hover:bg-rose-500/20", text: "text-rose-900" };
   
   const k = kind.toLowerCase();
-  if (k.includes("lecture")) return { border: "border-blue-500", bg: "bg-blue-500/10", hoverBg: "hover:bg-blue-500/20" };
-  if (k.includes("lab")) return { border: "border-purple-500", bg: "bg-purple-500/10", hoverBg: "hover:bg-purple-500/20" };
-  if (k.includes("recitation") || k.includes("seminar")) return { border: "border-indigo-500", bg: "bg-indigo-500/10", hoverBg: "hover:bg-indigo-500/20" };
-  if (k.includes("project")) return { border: "border-amber-500", bg: "bg-amber-500/10", hoverBg: "hover:bg-amber-500/20" };
-  if (k.includes("exam") || k.includes("quiz")) return { border: "border-rose-500", bg: "bg-rose-500/10", hoverBg: "hover:bg-rose-500/20" };
-  if (k.includes("reading")) return { border: "border-teal-500", bg: "bg-teal-500/10", hoverBg: "hover:bg-teal-500/20" };
+  if (k.includes("lecture")) return { border: "border-blue-500", bg: "bg-blue-500/10", hoverBg: "hover:bg-blue-500/20", text: "text-blue-900" };
+  if (k.includes("lab")) return { border: "border-purple-500", bg: "bg-purple-500/10", hoverBg: "hover:bg-purple-500/20", text: "text-purple-900" };
+  if (k.includes("recitation") || k.includes("seminar")) return { border: "border-indigo-500", bg: "bg-indigo-500/10", hoverBg: "hover:bg-indigo-500/20", text: "text-indigo-900" };
+  if (k.includes("project")) return { border: "border-amber-500", bg: "bg-amber-500/10", hoverBg: "hover:bg-amber-500/20", text: "text-amber-900" };
+  if (k.includes("exam") || k.includes("quiz")) return { border: "border-rose-500", bg: "bg-rose-500/10", hoverBg: "hover:bg-rose-500/20", text: "text-rose-900" };
+  if (k.includes("reading")) return { border: "border-teal-500", bg: "bg-teal-500/10", hoverBg: "hover:bg-teal-500/20", text: "text-teal-900" };
   
   // Default for standard study sessions
-  return { border: "border-slate-500", bg: "bg-slate-500/10", hoverBg: "hover:bg-slate-500/20" };
+  return { border: "border-slate-500", bg: "bg-slate-500/10", hoverBg: "hover:bg-slate-500/20", text: "text-slate-900" };
 }
 
 /**
@@ -406,15 +406,13 @@ export default function StudyCalendar({ courses, scheduleRows, dict, initialDate
             {todayEvents.length > 0 ? (
               <div className="space-y-2 pb-2">
                 {todayEvents.map((event) => {
-                  const colors = getEventColorClass(event.kind, event.sourceType);
                   return (
                   <Popover key={event.key}>
                     <PopoverTrigger asChild>
                       <Card
                         size="small"
                         className={cn(
-                          "group relative transition-all hover:shadow-md border-border/50 cursor-pointer hover:bg-muted/5 border-l-4",
-                          colors.border,
+                          "group relative transition-all hover:shadow-md border-border/50 cursor-pointer hover:bg-muted/5",
                           event.isCompleted && "opacity-60 grayscale-[0.5]"
                         )}
                         onClick={(e) => {
@@ -461,7 +459,7 @@ export default function StudyCalendar({ courses, scheduleRows, dict, initialDate
                       </Card>
                     </PopoverTrigger>
                     <PopoverContent className="w-72 p-0 shadow-2xl" side="right" align="start" sideOffset={12}>
-                      <div className={cn("h-1.5 w-full rounded-t-lg", colors.bg.replace('/10', '').replace('bg-', 'bg-'))} style={{ backgroundColor: `var(--${colors.border.replace('border-', '')})` }} />
+                      <div className={cn("h-1.5 w-full rounded-t-lg", event.sourceType === "workout" ? "bg-emerald-500" : "bg-blue-500")} />
                       <div className="p-4 space-y-4">
                         <div className="space-y-1.5">
                           <h3 className="text-sm font-bold text-foreground leading-tight">{event.title}</h3>
@@ -687,108 +685,163 @@ export default function StudyCalendar({ courses, scheduleRows, dict, initialDate
 
                   {/* Grid Content Area for Events */}
                   <div className="relative z-10 w-full" style={{ height: `${timelineHeight}px` }}>
-                    {dayEvents.map((event) => {
-                      const eventStyle = getEventStyle(event);
-                      const isSlim = parseFloat(eventStyle.height) < 30;
+                    {(() => {
+                      const maxColumns = 3;
+                      const visibleEvents = dayEvents.filter(e => (e as PositionedEvent).column < maxColumns);
+                      const hiddenEvents = dayEvents.filter(e => (e as PositionedEvent).column >= maxColumns);
                       
+                      const hiddenGroups = new Map<number, number>();
+                      hiddenEvents.forEach(e => {
+                        const count = hiddenGroups.get(e.startMinutes) || 0;
+                        hiddenGroups.set(e.startMinutes, count + 1);
+                      });
+
                       return (
-                        <Popover
-                          key={event.key}
-                          open={openWeekPopoverKey === event.key}
-                          onOpenChange={(open) => setOpenWeekPopoverKey(open ? event.key : null)}
-                        >
-                          <PopoverTrigger asChild>
-                            <button
-                              style={eventStyle}
-                              className={cn(
-                                "absolute rounded-md border-l-4 px-2 py-1 text-left transition-all hover:z-20 hover:scale-[1.02] hover:shadow-lg overflow-hidden",
-                                event.sourceType === "workout"
-                                  ? "border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20"
-                                  : "border-blue-500 bg-blue-500/10 hover:bg-blue-500/20",
-                                event.isCompleted && "opacity-60 grayscale-[0.3]"
-                              )}
-                            >
-                              {!isSlim && (
-                                <>
-                                  <p className="truncate text-[11px] font-bold leading-tight text-foreground">{event.title}</p>
-                                  <div className="mt-0.5 flex items-center gap-1.5 opacity-70">
-                                    <Clock className="h-2.5 w-2.5" />
-                                    <span className="text-[9px] font-bold uppercase leading-none">{event.startTime.slice(0, 5)}</span>
+                        <>
+                          {visibleEvents.map((event) => {
+                            const eventStyle = getEventStyle(event as PositionedEvent);
+                            const heightNum = parseFloat(eventStyle.height as string);
+                            const widthPctNum = parseFloat(eventStyle.width as string);
+                            
+                            const isSlimHeight = heightNum < 30;
+                            const isSlimWidth = widthPctNum <= 35;
+                            const showVerticalTitle = isSlimWidth && !isSlimHeight;
+
+                            const colors = getEventColorClass(event.kind, event.sourceType);
+                            
+                            // Adjust totalColumns constraint visually so cards don't shrink past maxColumns
+                            const adjustedStyle = { ...eventStyle };
+                            const pe = event as PositionedEvent;
+                            if (pe.totalColumns > maxColumns && pe.startMinutes !== pe.endMinutes) {
+                                adjustedStyle.width = `calc(${100 / maxColumns}% - 2px)`;
+                                adjustedStyle.left = `calc(${(100 / maxColumns) * pe.column}% + 1px)`;
+                            }
+
+                            return (
+                              <Popover
+                                key={event.key}
+                                open={openWeekPopoverKey === event.key}
+                                onOpenChange={(open) => setOpenWeekPopoverKey(open ? event.key : null)}
+                              >
+                                <PopoverTrigger asChild>
+                                  <button
+                                    style={adjustedStyle}
+                                    className={cn(
+                                      "absolute rounded-md px-1.5 py-1 text-left transition-all hover:z-20 hover:scale-[1.02] hover:shadow-lg overflow-hidden flex flex-col",
+                                      colors.bg.replace('/10', '/30'),
+                                      `hover:${colors.bg.replace('/10', '/40')}`,
+                                      colors.text,
+                                      event.isCompleted && "opacity-60 grayscale-[0.3]"
+                                    )}
+                                  >
+                                    {showVerticalTitle ? (
+                                      <div className="flex-1 w-full flex justify-center pt-1 overflow-hidden">
+                                        <p className="text-[10px] font-bold leading-tight truncate" style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}>
+                                          {event.title}
+                                        </p>
+                                      </div>
+                                    ) : isSlimHeight ? (
+                                      <p className="truncate text-[10px] font-bold leading-tight w-full">{event.title}</p>
+                                    ) : (
+                                      <>
+                                        <p className="truncate text-[11px] font-bold leading-tight">{event.title}</p>
+                                        <div className="mt-0.5 flex items-center gap-1 opacity-70 truncate">
+                                          <Clock className="h-2.5 w-2.5 shrink-0" />
+                                          <span className="text-[9px] font-bold uppercase leading-none truncate">{event.startTime.slice(0, 5)}</span>
+                                        </div>
+                                      </>
+                                    )}
+                                  </button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-72 p-0 shadow-2xl" side="right" align="start" sideOffset={8}>
+                                  <div className={cn("h-1.5 w-full rounded-t-lg", colors.bg.replace('/10', '').replace('bg-', 'bg-'))} style={{ backgroundColor: `var(--${colors.border.replace('border-', '')})` }} />
+                                  <div className="p-4 space-y-4">
+                                    <div className="space-y-1.5">
+                                      <h3 className="text-sm font-bold text-foreground leading-tight">{event.title}</h3>
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <Badge variant="secondary" className="text-[10px] font-bold uppercase tracking-tight">
+                                          {event.courseCode}
+                                        </Badge>
+                                        <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-wider">
+                                          {event.university}
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    <div className="space-y-2 border-t border-border pt-3">
+                                      <div className="flex items-center gap-3 text-xs font-medium text-muted-foreground">
+                                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted/50">
+                                          <Clock className="h-3.5 w-3.5" />
+                                        </div>
+                                        <span className="leading-none">{event.startTime.slice(0, 5)} - {event.endTime.slice(0, 5)}</span>
+                                      </div>
+                                      {event.location && (
+                                        <div className="flex items-center gap-3 text-xs font-medium text-muted-foreground">
+                                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted/50">
+                                            <MapPin className="h-3.5 w-3.5" />
+                                          </div>
+                                          <span className="line-clamp-1 leading-none uppercase">{event.location}</span>
+                                        </div>
+                                      )}
+                                      {event.kind && (
+                                        <div className="flex items-center gap-3 text-xs font-medium text-muted-foreground">
+                                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted/50 text-muted-foreground/70">
+                                            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                                              <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h10a2 2 0 012 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z" />
+                                            </svg>
+                                          </div>
+                                          <span className="uppercase tracking-wide leading-none">{event.kind}</span>
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    <div className="flex gap-2 pt-2">
+                                      <Button
+                                        variant={event.isCompleted ? "outline" : "default"}
+                                        className="flex-1 text-xs font-bold uppercase tracking-wide h-9"
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          toggleEventCompletion(event);
+                                        }}
+                                        disabled={pendingEventKeys[event.key]}
+                                      >
+                                        {pendingEventKeys[event.key] ? (
+                                          <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                                        ) : null}
+                                        {event.isCompleted ? "Undo" : event.sourceType === "workout" ? "Mark attended" : "Mark complete"}
+                                      </Button>
+                                      {event.courseId && (
+                                        <Button variant="outline" size="icon-sm" className="h-9 w-9 shrink-0" asChild>
+                                          <a href={`/courses/${event.courseId}`} title="Go to course">
+                                            <ExternalLink className="h-4 w-4" />
+                                          </a>
+                                        </Button>
+                                      )}
+                                    </div>
                                   </div>
-                                </>
-                              )}
-                            </button>
-                          </PopoverTrigger>
-                        <PopoverContent className="w-72 p-0 shadow-2xl" side="right" align="start" sideOffset={8}>
-                          <div className={cn("h-1.5 w-full rounded-t-lg", event.sourceType === "workout" ? "bg-emerald-500" : "bg-blue-500")} />
-                          <div className="p-4 space-y-4">
-                            <div className="space-y-1.5">
-                              <h3 className="text-sm font-bold text-foreground leading-tight">{event.title}</h3>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <Badge variant="secondary" className="text-[10px] font-bold uppercase tracking-tight">
-                                  {event.courseCode}
-                                </Badge>
-                                <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-wider">
-                                  {event.university}
+                                </PopoverContent>
+                              </Popover>
+                            );
+                          })}
+                          
+                          {/* Render "+X more..." for hidden events */}
+                          {Array.from(hiddenGroups.entries()).map(([startMinutes, count]) => {
+                            const top = (startMinutes / 60) * PIXELS_PER_HOUR;
+                            return (
+                              <div
+                                key={`more-${startMinutes}`}
+                                className="absolute right-0 w-8 flex justify-center pointer-events-none z-30"
+                                style={{ top: `${top + 4}px` }}
+                              >
+                                <span className="text-[9px] font-bold text-muted-foreground/80 bg-background/90 px-1 rounded shadow-sm border border-border/50">
+                                  +{count}
                                 </span>
                               </div>
-                            </div>
-
-                            <div className="space-y-2 border-t border-border pt-3">
-                              <div className="flex items-center gap-3 text-xs font-medium text-muted-foreground">
-                                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted/50">
-                                  <Clock className="h-3.5 w-3.5" />
-                                </div>
-                                <span className="leading-none">{event.startTime.slice(0, 5)} - {event.endTime.slice(0, 5)}</span>
-                              </div>
-                              {event.location && (
-                                <div className="flex items-center gap-3 text-xs font-medium text-muted-foreground">
-                                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted/50">
-                                    <MapPin className="h-3.5 w-3.5" />
-                                  </div>
-                                  <span className="line-clamp-1 leading-none uppercase">{event.location}</span>
-                                </div>
-                              )}
-                              {event.kind && (
-                                <div className="flex items-center gap-3 text-xs font-medium text-muted-foreground">
-                                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted/50 text-muted-foreground/70">
-                                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h10a2 2 0 012 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z" />
-                                    </svg>
-                                  </div>
-                                  <span className="uppercase tracking-wide leading-none">{event.kind}</span>
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="flex gap-2 pt-2">
-                              <Button
-                                variant={event.isCompleted ? "outline" : "default"}
-                                className="flex-1 text-xs font-bold uppercase tracking-wide h-9"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  toggleEventCompletion(event);
-                                }}
-                                disabled={pendingEventKeys[event.key]}
-                              >
-                                {pendingEventKeys[event.key] ? (
-                                  <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                                ) : null}
-                                {event.isCompleted ? "Undo" : event.sourceType === "workout" ? "Mark attended" : "Mark complete"}
-                              </Button>
-                              {event.courseId && (
-                                <Button variant="outline" size="icon-sm" className="h-9 w-9 shrink-0" asChild>
-                                  <a href={`/courses/${event.courseId}`} title="Go to course">
-                                    <ExternalLink className="h-4 w-4" />
-                                  </a>
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                    );
-                  })}
+                            );
+                          })}
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
               );
