@@ -327,8 +327,9 @@ export default function StudyCalendar({ courses, scheduleRows, dict, initialDate
     const top = (clampedStart / 60) * PIXELS_PER_HOUR;
     const height = (clampedHeight / 60) * PIXELS_PER_HOUR;
     
-    const widthPct = 100 / event.totalColumns;
-    const leftPct = (100 / event.totalColumns) * event.column;
+    // Instant events stack vertically and take full width
+    const widthPct = isInstant ? 100 : 100 / event.totalColumns;
+    const leftPct = isInstant ? 0 : (100 / event.totalColumns) * event.column;
 
     return {
       top: `${top}px`,
