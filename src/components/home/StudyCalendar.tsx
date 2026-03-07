@@ -706,56 +706,59 @@ export default function StudyCalendar({ courses, scheduleRows, dict, initialDate
                       return (
                         <>
                           {visibleEvents.map((event) => {
-                            const eventStyle = getEventStyle(event as PositionedEvent);
-                            const heightNum = parseFloat(eventStyle.height as string);
-                            const widthPctNum = parseFloat(eventStyle.width as string);
+                            const pe = event as PositionedEvent;
+                            const isInstant = pe.startMinutes === pe.endMinutes;
+                            const durationMinutes = isInstant ? 30 : pe.endMinutes - pe.startMinutes;
+                            const visualHeightPx = (durationMinutes / 60) * PIXELS_PER_HOUR;
+                            const visualWidthPct = isInstant ? 100 : (100 / pe.totalColumns);
                             
-                            const isSlimHeight = heightNum < 30;
-                            const isSlimWidth = widthPctNum <= 35;
-                            const showVerticalTitle = isSlimWidth && heightNum >= 60;
+                            const isSlimHeight = visualHeightPx < 30;
+                            const isSlimWidth = visualWidthPct <= 35; // e.g., 3 columns or more
+                            const showVerticalTitle = isSlimWidth && visualHeightPx >= 60; // long height, slim width
 
-                            const colors = getEventColorClass(event.kind, event.sourceType);
+                            const colors = getEventColorClass(pe.kind, pe.sourceType);
+                            const eventStyle = getEventStyle(pe);
                             
                             // Adjust totalColumns constraint visually so cards don't shrink past maxColumns
                             const adjustedStyle = { ...eventStyle };
-                            const pe = event as PositionedEvent;
-                            if (pe.totalColumns > maxColumns && pe.startMinutes !== pe.endMinutes) {
+                            if (pe.totalColumns > maxColumns && !isInstant) {
                                 adjustedStyle.width = `calc(${100 / maxColumns}% - 2px)`;
                                 adjustedStyle.left = `calc(${(100 / maxColumns) * pe.column}% + 1px)`;
                             }
 
                             return (
                               <Popover
-                                key={event.key}
-                                open={openWeekPopoverKey === event.key}
-                                onOpenChange={(open) => setOpenWeekPopoverKey(open ? event.key : null)}
+                                key={pe.key}
+                                open={openWeekPopoverKey === pe.key}
+                                onOpenChange={(open) => setOpenWeekPopoverKey(open ? pe.key : null)}
                               >
                                 <PopoverTrigger asChild>
                                   <button
                                     style={adjustedStyle}
                                     className={cn(
-                                      "absolute rounded-md border px-1.5 py-1 text-left transition-all hover:z-20 hover:scale-[1.02] hover:shadow-lg overflow-hidden flex flex-col",
+                                      "absolute rounded-md border px-1.5 text-left transition-all hover:z-20 hover:scale-[1.02] hover:shadow-lg overflow-hidden flex flex-col items-start",
+                                      isSlimHeight ? "py-0 justify-center" : "py-1",
                                       colors.border,
                                       colors.bg,
                                       colors.hoverBg,
                                       colors.text,
-                                      event.isCompleted && "opacity-60 grayscale-[0.3]"
+                                      pe.isCompleted && "opacity-60 grayscale-[0.3]"
                                     )}
                                   >
                                     {showVerticalTitle ? (
                                       <div className="flex-1 w-full flex justify-center pt-1 overflow-hidden">
                                         <p className="text-[10px] font-bold leading-tight truncate" style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}>
-                                          {event.title}
+                                          {pe.title}
                                         </p>
                                       </div>
                                     ) : isSlimHeight ? (
-                                      <p className="truncate text-[10px] font-bold leading-tight w-full">{event.title}</p>
+                                      <p className="truncate whitespace-nowrap text-[10px] font-bold leading-none w-full">{pe.title}</p>
                                     ) : (
                                       <>
-                                        <p className="truncate text-[11px] font-bold leading-tight">{event.title}</p>
-                                        <div className="mt-0.5 flex items-center gap-1 opacity-70 truncate">
+                                        <p className="truncate text-[11px] font-bold leading-tight w-full">{pe.title}</p>
+                                        <div className="mt-0.5 flex items-center gap-1 opacity-70 truncate w-full">
                                           <Clock className="h-2.5 w-2.5 shrink-0" />
-                                          <span className="text-[9px] font-bold uppercase leading-none truncate">{event.startTime.slice(0, 5)}</span>
+                                          <span className="text-[9px] font-bold uppercase leading-none truncate">{pe.startTime.slice(0, 5)}</span>
                                         </div>
                                       </>
                                     )}
