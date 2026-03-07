@@ -331,11 +331,12 @@ export default function StudyCalendar({ courses, scheduleRows, dict, initialDate
     const widthPct = isInstant ? 100 : 100 / event.totalColumns;
     const leftPct = isInstant ? 0 : (100 / event.totalColumns) * event.column;
 
+    // Apply a 2px inset gap for visual padding
     return {
-      top: `${top}px`,
-      height: `${height}px`,
-      width: `${widthPct}%`,
-      left: `${leftPct}%`,
+      top: `calc(${top}px + 1px)`,
+      height: `calc(${height}px - 2px)`,
+      width: `calc(${widthPct}% - 2px)`,
+      left: `calc(${leftPct}% + 1px)`,
     };
   };
 
