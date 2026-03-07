@@ -97,7 +97,11 @@ export async function GET() {
       : 0;
 
     // Routine Processing
-    const routineItems = buildOverviewRoutineItems(scheduleRows || []);
+    const routineItems = buildOverviewRoutineItems((scheduleRows || []).filter((row: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+      // Filter out generic study plans that don't have a specific task or assignment attached
+      const isGenericPlan = row.source_type === "study_plan" && row.plan_id && !row.schedule_id && !row.assignment_id;
+      return !isGenericPlan;
+    }));
 
     const attendedToday = routineItems.filter((item) => item.sourceType === "workout" && item.isDone).length;
     const studyDoneToday = routineItems.filter((item) => (item.sourceType === "study_plan" || item.sourceType === "assignment") && item.isDone).length;

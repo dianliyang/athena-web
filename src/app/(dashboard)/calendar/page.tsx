@@ -25,7 +25,7 @@ export default async function StudySchedulePage() {
   }
 
   return (
-    <main className="flex h-full w-full flex-col px-4 pb-4">
+    <main className="flex h-full w-full flex-col p-4">
       <Suspense fallback={null}>
         <StudyScheduleContent userId={user.id} dict={dict} />
       </Suspense>

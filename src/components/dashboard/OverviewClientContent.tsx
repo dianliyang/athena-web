@@ -128,14 +128,14 @@ export default function OverviewClientContent() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-border bg-background relative">
-          <div className="border-b border-border px-6 py-5">
+        <section className="rounded-2xl border border-border bg-background relative flex flex-col h-full overflow-hidden">
+          <div className="border-b border-border px-6 py-5 shrink-0">
             <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">Execution metrics</h2>
             <p className="text-sm text-muted-foreground">
               Attendance and study consistency over last 7 days.
             </p>
           </div>
-          <div className="p-4">
+          <div className="p-4 flex-1 flex flex-col">
             <AttendanceLearningChart
               studyLogs={stats.execution.studyLogs}
               workoutLogs={stats.execution.workoutLogs}

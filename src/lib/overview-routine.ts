@@ -39,7 +39,7 @@ function getTimeLabel(start: string | null, end: string | null, sourceType: stri
   if (sourceType === 'assignment') return "Due today";
   if (!start && !end) return "All day";
   if (!start) return end ? `Until ${end.slice(0, 5)}` : "All day";
-  if (!end) return start.slice(0, 5);
+  if (!end || end.startsWith("23:59")) return start.slice(0, 5);
   return `${start.slice(0, 5)} - ${end.slice(0, 5)}`;
 }
 
@@ -76,7 +76,7 @@ export function buildOverviewRoutineItems(rows: DatabaseScheduleRow[]): Overview
     }
 
     return {
-      key: `${row.source_type}:${row.plan_id || row.schedule_id || row.assignment_id || row.workout_id}:${row.event_date}`,
+      key: `${row.source_type}:${row.plan_id || row.schedule_id || row.assignment_id || row.workout_id}:${row.event_date}:${row.start_time}`,
       sourceType: uiSourceType,
       courseId: row.course_id,
       title: row.title,
