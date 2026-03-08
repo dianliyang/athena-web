@@ -13,6 +13,7 @@ import * as path from 'path';
 const ICON_SIZES = [72, 96, 128, 144, 152, 180, 192, 384, 512];
 const SOURCE_SVG = path.join(process.cwd(), 'public/athena.svg');
 const OUTPUT_DIR = path.join(process.cwd(), 'public/icons');
+const APPLE_TOUCH_ICON_PATH = path.join(OUTPUT_DIR, 'apple-touch-icon.png');
 
 async function generateIcons() {
   if (!fs.existsSync(OUTPUT_DIR)) {
@@ -41,6 +42,15 @@ async function generateIcons() {
       console.error(`✗ Failed to generate ${size}x${size}:`, error);
     }
   }
+
+  await sharp(SOURCE_SVG)
+    .resize(180, 180, {
+      fit: 'contain',
+      background: { r: 0, g: 0, b: 0, alpha: 0 }
+    })
+    .png()
+    .toFile(APPLE_TOUCH_ICON_PATH);
+  console.log('✓ Generated: apple-touch-icon.png');
 
   // Also copy SVG as icon.svg for browser favicon use
   const svgSrc = fs.readFileSync(SOURCE_SVG, 'utf-8');

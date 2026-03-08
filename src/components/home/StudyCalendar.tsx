@@ -917,8 +917,8 @@ export default function StudyCalendar({ courses, scheduleRows, studyPlans = [], 
             )}
 
             {/* Time Labels Column - Sticky left */}
-            <div className="w-12 shrink-0 border-r border-border bg-background/95 backdrop-blur z-30 flex flex-col relative sticky left-0">
-              <div className="h-11 border-b border-border bg-muted/5 sticky top-0 z-40" /> {/* Empty header spacer */}
+            <div className="w-12 shrink-0 border-r border-border bg-background/95 backdrop-blur z-30 flex flex-col relative lg:sticky lg:left-0">
+              <div className="h-11 border-b border-border bg-muted/5 lg:sticky lg:top-0 z-40" /> {/* Empty header spacer */}
               <div className="relative" style={{ height: `${timelineHeight}px` }}>
                 {Array.from({ length: HOUR_END - HOUR_START }).map((_, i) => (
                   <div key={`label-${i}`} className="absolute w-full pr-2 text-right" style={{ top: `${i * PIXELS_PER_HOUR}px`, transform: 'translateY(-40%)' }}>

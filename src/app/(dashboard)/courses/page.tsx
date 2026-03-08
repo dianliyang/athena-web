@@ -19,7 +19,7 @@ export default async function CoursesPage({ searchParams }: PageProps) {
   const dict = await getDictionary(lang);
 
   return (
-    <div className="h-full min-h-0 flex flex-col px-4 pb-4">
+    <main className="min-h-full w-full px-4 py-4">
       <div className={getDashboardPageHeaderClassName()}>
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">
@@ -30,12 +30,10 @@ export default async function CoursesPage({ searchParams }: PageProps) {
           </p>
         </div>
       </div>
-      <div className="flex-1 min-h-0">
-        <Suspense fallback={null}>
-          <CourseListData params={params} dict={dict.dashboard.courses} />
-        </Suspense>
-      </div>
-    </div>);
+      <Suspense fallback={null}>
+        <CourseListData params={params} dict={dict.dashboard.courses} />
+      </Suspense>
+    </main>);
 
 }
 
