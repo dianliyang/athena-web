@@ -114,6 +114,45 @@ export function invalidateCachedProfileSettings(userId: string) {
   void userId;
 }
 
+export function parseWorkoutDateForDb(dateStr: string | null | undefined, semester: string | null | undefined): string | null {
+  if (!dateStr) return null;
+
+  const isoMatch = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) {
+    return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+  }
+
+  const fullGermanMatch = String(dateStr).match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (fullGermanMatch) {
+    const [, day, month, year] = fullGermanMatch;
+    return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  }
+
+  const shortGermanMatch = String(dateStr).match(/(\d{1,2})\.(\d{1,2})\./);
+  if (!shortGermanMatch) return null;
+
+  const day = parseInt(shortGermanMatch[1]);
+  const month = parseInt(shortGermanMatch[2]);
+  const semStr = String(semester || "").toLowerCase();
+
+  const winterMatch = semStr.match(/(\d{2})\/(\d{2})/);
+  if (winterMatch) {
+    const startYear = 2000 + parseInt(winterMatch[1]);
+    const endYear = 2000 + parseInt(winterMatch[2]);
+    const year = month >= 8 ? startYear : endYear;
+    return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  }
+
+  const summerMatch = semStr.match(/(\d{4})|(\d{2})/);
+  if (summerMatch) {
+    let yearNum = parseInt(summerMatch[1] || summerMatch[2] || "0");
+    if (yearNum < 100) yearNum += 2000;
+    return `${yearNum}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  }
+
+  return null;
+}
+
 function normalizeExternalUrl(url: string): string {
   const trimmed = url.trim();
   if (!trimmed) return "";
@@ -500,75 +539,29 @@ export class SupabaseDatabase {
 
     const supabase = createAdminClient();
 
-    // Parse date strings like "27.10." into proper DATE values for the current academic year
-    const parseGermanDate = (dateStr: string, semester: string): string | null => {
-      if (!dateStr) return null;
-      const match = dateStr.match(/(\d{1,2})\.(\d{1,2})\./);
-      if (!match) return null;
-      const day = parseInt(match[1]);
-      const month = parseInt(match[2]);
-
-      const semStr = semester.toLowerCase();
-
-      // WiSe 25/26 or Winter 2025/26
-      const winterMatch = semStr.match(/(\d{2})\/(\d{2})/);
-      if (winterMatch) {
-        const startYear = 2000 + parseInt(winterMatch[1]);
-        const endYear = 2000 + parseInt(winterMatch[2]);
-        // Oct-Dec = startYear, Jan-Apr = endYear
-        const year = month >= 8 ? startYear : endYear;
-        return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-      }
-
-      // SuSe 25 or Summer 2025
-      const summerMatch = semStr.match(/(\d{4})|(\d{2})/);
-      if (summerMatch) {
-        let yearNum = parseInt(summerMatch[1] || summerMatch[2] || "0");
-        if (yearNum < 100) yearNum += 2000;
-        return `${yearNum}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-      }
-
-      return null;
-    };
-
     const parseTime = (timeStr: string): string | null => {
       if (!timeStr || !/^\d{2}:\d{2}$/.test(timeStr)) return null;
       return timeStr + ":00";
     };
 
     const formatShortDateWithYear = (dateStr: string, semester: string): string | null => {
-      const parsed = parseGermanDate(dateStr, semester);
+      const parsed = parseWorkoutDateForDb(dateStr, semester);
       if (!parsed) return null;
       const [, year, month, day] = parsed.match(/^(\d{4})-(\d{2})-(\d{2})$/) || [];
       if (!year || !month || !day) return null;
       return `${day}.${month}.${year}`;
     };
-
-    const normalizeDurationWithSemester = (duration: string | null | undefined, semester: string): string | null => {
-      if (!duration || typeof duration !== "string") return null;
-      const m = duration.match(/(\d{1,2}\.\d{1,2}\.?)\s*-\s*(\d{1,2}\.\d{1,2}\.?)/);
-      if (!m) return duration;
-      const start = formatShortDateWithYear(m[1], semester);
-      const end = formatShortDateWithYear(m[2], semester);
-      if (!start || !end) return duration;
-      return `${start} - ${end}`;
-    };
     const normalizeWorkoutDetails = (rawDetails: unknown, semester: string): Json => {
       const details = rawDetails && typeof rawDetails === "object" && !Array.isArray(rawDetails)
         ? { ...(rawDetails as Record<string, unknown>) }
         : {};
-
-      if (typeof details.duration === "string") {
-        details.duration = normalizeDurationWithSemester(details.duration, semester);
-      }
+      delete details.duration;
 
       if (Array.isArray(details.aggregatedEntries)) {
         details.aggregatedEntries = details.aggregatedEntries.map((entry) => {
           if (!entry || typeof entry !== "object") return entry;
           const rec = { ...(entry as Record<string, unknown>) };
-          if (typeof rec.duration === "string") {
-            rec.duration = normalizeDurationWithSemester(rec.duration, semester);
-          }
+          delete rec.duration;
           return rec;
         });
       }
@@ -589,8 +582,8 @@ export class SupabaseDatabase {
       location: w.location || null,
       location_en: w.locationEn || null,
       instructor: w.instructor || null,
-      start_date: parseGermanDate(w.startDate, w.semester),
-      end_date: parseGermanDate(w.endDate, w.semester),
+      start_date: parseWorkoutDateForDb(w.startDate, w.semester),
+      end_date: parseWorkoutDateForDb(w.endDate, w.semester),
       price_student: w.priceStudent,
       price_staff: w.priceStaff,
       price_external: w.priceExternal,
@@ -938,6 +931,18 @@ export function mapCourseFromRow(
 }
 
 export function mapWorkoutFromRow(row: any): Workout { // eslint-disable-line @typescript-eslint/no-explicit-any
+  const rawDetails = row.details as Record<string, unknown> | null;
+  const plannedDates = Array.isArray(rawDetails?.plannedDates) ? rawDetails.plannedDates : [];
+  const details = rawDetails
+    ? {
+        ...rawDetails,
+        totalSessions:
+          typeof rawDetails.totalSessions === "number"
+            ? rawDetails.totalSessions
+            : plannedDates.length,
+      }
+    : null;
+
   return {
     id: Number(row.id),
     source: String(row.source || ""),
@@ -962,6 +967,6 @@ export function mapWorkoutFromRow(row: any): Workout { // eslint-disable-line @t
     bookingUrl: row.booking_url ? String(row.booking_url) : null,
     url: row.url ? String(row.url) : null,
     semester: row.semester ? String(row.semester) : null,
-    details: row.details as Record<string, unknown> | null,
+    details,
   };
 }

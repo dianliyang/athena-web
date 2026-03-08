@@ -5,7 +5,6 @@ import { createClient, getUser, mapWorkoutFromRow } from "@/lib/supabase/server"
 import { getLanguage } from "@/actions/language";
 import { getDictionary, Dictionary } from "@/lib/dictionary";
 import { getWorkoutLastUpdateTime } from "@/actions/scrapers";
-import { aggregateWorkoutsByName } from "@/lib/workouts";
 import { buildVisibleWorkoutCategoryState } from "@/lib/workout-category-filtering";
 import { Badge } from "@/components/ui/badge";
 
@@ -74,17 +73,12 @@ async function SidebarData({ dict
     return <WorkoutSidebar categories={[]} statuses={[]} dict={dict} />;
   }
 
-  const aggregatedWorkouts = aggregateWorkoutsByName(
-    (workoutsData || []).map((row: any) => mapWorkoutFromRow(row)) // eslint-disable-line @typescript-eslint/no-explicit-any
-  );
+  const workouts = (workoutsData || []).map((row: any) => mapWorkoutFromRow(row)); // eslint-disable-line @typescript-eslint/no-explicit-any
+  const visibleState = buildVisibleWorkoutCategoryState(workouts, [], "");
 
   const categoryCounts: Record<string, number> = {};
-  aggregatedWorkouts.forEach((w) => {
-    let name = w.categoryEn || w.category;
-    if (name && (name.toLowerCase().includes("semester fee") || name.toLowerCase().includes("semestergebühr"))) {
-      name = "Semester Fee";
-    }
-    if (name) categoryCounts[name] = (categoryCounts[name] || 0) + 1;
+  visibleState.categoryGroups.forEach((group) => {
+    categoryCounts[group.category] = group.count;
   });
 
   const categories = Object.entries(categoryCounts).
@@ -92,7 +86,9 @@ async function SidebarData({ dict
   sort((a, b) => b.count - a.count);
 
   const statusCounts: Record<string, number> = {};
-  aggregatedWorkouts.forEach((w) => {
+  workouts
+    .filter((w) => w.bookingStatus !== "fully_booked" && w.bookingStatus !== "expired")
+    .forEach((w) => {
     const name = w.bookingStatus;
     if (name) statusCounts[name] = (statusCounts[name] || 0) + 1;
   });
@@ -195,10 +191,10 @@ userId: string | null)
     ((enrolledRes.data || []) as Array<{ workout_id: number }>).map((row) => Number(row.workout_id))
   );
 
-  const allItemsRaw = aggregateWorkoutsByName((data || []).map((row: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
+  const allItemsRaw = (data || []).map((row: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
     ...mapWorkoutFromRow(row),
     enrolled: enrolledIds.has(Number(row.id)),
-  })));
+  }));
   const visibleState = buildVisibleWorkoutCategoryState(allItemsRaw, categories, selectedCategory);
 
   return {
