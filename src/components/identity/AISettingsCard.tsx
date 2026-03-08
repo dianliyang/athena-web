@@ -6,25 +6,23 @@ import { Button } from "@/components/ui/button";
 import {
   deactivateAiModelPricing,
   updateAiPreferences,
-  updateAiPromptTemplates,
   upsertAiModelPricing } from
 "@/actions/identity";
 import { AI_PROVIDERS, type AIProvider } from "@/lib/ai/models-client";
 import { useAppToast } from "@/components/common/AppToastProvider";
-import { Save, Loader2, BarChart2, Sparkles, Trash2, CheckCircle2, AlertTriangle, Plus } from "lucide-react";
+import { Loader2, BarChart2, Trash2, Plus } from "lucide-react";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Textarea } from "@/components/ui/textarea";import { Card } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
+import ServiceHealthStatus from "./ServiceHealthStatus";
 
-type AISectionId = "engine" | "study-planner" | "course-intel" | "usage";
+type AISectionId = "engine" | "usage";
 
 interface AISettingsCardProps {
   section: AISectionId;
   initialProvider: string;
   initialModel: string;
   initialWebSearchEnabled: boolean;
-  initialPlannerPromptTemplate: string;
-  initialCourseIntelPromptTemplate: string;
   modelCatalog: {perplexity: string[];gemini: string[];openai: string[];vertex?: string[];};
 }
 
@@ -46,28 +44,6 @@ type UsageStats = {
   }>;
   daily: Record<string, {requests: number;cost_usd: number;}>;
 };
-
-type ProviderHealth = {
-  provider: AIProvider;
-  healthy: boolean;
-  missing: string[];
-  checks: Record<string, boolean>;
-  probe?: {
-    ok: boolean;
-    status: number | null;
-    reason?: string;
-  };
-};
-
-type AIHealthStats = {
-  healthy: boolean;
-  providers: ProviderHealth[];
-  active?: {provider: string | null;model: string | null;};
-  checked_at: string;
-};
-
-const AI_HEALTH_CACHE_KEY = "cc:ai-health-cache";
-const AI_HEALTH_CACHE_TTL_MS = 5 * 60 * 1000;
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -123,8 +99,6 @@ export default function AISettingsCard({
   initialProvider,
   initialModel,
   initialWebSearchEnabled,
-  initialPlannerPromptTemplate,
-  initialCourseIntelPromptTemplate,
   modelCatalog
 }: AISettingsCardProps) {
   const router = useRouter();
@@ -142,19 +116,13 @@ export default function AISettingsCard({
   const [provider, setProvider] = useState<AIProvider>(normalizeProvider(initialProvider));
   const [defaultModel, setDefaultModel] = useState(initialModel);
   const [webSearchEnabled, setWebSearchEnabled] = useState(initialWebSearchEnabled);
-  const [plannerPromptTemplate, setPlannerPromptTemplate] = useState(initialPlannerPromptTemplate);
-  const [courseIntelPromptTemplate, setCourseIntelPromptTemplate] = useState(initialCourseIntelPromptTemplate);
 
   const [isSavingProvider, setIsSavingProvider] = useState(false);
-  const [isSavingPlanner, setIsSavingPlanner] = useState(false);
-  const [isSavingCourseIntel, setIsSavingCourseIntel] = useState(false);
   const [isSavingCatalog, setIsSavingCatalog] = useState(false);
   const { showToast } = useAppToast();
 
   const [usageStats, setUsageStats] = useState<UsageStats | null>(null);
   const [usageLoading, setUsageLoading] = useState(true);
-  const [healthStats, setHealthStats] = useState<AIHealthStats | null>(null);
-  const [healthLoading, setHealthLoading] = useState(true);
   const totalCostUsd = Number(usageStats?.totals?.cost_usd || 0);
   const sortedFeatureStats = usageStats ?
   Object.entries(usageStats.byFeature).sort((a, b) => {
@@ -169,43 +137,6 @@ export default function AISettingsCard({
   }) :
   [];
 
-  const loadHealth = useCallback(async (force = false) => {
-    setHealthLoading(true);
-    try {
-      if (!force && typeof window !== "undefined") {
-        const raw = window.localStorage.getItem(AI_HEALTH_CACHE_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw) as {cachedAt?: number;data?: AIHealthStats;};
-          const cachedAt = Number(parsed?.cachedAt || 0);
-          if (cachedAt > 0 && parsed?.data && Date.now() - cachedAt < AI_HEALTH_CACHE_TTL_MS) {
-            setHealthStats(parsed.data);
-            setHealthLoading(false);
-            return;
-          }
-        }
-      }
-
-      const response = await fetch("/api/ai/health", { cache: "no-store" });
-      const d = await response.json();
-      if (!d.error) {
-        const next: AIHealthStats = {
-          healthy: Boolean(d.healthy),
-          providers: Array.isArray(d.providers) ? d.providers : [],
-          active: d.active && typeof d.active === "object" ? d.active : undefined,
-          checked_at: typeof d.checked_at === "string" ? d.checked_at : new Date().toISOString()
-        };
-        setHealthStats(next);
-        if (typeof window !== "undefined") {
-          window.localStorage.setItem(AI_HEALTH_CACHE_KEY, JSON.stringify({ cachedAt: Date.now(), data: next }));
-        }
-      }
-    } catch {
-
-
-
-
-      // Ignore transient health load errors.
-    } finally {setHealthLoading(false);}}, []);
   useEffect(() => {
     const available = modelsForProvider(provider);
     if (available.length === 0) return;
@@ -230,11 +161,6 @@ export default function AISettingsCard({
     catch(() => {}).
     finally(() => setUsageLoading(false));
   }, [section]);
-
-  useEffect(() => {
-    if (section !== "engine") return;
-    void loadHealth(false);
-  }, [section, loadHealth]);
 
   const saveProviderSettings = useCallback(() => {
     setIsSavingProvider(true);
@@ -293,36 +219,6 @@ export default function AISettingsCard({
     })();
   };
 
-  const savePlannerPrompt = () => {
-    setIsSavingPlanner(true);
-    void (async () => {
-      try {
-        await updateAiPromptTemplates({ plannerPromptTemplate });
-        showToast({ type: "success", message: "Study planner logic updated." });
-        router.refresh();
-      } catch (error) {
-        showToast({ type: "error", message: error instanceof Error ? error.message : "Update failed." });
-      } finally {
-        setIsSavingPlanner(false);
-      }
-    })();
-  };
-
-  const saveCourseIntelPrompt = () => {
-    setIsSavingCourseIntel(true);
-    void (async () => {
-      try {
-        await updateAiPromptTemplates({ courseIntelPromptTemplate });
-        showToast({ type: "success", message: "Course intel logic updated." });
-        router.refresh();
-      } catch (error) {
-        showToast({ type: "error", message: error instanceof Error ? error.message : "Update failed." });
-      } finally {
-        setIsSavingCourseIntel(false);
-      }
-    })();
-  };
-
   return (
     <div className="h-full flex flex-col">
       {/* 1. Provider Configuration */}
@@ -330,84 +226,11 @@ export default function AISettingsCard({
         <div className="flex flex-col h-full">
           <div className="flex-1 min-h-0 space-y-4 overflow-y-auto">
             <Card>
-              <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="flex flex-col gap-1 mb-4">
                 <p className="text-xs font-semibold text-[#5a5a5a] uppercase tracking-wide">AI Provider Health</p>
-                <Button variant="outline"
-                onClick={() => {
-                  void loadHealth(true);
-                }}
-                disabled={healthLoading}>
-
-                  
-                  {healthLoading ? <Loader2 className="animate-spin" /> : null}
-                  Refresh
-                </Button>
+                <p className="text-[11px] text-muted-foreground">Verification status of configured environment variables and provider endpoints.</p>
               </div>
-              {healthLoading ?
-              <div className="flex items-center gap-2 text-[12px] text-[#777]">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  Checking environment status...
-                </div> :
-              !healthStats ?
-              <p className="text-[12px] text-[#8a8a8a]">Health status unavailable.</p> :
-
-              <div className="space-y-2">
-                  <div
-                  className={` border px-2.5 py-2 text-[12px] ${
-                  healthStats.healthy ?
-                  "border-[#d6ebd6] bg-[#f6fbf6] text-[#256b25]" :
-                  "border-[#efd8d8] bg-[#fff7f7] text-[#8b3434]"}`
-                  }>
-                  
-                    <div className="flex items-center gap-1.5">
-                      {healthStats.healthy ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
-                      <span className="font-medium">
-                        {healthStats.healthy ? "All providers are configured." : "One or more providers are missing required settings."}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {healthStats.providers.map((item) =>
-                  <Card key={item.provider}>
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-[12px] font-semibold capitalize text-[#333]">{item.provider}</span>
-                          <span
-                        className={`inline-flex items-center gap-1 border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                        item.healthy && item.probe?.ok !== false ?
-                        "border-[#cce5cc] bg-[#f3fbf3] text-[#2f7a2f]" :
-                        "border-[#f0d0d0] bg-[#fff6f6] text-[#9d3b3b]"}`
-                        }>
-                        
-                            {item.healthy && item.probe?.ok !== false ? "Healthy" : "Needs attention"}
-                          </span>
-                        </div>
-                        {!item.healthy && item.missing.length > 0 ?
-                    <p className="mt-1.5 text-[11px] text-[#8a4a4a] break-words">
-                            Missing: {item.missing.join(", ")}
-                          </p> :
-
-                    <p className="mt-1.5 text-[11px] text-[#5f7b5f]">Required environment vars detected.</p>
-                    }
-                        {item.probe ?
-                    <p className={`mt-1 text-[11px] ${item.probe.ok ? "text-[#5f7b5f]" : "text-[#8a4a4a]"}`}>
-                            Probe: {item.probe.ok ? "OK" : "Failed"}
-                            {item.probe.status ? ` (HTTP ${item.probe.status})` : ""}
-                            {item.probe.reason ? ` - ${item.probe.reason}` : ""}
-                          </p> :
-                    null}
-                      </Card>
-                  )}
-                  </div>
-                  {healthStats.active ?
-                <p className="text-[11px] text-[#666]">
-                      Active engine: {healthStats.active.provider || "-"} / {healthStats.active.model || "-"}
-                    </p> :
-                null}
-                  <p className="text-[10px] text-[#9a9a9a]">
-                    Checked: {new Date(healthStats.checked_at).toLocaleString()}
-                  </p>
-                </div>
-              }
+              <ServiceHealthStatus />
             </Card>
 
             <Card>
@@ -502,82 +325,6 @@ export default function AISettingsCard({
 
           </div>
         </div>
-      </div>
-
-      {/* 2. Study Planner Logic */}
-      <div className={section === "study-planner" ? "h-full flex flex-col" : "hidden"}>
-        <Card>
-          <Card>
-            <div className="flex items-center gap-2 text-[#222]">
-              <Sparkles className="w-4 h-4 text-[#777]" />
-              <span className="text-sm font-semibold">Study Planner Logic</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline"
-              onClick={savePlannerPrompt}
-              disabled={isSavingPlanner}>
-
-                
-                {isSavingPlanner ? <Loader2 className="animate-spin" /> : <Save />}
-                Push Study Planner Logic
-              </Button>
-              <Button variant="outline"
-              onClick={() => setPlannerPromptTemplate("")}>
-
-                
-                Clear
-              </Button>
-            </div>
-          </Card>
-
-          <div className="flex-1 flex flex-col min-h-0 gap-3">
-            <Textarea
-              value={plannerPromptTemplate}
-              onChange={(e) => setPlannerPromptTemplate(e.target.value)}
-              className="w-full flex-1 min-h-0 border border-[#d8d8d8] bg-white p-3 text-[13px] leading-relaxed text-[#333] outline-none transition-colors focus:border-[#bcbcbc] resize-none"
-              placeholder="ENTER_INSTRUCTION_SET..."
-              disabled={isSavingPlanner} />
-            
-          </div>
-        </Card>
-      </div>
-
-      {/* 3. Course Generation Logic */}
-      <div className={section === "course-intel" ? "h-full flex flex-col" : "hidden"}>
-        <Card>
-          <Card>
-            <div className="flex items-center gap-2 text-[#222]">
-              <Sparkles className="w-4 h-4 text-[#777]" />
-              <span className="text-sm font-semibold">Course Generation Logic</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline"
-              onClick={saveCourseIntelPrompt}
-              disabled={isSavingCourseIntel}>
-
-                
-                {isSavingCourseIntel ? <Loader2 className="animate-spin" /> : <Save />}
-                Save Generation Logic
-              </Button>
-              <Button variant="outline"
-              onClick={() => setCourseIntelPromptTemplate("")}>
-
-                
-                Clear
-              </Button>
-            </div>
-          </Card>
-
-          <div className="flex-1 flex flex-col min-h-0 gap-3">
-            <Textarea
-              value={courseIntelPromptTemplate}
-              onChange={(e) => setCourseIntelPromptTemplate(e.target.value)}
-              className="w-full flex-1 min-h-0 border border-[#d8d8d8] bg-white p-3 text-[13px] leading-relaxed text-[#333] outline-none transition-colors focus:border-[#bcbcbc] resize-none"
-              placeholder="ENTER_INSTRUCTION_SET..."
-              disabled={isSavingCourseIntel} />
-            
-          </div>
-        </Card>
       </div>
 
       {/* 8. Usage Statistics */}

@@ -4,7 +4,7 @@ import { CAUSport } from "@/lib/scrapers/cau-sport";
 import { SupabaseDatabase, createAdminClient, getUser } from "@/lib/supabase/server";
 import { completeScraperJob, failScraperJob, startScraperJob } from "@/lib/scrapers/scraper-jobs";
 
-export async function POST() {
+export async function POST(req: Request) {
   const startedAtMs = Date.now();
   let jobId: number | null = null;
   try {
@@ -13,25 +13,39 @@ export async function POST() {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
+    const body = await req.json().catch(() => ({}));
+    const category = body?.category ? String(body.category) : undefined;
+
     jobId = await startScraperJob({
       university: "cau-sport",
       trigger: "api",
       triggeredByUserId: user.id,
       forceUpdate: true,
       jobType: "workouts",
-      meta: { endpoint: "/api/workouts/refresh" },
+      meta: { endpoint: "/api/workouts/refresh", category },
     });
 
     const scraper = new CAUSport();
-    const workouts = await scraper.retrieveWorkouts();
+    const workouts = await scraper.retrieveWorkouts(category);
 
     const supabase = createAdminClient();
     const source = "CAU Kiel Sportzentrum";
 
-    const { error: deleteError } = await supabase
-      .from("workouts")
-      .delete()
-      .eq("source", source);
+    // Delete workouts for this source (and optionally a specific category).
+    // Two separate deletes are used because .or() breaks when values contain spaces.
+    let deleteError: { message: string } | null = null;
+
+    if (category) {
+      // The UI sends the English display name → try category_en first, then German category
+      const [r1, r2] = await Promise.all([
+        supabase.from("workouts").delete().eq("source", source).eq("category_en", category),
+        supabase.from("workouts").delete().eq("source", source).eq("category", category),
+      ]);
+      deleteError = r1.error || r2.error || null;
+    } else {
+      const { error } = await supabase.from("workouts").delete().eq("source", source);
+      deleteError = error;
+    }
 
     if (deleteError) {
       return NextResponse.json(
@@ -51,6 +65,7 @@ export async function POST() {
       meta: {
         saved_workouts: workouts.length,
         source,
+        category,
       },
     });
 

@@ -115,17 +115,17 @@ export default function OverviewRoutineList({
               </Badge>
             </div>
             <div className="min-w-0 space-y-1">
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <p className={`text-sm font-medium tracking-tight leading-tight ${item.isDone ? "text-muted-foreground line-through" : "text-[#0f172a]"}`}>
+              <div className="flex items-center gap-x-2">
+                <p className={`text-sm font-medium tracking-tight leading-tight truncate ${item.isDone ? "text-muted-foreground line-through" : "text-[#0f172a]"}`}>
                   {item.title}
                 </p>
               </div>
-              <div className="flex flex-wrap items-center gap-x-2 text-[11px] font-medium text-muted-foreground/60 leading-tight">
-                <span className="truncate max-w-[240px]">{item.meta}</span>
+              <div className="flex items-center gap-x-2 text-[11px] font-medium text-muted-foreground/60 leading-tight">
+                <span className="truncate">{item.meta}</span>
                 {item.location && (
                   <>
-                    <span className="text-muted-foreground/30 text-[8px] tracking-normal">·</span>
-                    <span className="truncate max-w-[120px]">{item.location}</span>
+                    <span className="text-muted-foreground/30 text-[8px] tracking-normal shrink-0">·</span>
+                    <span className="truncate">{item.location}</span>
                   </>
                 )}
               </div>

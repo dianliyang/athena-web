@@ -31,6 +31,7 @@ describe('GET /api/dashboard/stats', () => {
           event_date: '2026-03-07', 
           source_type: 'study_plan', 
           plan_id: 1, 
+          schedule_id: 101,
           title: 'Study Session', 
           is_completed: true 
         },
@@ -50,14 +51,20 @@ describe('GET /api/dashboard/stats', () => {
           select: vi.fn().mockReturnThis(),
           eq: vi.fn().mockReturnThis(),
           neq: vi.fn().mockResolvedValue({
-            data: [{ id: 1, title: 'Course 1', user_courses: { status: 'in_progress', progress: 50, updated_at: '2026-03-01T12:00:00Z' } }]
+            data: [{ 
+              id: 1, 
+              title: 'Course 1', 
+              user_courses: { status: 'in_progress', progress: 50, updated_at: '2026-03-01T12:00:00Z' },
+              course_fields: [{ fields: { name: 'CS' } }]
+            }]
           })
         };
       }
       if (table === 'study_logs') {
         return {
           select: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockResolvedValue({
+          eq: vi.fn().mockReturnThis(),
+          gte: vi.fn().mockResolvedValue({
             data: [{ log_date: '2026-03-07', is_completed: true }]
           })
         };
@@ -65,20 +72,13 @@ describe('GET /api/dashboard/stats', () => {
       if (table === 'user_workout_logs') {
         return {
           select: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockResolvedValue({
+          eq: vi.fn().mockReturnThis(),
+          gte: vi.fn().mockResolvedValue({
             data: [{ log_date: '2026-03-07', is_attended: true }]
           })
         };
       }
-      if (table === 'course_fields') {
-        return {
-          select: vi.fn().mockReturnThis(),
-          in: vi.fn().mockResolvedValue({
-            data: [{ fields: { name: 'CS' } }]
-          })
-        };
-      }
-      return { select: vi.fn().mockReturnThis(), eq: vi.fn().mockResolvedValue({ data: [] }) };
+      return { select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), gte: vi.fn().mockResolvedValue({ data: [] }) };
     });
 
     (createClient as any).mockResolvedValue({ // eslint-disable-line @typescript-eslint/no-explicit-any

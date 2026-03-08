@@ -55,15 +55,19 @@ export default function CourseMomentumCard({
 
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-background flex flex-col h-full shadow-sm">
-      <div className="border-b border-border p-5">
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80 leading-none mb-3">Now</p>
+      <div className="border-b border-border px-6 py-5 min-h-[110px]">
         <div className="space-y-1">
-          <p className="text-sm font-medium tracking-tight text-foreground line-clamp-2">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80 leading-none mb-2">Status</p>
+          <p className="text-lg font-semibold tracking-[-0.02em] text-foreground leading-tight line-clamp-1">
             {nextItem ? nextItem.title : "No scheduled work is waiting right now."}
           </p>
-          {nextItem && (
-            <p className="text-[10px] font-medium text-muted-foreground/70">
+          {nextItem ? (
+            <p className="text-sm text-muted-foreground truncate">
               {nextItem.meta.split(' · ')[0]} · {nextItem.timeLabel}
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Enjoy your free time.
             </p>
           )}
         </div>

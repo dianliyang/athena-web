@@ -40,6 +40,8 @@ import {
   X,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
 import { Toggle } from "@/components/ui/toggle";
 import { Input } from "@/components/ui/input";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -659,66 +661,60 @@ export default function CourseDetailContent({
   const visibleCalendarMonth =
     studyPlanCalendar.months[resolvedCalendarMonthIndex] || null;
   const todayIso = toIsoDateUtc(new Date());
-  const getEventKindBadgeClass = (kind: string) => {
-    switch (kind) {
-      case "lecture":
-        return "bg-blue-100 text-blue-800";
-      case "reading":
-        return "bg-indigo-100 text-indigo-800";
-      case "assignment":
-        return "bg-amber-100 text-amber-800";
-      case "project":
-        return "bg-emerald-100 text-emerald-800";
-      case "lab":
-        return "bg-cyan-100 text-cyan-800";
-      case "quiz":
-      case "exam":
-      case "deadline":
-        return "bg-rose-100 text-rose-800";
-      default:
-        return "bg-slate-100 text-slate-700";
-    }
-  };
-  const getEventKindBarClass = (kind: string, isSelected: boolean) => {
-    if (isSelected) {
-      switch (kind) {
-        case "lecture":
-          return "bg-blue-200";
-        case "reading":
-          return "bg-indigo-200";
-        case "assignment":
-          return "bg-amber-200";
-        case "project":
-          return "bg-emerald-200";
-        case "lab":
-          return "bg-cyan-200";
-        case "quiz":
-        case "exam":
-        case "deadline":
-          return "bg-rose-200";
-        default:
-          return "bg-white/80";
-      }
-    }
 
-    switch (kind) {
-      case "lecture":
-        return "bg-blue-500";
-      case "reading":
-        return "bg-indigo-500";
-      case "assignment":
-        return "bg-amber-500";
-      case "project":
-        return "bg-emerald-500";
-      case "lab":
-        return "bg-cyan-500";
-      case "quiz":
-      case "exam":
-      case "deadline":
-        return "bg-rose-500";
-      default:
-        return "bg-slate-500";
+  // Define comprehensive color themes for all vibrant Tailwind colors to support JIT
+  const COLOR_THEMES: Record<string, { badge: string; solid: string; tint: string }> = {
+    blue: { badge: "bg-blue-100 text-blue-800", solid: "bg-blue-500", tint: "bg-blue-200" },
+    indigo: { badge: "bg-indigo-100 text-indigo-800", solid: "bg-indigo-500", tint: "bg-indigo-200" },
+    violet: { badge: "bg-violet-100 text-violet-800", solid: "bg-violet-500", tint: "bg-violet-200" },
+    fuchsia: { badge: "bg-fuchsia-100 text-fuchsia-800", solid: "bg-fuchsia-500", tint: "bg-fuchsia-200" },
+    pink: { badge: "bg-pink-100 text-pink-800", solid: "bg-pink-500", tint: "bg-pink-200" },
+    rose: { badge: "bg-rose-100 text-rose-800", solid: "bg-rose-500", tint: "bg-rose-200" },
+    red: { badge: "bg-red-100 text-red-800", solid: "bg-red-500", tint: "bg-red-200" },
+    orange: { badge: "bg-orange-100 text-orange-800", solid: "bg-orange-500", tint: "bg-orange-200" },
+    amber: { badge: "bg-amber-100 text-amber-800", solid: "bg-amber-500", tint: "bg-amber-200" },
+    yellow: { badge: "bg-yellow-100 text-yellow-800", solid: "bg-yellow-500", tint: "bg-yellow-200" },
+    lime: { badge: "bg-lime-100 text-lime-800", solid: "bg-lime-500", tint: "bg-lime-200" },
+    green: { badge: "bg-green-100 text-green-800", solid: "bg-green-500", tint: "bg-green-200" },
+    emerald: { badge: "bg-emerald-100 text-emerald-800", solid: "bg-emerald-500", tint: "bg-emerald-200" },
+    teal: { badge: "bg-teal-100 text-teal-800", solid: "bg-teal-500", tint: "bg-teal-200" },
+    cyan: { badge: "bg-cyan-100 text-cyan-800", solid: "bg-cyan-500", tint: "bg-cyan-200" },
+    sky: { badge: "bg-sky-100 text-sky-800", solid: "bg-sky-500", tint: "bg-sky-200" },
+    slate: { badge: "bg-slate-100 text-slate-700", solid: "bg-slate-500", tint: "bg-white/80" },
+  };
+
+  const VIBRANT_PALETTE = ["blue", "indigo", "violet", "fuchsia", "pink", "rose", "red", "orange", "amber", "yellow", "lime", "green", "emerald", "teal", "cyan", "sky"];
+
+  const getEventTheme = (kind: string) => {
+    const normalized = kind.toLowerCase().trim();
+    // Explicit mapping for core categories
+    const explicitMap: Record<string, string> = {
+      lecture: "blue",
+      reading: "indigo",
+      assignment: "amber",
+      project: "emerald",
+      lab: "cyan",
+      quiz: "rose",
+      exam: "rose",
+      deadline: "rose",
+    };
+
+    const colorName = explicitMap[normalized];
+    if (colorName) return COLOR_THEMES[colorName] || COLOR_THEMES.slate;
+
+    // Hash-based selection for new/unknown categories to ensure a stable color per kind
+    let hash = 0;
+    for (let i = 0; i < normalized.length; i++) {
+      hash = normalized.charCodeAt(i) + ((hash << 5) - hash);
     }
+    const colorFromHash = VIBRANT_PALETTE[Math.abs(hash) % VIBRANT_PALETTE.length];
+    return COLOR_THEMES[colorFromHash] || COLOR_THEMES.slate;
+  };
+
+  const getEventKindBadgeClass = (kind: string) => getEventTheme(kind).badge;
+  const getEventKindBarClass = (kind: string, isSelected: boolean) => {
+    const theme = getEventTheme(kind);
+    return isSelected ? theme.tint : theme.solid;
   };
 
   const handleGeneratePlans = async () => {
@@ -1580,129 +1576,146 @@ export default function CourseDetailContent({
                 )}
               </div>
               {planPreview && (
-                <div className="bg-[#fcfcfc]">
-                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
-                    <h3 className="text-base font-semibold text-[#1f1f1f]">
-                      Study Plan Preview
-                    </h3>
-                    <p className="text-xs text-[#777]">
-                      Select plans to save into your roadmap
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    <div className="rounded-sm bg-white p-4">
-                      <p className="text-xs font-medium text-[#666] mb-2">
-                        Original Schedule
-                      </p>
-                      <ul className="space-y-1.5 text-sm text-[#444]">
-                        {planPreview.originalSchedule.map((item, idx) => (
-                          <li key={`${item.type}-${idx}`}>
-                            <span className="font-medium">{item.type}:</span>{" "}
-                            {item.line}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div className="rounded-sm bg-white p-4">
-                      <p className="text-xs font-medium text-[#666] mb-2">
-                        AI Generated Plans
-                      </p>
-                      <ul className="space-y-2">
-                        {planPreview.generatedPlans.map((plan, idx) => {
-                          const id = String(idx);
-                          const disabled = false;
-                          const daysText = plan.daysOfWeek
-                            .map((d) => dayLabels[d] || String(d))
-                            .join(", ");
-                          return (
-                            <li key={id} className=" bg-white px-2.5 py-2">
-                              <label className="flex items-start gap-2 text-sm text-[#444]">
-                                <Input
-                                  type="checkbox"
-                                  checked={selectedPlanIds.includes(id)}
-                                  disabled={disabled || isConfirmingPlans}
-                                  onChange={(e) => {
-                                    setSelectedPlanIds((prev) =>
-                                      e.target.checked
-                                        ? [...prev, id]
-                                        : prev.filter((v) => v !== id),
-                                    );
-                                  }}
-                                  className="mt-0.5"
-                                />
+                <div className="py-6 animate-in fade-in slide-in-from-top-4 duration-500">
+                  <Card className="border-primary/20 bg-primary/5">
+                    <CardContent className="p-6">
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+                        <div className="space-y-1">
+                          <h3 className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
+                            <WandSparkles className="w-5 h-5 text-primary" />
+                            Study Plan Preview
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            Generated from course schedule. Select plans to save into your roadmap.
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="default"
+                            type="button"
+                            onClick={handleConfirmPlans}
+                            disabled={isConfirmingPlans || selectedPlanIds.length === 0}
+                            className="h-9 font-semibold"
+                          >
+                            {isConfirmingPlans ? (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                              <Check className="mr-2 h-4 w-4" />
+                            )}
+                            Save Selected Plans
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleDiscardPlans}
+                            disabled={isConfirmingPlans}
+                            className="h-9"
+                          >
+                            <X className="mr-2 h-4 w-4" />
+                            Discard
+                          </Button>
+                        </div>
+                      </div>
 
-                                <span className="min-w-0">
-                                  <span className="block font-medium">
-                                    {daysText} • {plan.startTime.slice(0, 5)}-
-                                    {plan.endTime.slice(0, 5)}
-                                  </span>
-                                  <span className="block text-xs text-[#666]">
-                                    <Badge className="mr-1.5 inline-block max-w-[120px] overflow-hidden text-ellipsis whitespace-nowrap bg-[#f3f3f3] px-2 py-0.5 text-[11px] font-medium text-[#444] align-bottom">
-                                      {plan.kind || "Session"}
-                                    </Badge>
-                                    @ {plan.location}
-                                    {plan.alreadyExists
-                                      ? " (will replace existing)"
-                                      : ""}
-                                  </span>
-                                  {plan.startDate && plan.endDate && (
-                                    <span className="block text-xs text-[#888]">
-                                      {formatDateForUser(plan.startDate, {
-                                        month: "short",
-                                        day: "numeric",
-                                        year: "numeric",
-                                      })}
-                                      {" - "}
-                                      {formatDateForUser(plan.endDate, {
-                                        month: "short",
-                                        day: "numeric",
-                                        year: "numeric",
-                                      })}
-                                    </span>
-                                  )}
-                                </span>
-                              </label>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
-                  </div>
-                  <div className="mt-3 flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      type="button"
-                      onClick={handleConfirmPlans}
-                      disabled={
-                        isConfirmingPlans || selectedPlanIds.length === 0
-                      }
-                      size="sm"
-                    >
-                      {isConfirmingPlans ? (
-                        <Loader2 className="animate-spin" />
-                      ) : (
-                        <Check />
-                      )}
-                      Confirm
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={handleDiscardPlans}
-                      disabled={isConfirmingPlans}
-                      size="sm"
-                    >
-                      <X />
-                      Discard
-                    </Button>
-                  </div>
+                      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                        <div className="lg:col-span-2 space-y-4">
+                          <div className="space-y-3">
+                            <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground/80">Original Schedule</h4>
+                            <div className="rounded-xl border border-border bg-background/50 p-4">
+                              <ul className="space-y-2.5">
+                                {planPreview.originalSchedule.map((item, idx) => (
+                                  <li key={`${item.type}-${idx}`} className="text-sm flex flex-col gap-0.5">
+                                    <span className="font-bold text-[11px] uppercase tracking-wider text-muted-foreground">{item.type}</span>
+                                    <span className="text-foreground/90 font-medium leading-relaxed">{item.line}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="hidden lg:flex items-center justify-center">
+                          <Separator orientation="vertical" className="h-full bg-border/50" />
+                        </div>
+
+                        <div className="lg:col-span-2 space-y-4">
+                          <div className="space-y-3">
+                            <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground/80">AI Generated Plans</h4>
+                            <div className="space-y-2.5">
+                              {planPreview.generatedPlans.map((plan, idx) => {
+                                const id = String(idx);
+                                const daysText = plan.daysOfWeek
+                                  .map((d) => dayLabels[d] || String(d))
+                                  .join(", ");
+                                return (
+                                  <div 
+                                    key={id} 
+                                    className={`relative flex items-start gap-4 rounded-xl border p-4 transition-all ${
+                                      selectedPlanIds.includes(id) 
+                                        ? "border-primary bg-primary/10 shadow-sm" 
+                                        : "border-border bg-background hover:border-primary/30"
+                                    }`}
+                                  >
+                                    <div className="pt-0.5">
+                                      <Checkbox
+                                        id={`plan-${id}`}
+                                        checked={selectedPlanIds.includes(id)}
+                                        onCheckedChange={(checked) => {
+                                          setSelectedPlanIds((prev) =>
+                                            checked
+                                              ? [...prev, id]
+                                              : prev.filter((v) => v !== id),
+                                          );
+                                        }}
+                                        disabled={isConfirmingPlans}
+                                      />
+                                    </div>
+                                    <label
+                                      htmlFor={`plan-${id}`}
+                                      className="flex-1 cursor-pointer select-none space-y-1.5"
+                                    >
+                                      <div className="flex items-center justify-between gap-2">
+                                        <span className="font-bold text-sm tracking-tight text-foreground">
+                                          {daysText} • {plan.startTime.slice(0, 5)}-{plan.endTime.slice(0, 5)}
+                                        </span>
+                                        <Badge variant="secondary" className="bg-background border font-bold text-[10px] h-5 px-1.5">
+                                          {plan.kind || "Session"}
+                                        </Badge>
+                                      </div>
+                                      <div className="flex flex-col gap-1">
+                                        <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                                          <MapPin className="w-3 h-3" />
+                                          {plan.location}
+                                          {plan.alreadyExists && (
+                                            <span className="text-amber-600 font-bold ml-1">(Replaces existing)</span>
+                                          )}
+                                        </span>
+                                        {plan.startDate && plan.endDate && (
+                                          <span className="text-[11px] text-muted-foreground/60 flex items-center gap-1.5 font-medium">
+                                            <Clock className="w-3 h-3" />
+                                            {formatDateForUser(plan.startDate, { month: "short", day: "numeric" })}
+                                            {" - "}
+                                            {formatDateForUser(plan.endDate, { month: "short", day: "numeric", year: "numeric" })}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </label>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
               )}
             </div>
           </section>
 
           {(course.prerequisites || course.corequisites) && (
-            <div className="bg-[#fcfcfc]">
+            <div className="">
               <h2 className="text-base font-semibold text-[#1f1f1f] mb-3">
                 Prerequisites
               </h2>
@@ -2120,22 +2133,22 @@ export default function CourseDetailContent({
               <h3 className="text-lg font-semibold text-[#1f1f1f] mb-4">
                 Course Facts
               </h3>
-              <dl className="space-y-4 text-sm">
+              <dl className="space-y-2.5 text-sm">
                 {course.details?.internalId && (
-                  <div className="flex justify-between py-1">
+                  <div className="flex justify-between py-0.5">
                     <dt className="text-[#666]">ID</dt>
                     <dd className="font-mono text-[#999]">
                       {course.details.internalId}
                     </dd>
                   </div>
                 )}
-                <div className="flex justify-between py-1">
+                <div className="flex justify-between py-0.5">
                   <dt className="text-[#666]">Credits</dt>
                   <dd className="font-medium text-[#222]">
                     {course.credit ? `${course.credit} ECTS` : "-"}
                   </dd>
                 </div>
-                <div className="flex justify-between py-1 overflow-visible relative">
+                <div className="flex justify-between py-0.5 overflow-visible relative">
                   <dt className="text-[#666] shrink-0">
                     <HoverCard openDelay={100} closeDelay={80}>
                       <HoverCardTrigger asChild>
@@ -2157,45 +2170,37 @@ export default function CourseDetailContent({
                     {course.units || "-"}
                   </dd>
                 </div>
-                <div className="flex justify-between py-1">
+                <div className="flex justify-between py-0.5">
                   <dt className="text-[#666] shrink-0">Workload</dt>
                   <dd className="font-medium text-[#222] text-right pl-4 break-words">
                     {estimatedWorkload}
                   </dd>
                 </div>
-                <div className="flex justify-between py-1">
+                <div className="flex justify-between py-0.5">
                   <dt className="text-[#666] shrink-0">Level</dt>
                   <dd className="font-medium text-[#222] capitalize text-right pl-4 break-words">
                     {course.level || "-"}
                   </dd>
                 </div>
-                <div className="flex justify-between py-1">
+                <div className="flex justify-between py-0.5">
                   <dt className="text-[#666] shrink-0">Department</dt>
                   <dd className="font-medium text-[#222] text-right pl-4 break-words">
                     {course.department || "-"}
                   </dd>
                 </div>
-                <div className="flex justify-between py-1">
+                <div className="flex justify-between py-0.5">
                   <dt className="text-[#666] shrink-0">Subdomain</dt>
                   <dd className="font-medium text-[#222] text-right pl-4 break-words">
                     {course.subdomain || "-"}
                   </dd>
                 </div>
-                <div className="flex justify-between py-1">
+                <div className="flex justify-between py-0.5">
                   <dt className="text-[#666] shrink-0">Category</dt>
                   <dd className="font-medium text-[#222] text-right pl-4 break-words">
                     {categoryLabel || "-"}
                   </dd>
                 </div>
-                {(course.prerequisites || course.details?.prerequisites) && (
-                  <div className="flex flex-col py-1 gap-1">
-                    <dt className="text-[#666] shrink-0">Prerequisites</dt>
-                    <dd className="text-[13px] text-[#444] leading-relaxed">
-                      {course.prerequisites || course.details?.prerequisites}
-                    </dd>
-                  </div>
-                )}
-                <div className="flex flex-col py-1 gap-2">
+                <div className="flex flex-col py-0.5 gap-2">
                   <dt className="text-[#666]">Available Terms</dt>
                   <dd className="font-medium text-[#222] flex flex-wrap gap-1.5 justify-end">
                     {course.semesters.length > 0 ? (

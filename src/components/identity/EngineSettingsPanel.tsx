@@ -27,6 +27,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Toggle } from "@/components/ui/toggle";
+import ServiceHealthStatus from "./ServiceHealthStatus";
 
 interface EngineSettingsPanelProps {
   initialProvider: string;
@@ -403,7 +404,7 @@ export default function EngineSettingsPanel({
               <CardTitle>Quick Presets</CardTitle>
               <CardDescription>Apply a tuned profile in one click.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-2">
+            <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <Button className="w-full" variant="outline" type="button" onClick={() => applyPreset("balanced")}>
                 Balanced
               </Button>
@@ -424,23 +425,32 @@ export default function EngineSettingsPanel({
               </CardTitle>
               <CardDescription>Live status for configuration persistence.</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-1 text-xs text-muted-foreground">
-                <div className="flex items-center justify-between gap-3">
-                  <span>Provider</span>
-                  <span className="font-medium text-foreground">{providerLabel(provider)}</span>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span>Model</span>
-                  <span className="font-medium text-foreground">{defaultModel || "Not selected"}</span>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span>Grounding</span>
-                  <span className="font-medium text-foreground">{webSearchEnabled ? "Enabled" : "Disabled"}</span>
+            <CardContent className="space-y-4">
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80 mb-2">Persistence Info</p>
+                <div className="space-y-1 text-xs text-muted-foreground">
+                  <div className="flex items-center justify-between gap-3">
+                    <span>Provider</span>
+                    <span className="font-medium text-foreground">{providerLabel(provider)}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span>Model</span>
+                    <span className="font-medium text-foreground truncate max-w-[120px]">{defaultModel || "Not selected"}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span>Grounding</span>
+                    <span className="font-medium text-foreground">{webSearchEnabled ? "Enabled" : "Disabled"}</span>
+                  </div>
                 </div>
               </div>
+
+              <div className="pt-2 border-t border-border/40">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80 mb-3">Service Availability</p>
+                <ServiceHealthStatus />
+              </div>
+
               {saveState === "error" ? (
-                <Button variant="outline" type="button" onClick={saveNow}>
+                <Button variant="outline" className="w-full mt-2" type="button" onClick={saveNow}>
                   Retry Save
                 </Button>
               ) : null}

@@ -6,9 +6,10 @@ import { Dictionary } from "@/lib/dictionary";
 import { cn } from "@/lib/utils";
 import WorkoutCard from "./WorkoutCard";
 import WorkoutListHeader from "./WorkoutListHeader";
-import { Check, ChevronDown, ExternalLink, Plus } from "lucide-react";
+import { Check, ChevronDown, ExternalLink, Plus, RefreshCw } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toggleWorkoutEnrollmentAction } from "@/actions/courses";
+import { useAppToast } from "@/components/common/AppToastProvider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -173,8 +174,47 @@ export default function WorkoutList({
   const [enrolledIds, setEnrolledIds] = useState<number[]>(initialEnrolledIds);
   const [pendingIds, setPendingIds] = useState<Record<number, boolean>>({});
 
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshingCategory, setRefreshingCategory] = useState<string | null | undefined>(undefined);
+  const { showToast } = useAppToast();
+
   const workouts: Workout[] = initialWorkouts;
   const effectiveViewMode: "list" | "grid" = viewMode;
+
+  const refreshList = async (category?: string) => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    setRefreshingCategory(category === undefined ? null : category);
+    try {
+      const res = await fetch("/api/workouts/refresh", { 
+        method: "POST",
+        body: JSON.stringify({ category }),
+        headers: { "Content-Type": "application/json" }
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(body?.error || "Failed to refresh workouts");
+      }
+      const count = typeof body?.count === "number" ? body.count : null;
+      showToast({
+        message:
+          count !== null
+            ? `Refresh complete: ${count} items synced ${category ? `for ${category}` : ""}`
+            : "Refresh complete",
+        type: "success",
+      });
+      router.refresh();
+    } catch (error) {
+      console.error("[WorkoutList] Refresh failed:", error);
+      showToast({
+        message: error instanceof Error ? error.message : "Refresh failed",
+        type: "error",
+      });
+    } finally {
+      setIsRefreshing(false);
+      setRefreshingCategory(undefined);
+    }
+  };
 
   const selectedGroup = {
     category: selectedCategory,
@@ -242,18 +282,21 @@ export default function WorkoutList({
         viewMode={effectiveViewMode}
         setViewMode={handleViewModeChange}
         dict={dict}
+        isRefreshing={isRefreshing}
+        refreshingCategory={refreshingCategory}
+        refreshList={refreshList}
       />
 
       <div className={`mt-3 min-h-0 flex-1 ${effectiveViewMode === "grid" ? "overflow-y-auto" : "overflow-hidden"}`}>
         {effectiveViewMode === "list" ? (
           <>
-            <div className="hidden h-full min-h-0 border-t md:grid md:grid-cols-[360px_minmax(0,1fr)]">
+            <Card className="hidden h-full min-h-0 overflow-hidden md:grid md:grid-cols-[360px_minmax(0,1fr)] py-0 gap-0">
               <div className="flex h-full min-h-0 flex-col border-r">
                   <div className="flex h-12 items-center justify-between border-b px-3">
-                    <span className="text-sm font-medium">
+                    <span className="text-sm font-bold tracking-tight text-foreground uppercase">
                       {dict?.sidebar_categories || "Category"}
                     </span>
-                    <Badge variant="secondary">{categoryGroups.length}</Badge>
+                    <Badge variant="secondary" className="font-bold">{categoryGroups.length}</Badge>
                   </div>
 
                   <div className="min-h-0 flex-1 overflow-y-auto p-2">
@@ -296,21 +339,41 @@ export default function WorkoutList({
                 </div>
               <div className="flex h-full min-h-0 flex-col">
                   <div className="flex h-12 items-center justify-between border-b px-4">
-                    <p className="truncate text-sm font-medium">
+                    <p className="truncate text-sm font-bold tracking-tight text-foreground uppercase">
                       {selectedGroup ? `${selectedGroup.category} choices` : "Choices"}
                     </p>
-                    {selectedActionHref && selectedCategory !== "Semester Fee" ? (
-                      <Button variant="outline" asChild>
-                        <a
-                          href={selectedActionHref}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                    <div className="flex items-center gap-2">
+                      {selectedCategory && selectedCategory !== "Semester Fee" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => refreshList(selectedCategory)}
+                          disabled={isRefreshing}
+                          title={`Refresh ${selectedCategory}`}
                         >
-                          Book Now
-                          <ExternalLink />
-                        </a>
-                      </Button>
-                    ) : null}
+                          <RefreshCw
+                            className={`mr-1.5 h-3.5 w-3.5 ${refreshingCategory === selectedCategory ? "animate-spin" : ""}`}
+                          />
+                          Refresh
+                        </Button>
+                      )}
+                      {selectedActionHref && selectedCategory !== "Semester Fee" ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          asChild
+                        >
+                          <a
+                            href={selectedActionHref}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            Book Now
+                            <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+                          </a>
+                        </Button>
+                      ) : null}
+                    </div>
                   </div>
 
                   <div className="min-h-0 flex-1 overflow-y-auto">
@@ -341,18 +404,18 @@ export default function WorkoutList({
                               key={w.id}
                               className={`grid gap-3 px-4 py-3 lg:items-center ${
                                 selectedCategory === "Semester Fee"
-                                  ? "lg:grid-cols-[minmax(0,1fr)_220px_150px_100px_auto]"
-                                  : "lg:grid-cols-[minmax(0,1fr)_220px_150px_100px]"
+                                  ? "lg:grid-cols-[minmax(0,1fr)_200px_120px_100px_auto]"
+                                  : "lg:grid-cols-[minmax(0,1fr)_200px_120px_100px]"
                               }`}
                             >
                               <div className="min-w-0">
-                                <p className="truncate text-sm font-medium text-foreground">
+                                <p className="truncate text-sm font-medium text-foreground mb-1">
                                   {title}
                                 </p>
-                                <div className="mt-1 flex flex-wrap items-center gap-2">
+                                <div className="flex flex-wrap items-center gap-2">
                                   <Badge className={statusClass}>{statusLabel}</Badge>
-                                  <span className="text-xs text-muted-foreground">
-                                    {duration}
+                                  <span className="truncate text-xs text-muted-foreground/70">
+                                    {w.locationEn || w.location || "-"}
                                   </span>
                                 </div>
                               </div>
@@ -365,8 +428,14 @@ export default function WorkoutList({
                                   {w.startTime ? w.startTime.slice(0, 5) : ""}
                                   {w.endTime ? `-${w.endTime.slice(0, 5)}` : ""}
                                 </p>
-                                <p className="truncate text-xs text-muted-foreground">
-                                  {w.locationEn || w.location || "-"}
+                                {typeof w.details?.totalSessions === "number" && w.details.totalSessions > 0 && (
+                                  <p className="text-xs mt-0.5">
+                                    <span className="font-medium text-foreground">{w.details.totalSessions}</span>
+                                    <span className="text-muted-foreground/70 ml-1">sessions</span>
+                                  </p>
+                                )}
+                                <p className="text-xs text-muted-foreground/70 mt-0.5">
+                                  {duration}
                                 </p>
                               </div>
 
@@ -394,7 +463,7 @@ export default function WorkoutList({
                     )}
                   </div>
                 </div>
-            </div>
+            </Card>
 
             <div className="space-y-2 md:hidden">
               {workouts.map((workout, idx) => (

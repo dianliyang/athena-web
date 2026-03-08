@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient, getUser, mapCourseFromRow } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 import { buildOverviewRoutineItems, buildWeeklyActivity } from "@/lib/overview-routine";
 
 export const dynamic = "force-dynamic";
@@ -14,36 +14,42 @@ export async function GET() {
     const supabase = await createClient();
     const todayIso = new Date().toISOString().slice(0, 10);
     const referenceNowMs = new Date(`${todayIso}T23:59:59.999Z`).getTime();
+    
+    // Calculate 10 days ago for logs filtering
+    const tenDaysAgo = new Date();
+    tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
+    const tenDaysAgoIso = tenDaysAgo.toISOString().slice(0, 10);
 
-    // 1. Fetch Today's Schedule via RPC (Deduplicated & Expanded)
-    const { data: scheduleRows } = await (supabase as any).rpc("get_user_schedule", { // eslint-disable-line @typescript-eslint/no-explicit-any
-      p_user_id: user.id,
-      p_start_date: todayIso,
-      p_end_date: todayIso,
-    });
-
-    // 2. Fetch other metrics
-    const [coursesRes, logsRes, workoutLogsRes] = await Promise.all([
+    // 1. Fetch all required data in parallel
+    const [scheduleRes, coursesRes, logsRes, workoutLogsRes] = await Promise.all([
+      (supabase as any).rpc("get_user_schedule", { // eslint-disable-line @typescript-eslint/no-explicit-any
+        p_user_id: user.id,
+        p_start_date: todayIso,
+        p_end_date: todayIso,
+      }),
       supabase
         .from("courses")
         .select(`
           id, university, course_code, title, units, credit, url, details,
-          user_courses!inner(status, progress, updated_at)
+          user_courses!inner(status, progress, updated_at),
+          course_fields(fields(name))
         `)
         .eq("user_courses.user_id", user.id)
         .neq("user_courses.status", "hidden"),
       supabase
         .from("study_logs")
         .select("plan_id, log_date, is_completed, course_schedule_id, course_assignment_id")
-        .eq("user_id", user.id),
+        .eq("user_id", user.id)
+        .gte("log_date", tenDaysAgoIso),
       supabase
         .from("user_workout_logs")
         .select("workout_id, log_date, is_attended")
-        .eq("user_id", user.id),
+        .eq("user_id", user.id)
+        .gte("log_date", tenDaysAgoIso),
     ]);
 
-    const enrolledCourses = (coursesRes.data || []).map((row) => mapCourseFromRow(row));
-    const userCourseRows = (coursesRes.data || []).map((row: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+    const scheduleRows = scheduleRes.data || [];
+    const userCourseRows = (coursesRes.data || []).map((row) => {
       const userCourse = Array.isArray(row.user_courses) ? row.user_courses[0] : row.user_courses;
       return {
         status: userCourse?.status || "pending",
@@ -51,13 +57,6 @@ export async function GET() {
         updated_at: userCourse?.updated_at || null,
       };
     });
-    const enrolledCourseIds = enrolledCourses.map((course) => course.id);
-
-    const [fieldsRes] = enrolledCourseIds.length > 0
-      ? await Promise.all([
-          supabase.from("course_fields").select("fields(name)").in("course_id", enrolledCourseIds),
-        ])
-      : [{ data: [], error: null }];
 
     // Process Momentum
     const statusCounts: Record<string, number> = {};
@@ -65,13 +64,18 @@ export async function GET() {
       statusCounts[row.status] = (statusCounts[row.status] || 0) + 1;
     });
 
-    // Process Identity
+    // Process Identity (using nested fields from coursesRes)
     const fieldCounts: Record<string, number> = {};
-    ((fieldsRes.data || []) as any[]).forEach((row) => { // eslint-disable-line @typescript-eslint/no-explicit-any
-      if (row.fields?.name) {
-        fieldCounts[row.fields.name] = (fieldCounts[row.fields.name] || 0) + 1;
+    (coursesRes.data || []).forEach((courseRow) => {
+      if (courseRow.course_fields) {
+        courseRow.course_fields.forEach((cf: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+          if (cf.fields?.name) {
+            fieldCounts[cf.fields.name] = (fieldCounts[cf.fields.name] || 0) + 1;
+          }
+        });
       }
     });
+    
     const fieldStats = Object.entries(fieldCounts)
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count);
@@ -127,6 +131,7 @@ export async function GET() {
         primaryFocus: fieldStats[0]?.name || "Undeclared"
       }
     });
+
   } catch (error) {
     console.error("[Dashboard Stats API] Error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });

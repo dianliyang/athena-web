@@ -187,15 +187,19 @@ const DE_EN: Record<string, string> = {
   "SH tief Bahn": "Pool Deep Lane",
 };
 
+// Cache sorted keys for translateDE so they aren't recomputed on every call
+const DE_EN_SORTED_KEYS = Object.keys(DE_EN).sort((a, b) => b.length - a.length);
+
 /**
  * Translate a German string to English using the DE_EN map.
+ * Exact matches are returned immediately; otherwise performs substring replacement
+ * in longest-match-first order to avoid partial overwrites.
  */
 function translateDE(text: string): string {
   if (!text) return text;
   if (DE_EN[text]) return DE_EN[text];
   let result = text;
-  const sortedKeys = Object.keys(DE_EN).sort((a, b) => b.length - a.length);
-  for (const key of sortedKeys) {
+  for (const key of DE_EN_SORTED_KEYS) {
     if (result.includes(key)) {
       result = result.replaceAll(key, DE_EN[key]);
     }
@@ -249,38 +253,35 @@ export class CAUSport extends BaseScraper {
 
     const input = this.semester.toLowerCase();
     const yearMatch = input.match(/\d{2}/);
-    const yearNum = parseInt(yearMatch ? yearMatch[0] : "25");
+    const currentYearShort = new Date().getFullYear() % 100;
+    const yearNum = yearMatch ? parseInt(yearMatch[0]) : currentYearShort;
 
-    // Current logic based on server structure:
-    // 1. If it's the current/upcoming transition (WiSe 25/26), use "aktueller_zeitraum"
-    if ((input.includes("wi") || input.includes("winter") || input.includes("fa") || input.includes("fall")) && yearNum === 25) {
-      return "aktueller_zeitraum";
-    }
-    if ((input.includes("sp") || input.includes("spring")) && yearNum === 26) {
-      return "aktueller_zeitraum";
-    }
+    const isWinter = input.includes("wi") || input.includes("winter") || input.includes("fa") || input.includes("fall");
+    const isSummer = input.includes("su") || input.includes("summer");
+    const isSpring = input.includes("sp") || input.includes("spring");
 
-    // 2. Future or past semesters use the named directory format
-    if (input.includes("wi") || input.includes("winter") || input.includes("fa") || input.includes("fall")) {
-      return `wintersemester_${yearNum}_${yearNum + 1}`;
-    } else if (input.includes("sp") || input.includes("spring")) {
-      return `wintersemester_${yearNum - 1}_${yearNum}`;
-    } else if (input.includes("su") || input.includes("summer")) {
-      return `sommersemester_${yearNum}`;
-    }
+    // Current/upcoming transition semesters → use live path
+    if (isWinter && yearNum === 25) return "aktueller_zeitraum";
+    if (isSpring && yearNum === 26) return "aktueller_zeitraum";
+
+    // Named archive paths
+    if (isWinter) return `wintersemester_${yearNum}_${yearNum + 1}`;
+    if (isSummer) return `sommersemester_${yearNum}`;
+    if (isSpring) return `sommersemester_${yearNum}`;
 
     return "aktueller_zeitraum";
   }
 
   async fetchPage(url: string, retries = 3): Promise<string> {
     const headers = {
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     };
+
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
         console.log(`[${this.name}] Fetching ${url} (attempt ${attempt})...`);
         const response = await fetch(url, { headers });
-        
+
         if (response.status === 404) {
           console.log(`[${this.name}] Page not found (404): ${url}`);
           return "";
@@ -289,9 +290,10 @@ export class CAUSport extends BaseScraper {
         if (!response.ok) {
           throw new Error(`HTTP ${response.status} ${response.statusText}`);
         }
+
         const buffer = await response.arrayBuffer();
         return new TextDecoder("iso-8859-1").decode(buffer);
-      } catch (error) { // eslint-disable-line @typescript-eslint/no-unused-vars
+      } catch {
         if (attempt === retries) {
           console.error(`[${this.name}] Failed to fetch ${url} after ${retries} attempts.`);
         } else {
@@ -300,6 +302,7 @@ export class CAUSport extends BaseScraper {
         }
       }
     }
+
     return "";
   }
 
@@ -307,7 +310,7 @@ export class CAUSport extends BaseScraper {
     const sem = this.getSemesterParam();
     const url = `https://server.sportzentrum.uni-kiel.de/angebote/${sem}/index.html`;
     const html = await this.fetchPage(url);
-    
+
     if (!html) {
       console.log(`[${this.name}] Semester ${sem} not found or not yet published. Skipping.`);
       return [];
@@ -315,12 +318,18 @@ export class CAUSport extends BaseScraper {
 
     const $ = cheerio.load(html);
     const categoryLinks: string[] = [];
-    const currentSemPath = url.substring(0, url.lastIndexOf('/'));
+    const currentSemPath = url.substring(0, url.lastIndexOf("/"));
 
     $("a").each((_, el) => {
       const href = $(el).attr("href");
-      if (href && href.startsWith("_") && href.endsWith(".html")) {
-        categoryLinks.push(`${currentSemPath}/${href}`);
+      if (!href || href.startsWith("http") || href.startsWith("mailto") || href.includes("?")) return;
+
+      // Category links end with .html but exclude the index and booking sub-pages
+      if (href.endsWith(".html") && href !== "index.html" && !href.startsWith("bs_")) {
+        const fullUrl = href.startsWith("/")
+          ? `https://server.sportzentrum.uni-kiel.de${href}`
+          : `${currentSemPath}/${href}`;
+        categoryLinks.push(fullUrl);
       }
     });
 
@@ -332,8 +341,10 @@ export class CAUSport extends BaseScraper {
   }
 
   parseSemester(html: string): string {
-    const classMatch = html.match(/bs_((?:winter|sommer)semester_\d{2}_\d{2})/i) || 
-                       html.match(/bs_((?:winter|sommer)semester_\d{2})/i);
+    const classMatch =
+      html.match(/bs_((?:winter|sommer)semester_\d{2}_\d{2})/i) ||
+      html.match(/bs_((?:winter|sommer)semester_\d{2})/i);
+
     if (classMatch) {
       const raw = classMatch[1].toLowerCase();
       if (raw.includes("winter")) {
@@ -344,18 +355,124 @@ export class CAUSport extends BaseScraper {
         return parts ? `Summer 20${parts[1]}` : "Summer";
       }
     }
+
     return "Current Period";
   }
 
-  parseWorkouts(html: string, pageUrl: string): WorkoutCourse[] {
+  /**
+   * Merges a list of individual dates into continuous weekly segments.
+   * E.g. [Apr 6, Apr 13, Apr 27] (all Mondays) →
+   * [ {start: Apr 6, end: Apr 13, day: 'Mon'}, {start: Apr 27, end: Apr 27, day: 'Mon'} ]
+   */
+  private mergeDatesIntoSegments(dates: string[]): Array<{ start: string; end: string; day: string }> {
+    if (!dates.length) return [];
+
+    const toIso = (d: Date) => d.toISOString().split("T")[0];
+    const getDayName = (d: Date) => ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getUTCDay()];
+
+    const sorted = dates
+      .map(d => {
+        const parts = d.split(".");
+        if (parts.length !== 3) return null;
+        return new Date(`${parts[2]}-${parts[1]}-${parts[0]}T12:00:00Z`);
+      })
+      .filter((d): d is Date => d !== null && !isNaN(d.getTime()))
+      .sort((a, b) => a.getTime() - b.getTime());
+
+    if (!sorted.length) return [];
+
+    const segments: Array<{ start: string; end: string; day: string }> = [];
+    let currentSegment: { start: Date; last: Date; day: string } | null = null;
+
+    for (const d of sorted) {
+      const dayName = getDayName(d);
+
+      if (!currentSegment) {
+        currentSegment = { start: d, last: d, day: dayName };
+        continue;
+      }
+
+      const diffDays = Math.round((d.getTime() - currentSegment.last.getTime()) / 86_400_000);
+
+      if (diffDays === 7 && dayName === currentSegment.day) {
+        currentSegment.last = d;
+      } else {
+        segments.push({ start: toIso(currentSegment.start), end: toIso(currentSegment.last), day: currentSegment.day });
+        currentSegment = { start: d, last: d, day: dayName };
+      }
+    }
+
+    if (currentSegment) {
+      segments.push({ start: toIso(currentSegment.start), end: toIso(currentSegment.last), day: currentSegment.day });
+    }
+
+    return segments;
+  }
+
+  async parsePlannedDates(url: string): Promise<string[]> {
+    if (!url) return [];
+    const html = await this.fetchPage(url);
+    if (!html) return [];
+
+    const $ = cheerio.load(html);
+    const datesSet = new Set<string>();
+
+    // Strategy 1: dedicated "geplante Termine" rows used on CGI detail pages
+    // e.g. <div class="bs_geplan_termine_row"><span class="bs_geplan_termine_datum">20.10.2025</span>...</div>
+    $(".bs_geplan_termine_datum").each((_, el) => {
+      const text = $(el).text().trim();
+      const m = text.match(/(\d{2}\.\d{2}\.\d{4})/);
+      if (m) datesSet.add(m[1]);
+    });
+
+    // Strategy 2: table rows that contain both a date AND a time range
+    // e.g. "Mo 20.10.2025 21.00-21.45 ..."
+    if (datesSet.size === 0) {
+      $("tr").each((_, tr) => {
+        const rowText = $(tr).text().trim();
+        const dateMatch = rowText.match(/(\d{2}\.\d{2}\.\d{4})/);
+        const timeMatch = rowText.match(/\d{1,2}[.:]\d{2}\s*-\s*\d{1,2}[.:]\d{2}/);
+        if (dateMatch && timeMatch) datesSet.add(dateMatch[1]);
+      });
+    }
+
+    // Strategy 3: scan "geplante termine" tables for single-date rows
+    if (datesSet.size === 0) {
+      $("table").each((_, table) => {
+        const prevText = $(table).prev().text().toLowerCase();
+        const tableText = $(table).text().toLowerCase();
+        if (!prevText.includes("geplante termine") && !prevText.includes("planned dates") && !tableText.includes("geplante termine")) return;
+
+        $(table).find("tr").each((_, tr) => {
+          const rowText = $(tr).text().trim();
+          const matches = rowText.match(/(\d{2}\.\d{2}\.\d{4})/g);
+          if (matches?.length === 1) datesSet.add(matches[0]);
+        });
+      });
+    }
+
+    // Last resort: all dates in body (may include non-session dates — avoid if possible)
+    if (datesSet.size === 0) {
+      const allDates = $("body").text().match(/\b\d{2}\.\d{2}\.\d{4}\b/g) || [];
+      allDates.forEach(d => datesSet.add(d));
+    }
+
+    return Array.from(datesSet);
+  }
+
+  async parseWorkouts(html: string, pageUrl: string): Promise<WorkoutCourse[]> {
     const $ = cheerio.load(html);
     const results: WorkoutCourse[] = [];
     const semester = this.parseSemester(html);
 
+    const pLimit = (await import("p-limit")).default;
+    const detailLimit = pLimit(3);
+    const rowPromises: Promise<void>[] = [];
+
     $("table tbody tr").each((_, tr) => {
       const row = $(tr);
-      const codeEl = row.find("td.bs_sknr span");
-      const courseCode = codeEl.text().trim();
+
+      const courseCode = row.find("td.bs_sknr span").text().trim();
       if (!courseCode || !/^\d{4}-\d{2}$/.test(courseCode)) return;
 
       const outerSpan = row.find("td.bs_sdet > span").first();
@@ -364,82 +481,89 @@ export class CAUSport extends BaseScraper {
       cloned.find(".dispmobile").remove();
       const specificName = cloned.text().trim();
       const fullTitle = specificName ? `${categoryPrefix} ${specificName}`.trim() : categoryPrefix;
-      
+
       let category = categoryPrefix;
       let categoryEn = translateDE(category);
 
-      // Group all items with "Semestergebühr" into a single category
+      // Group all "Semestergebühr" variants under one category
       if (fullTitle.toLowerCase().includes("semestergebühr") || fullTitle.toLowerCase().includes("semester fee")) {
         category = "Semestergebühr";
         categoryEn = "Semester Fee";
       }
 
-      const dayHtml = row.find("td.bs_stag span").html() || "";
-      const timeHtml = row.find("td.bs_szeit span").html() || "";
-      const locationHtml = row.find("td.bs_sort span").html() || "";
+      const parseHtmlLines = (html: string) =>
+        html.split(/<br\s*\/?>/i).map(s => cheerio.load(s).text().trim()).filter(Boolean);
 
-      const days = dayHtml.split(/<br\s*\/?>/i).map(d => cheerio.load(d).text().trim()).filter(Boolean);
-      const times = timeHtml.split(/<br\s*\/?>/i).map(t => cheerio.load(t).text().trim()).filter(Boolean);
-      const locations = locationHtml.split(/<br\s*\/?>/i).map(l => {
-        const $l = cheerio.load(l);
-        return $l("a").text().trim() || $l.text().trim();
-      }).filter(Boolean);
+      const days = parseHtmlLines(row.find("td.bs_stag span").html() || "");
+      const times = parseHtmlLines(row.find("td.bs_szeit span").html() || "");
+      const locations = (row.find("td.bs_sort span").html() || "")
+        .split(/<br\s*\/?>/i)
+        .map(l => { const $l = cheerio.load(l); return $l("a").text().trim() || $l.text().trim(); })
+        .filter(Boolean);
 
-      const dateCellTextRaw = row.find("td.bs_szr").text().replace(/\s+/g, " ").trim();
-      const dateText = dateCellTextRaw.replace(/\s+/g, "").trim();
-      const dateMatch = dateText.match(/([\d.]+)-\s*([\d.]+)/);
+      const dateCell = row.find("td.bs_szr");
+      const dateCellText = dateCell.text().replace(/\s+/g, " ").trim();
+      const dateMatch = dateCellText.replace(/\s+/g, "").match(/([\d.]+)-\s*([\d.]+)/);
       const startDate = dateMatch?.[1] || "";
       const endDate = dateMatch?.[2] || "";
-      const durationMatch = dateCellTextRaw.match(/\(([^)]+)\)/);
-      const explicitDuration = durationMatch?.[1]?.trim() || "";
-      const derivedDuration = startDate && endDate ? `${startDate} - ${endDate}` : "";
-      const duration = explicitDuration || derivedDuration;
+      const explicitDuration = dateCellText.match(/\(([^)]+)\)/)?.[1]?.trim() || "";
+      const duration = explicitDuration || (startDate && endDate ? `${startDate} - ${endDate}` : "");
+
+      const durationUrlRaw = dateCell.find("a").attr("href");
+      const durationUrl = durationUrlRaw
+        ? (durationUrlRaw.startsWith("http") ? durationUrlRaw : `https://server.sportzentrum.uni-kiel.de${durationUrlRaw}`)
+        : null;
+
       const instructor = row.find("td.bs_skl span").text().trim();
 
-      const priceDivs = row.find("td.bs_spreis .bs_tt1");
+      // Parse prices
       const priceValues: (number | null)[] = [];
       let isEntgeltfrei = false;
 
-      priceDivs.each((_, div) => {
-        const rawText = $(div).text().toLowerCase();
-        if (rawText.includes("entgeltfrei")) {
-          isEntgeltfrei = true;
-          priceValues.push(0);
-        } else {
-          const text = rawText.replace(/\s/g, "").replace("€", "").replace(",", ".").replace("--", "");
-          const num = parseFloat(text);
-          priceValues.push(isNaN(num) ? null : num);
-        }
-      });
-
-      if (priceValues.length === 0) {
+      const priceDivs = row.find("td.bs_spreis .bs_tt1");
+      if (priceDivs.length > 0) {
+        priceDivs.each((_, div) => {
+          const rawText = $(div).text().toLowerCase();
+          if (rawText.includes("entgeltfrei")) {
+            isEntgeltfrei = true;
+            priceValues.push(0);
+          } else {
+            const num = parseFloat(rawText.replace(/\s/g, "").replace("€", "").replace(",", ".").replace("--", ""));
+            priceValues.push(isNaN(num) ? null : num);
+          }
+        });
+      } else {
         const summaryText = row.find("td.bs_spreis > span").first().text().toLowerCase();
         if (summaryText.includes("entgeltfrei")) {
           isEntgeltfrei = true;
           priceValues.push(0, 0, 0, 0);
         } else {
-          const parts = summaryText.split("/").map(p => {
+          summaryText.split("/").forEach(p => {
             const n = parseFloat(p.replace(/[^\d.,]/g, "").replace(",", "."));
-            return isNaN(n) ? null : n;
+            priceValues.push(isNaN(n) ? null : n);
           });
-          priceValues.push(...parts);
         }
       }
 
+      // Determine booking status from CSS class, then override with button value
       const bookingTd = row.find("td.bs_sbuch");
       let bookingStatus = "unknown";
+
       for (const [cls, status] of Object.entries(BOOKING_STATUS_MAP)) {
         if (bookingTd.find(`.${cls}`).length > 0 || bookingTd.html()?.includes(cls)) {
           bookingStatus = status;
           break;
         }
       }
-      const btnValue = bookingTd.find("input").attr("value");
-      if (btnValue === "ausgebucht") bookingStatus = "fully_booked";
-      else if (btnValue === "buchen") bookingStatus = "available";
 
-      // Filter out fully booked and expired courses during scraping
-      if (bookingStatus === "fully_booked" || bookingStatus === "expired") return;
+      const btnValue = bookingTd.find("input[type='submit'], input[type='button']").attr("value")?.toLowerCase() || "";
+      if (btnValue.includes("ausgebucht")) bookingStatus = "fully_booked";
+      else if (btnValue.includes("buchen")) bookingStatus = "available";
+      else if (btnValue.includes("warteliste")) bookingStatus = "waitlist";
+      else if (btnValue.includes("storniert") || btnValue.includes("cancel")) bookingStatus = "cancelled";
+
+      // Only skip truly expired courses — show fully booked / waitlist
+      if (bookingStatus === "expired") return;
 
       const bookingUrl = bookingTd.find("a[href]").attr("href") || "";
       const scheduleEntries = days.map((day, i) => ({
@@ -448,62 +572,99 @@ export class CAUSport extends BaseScraper {
         location: locations[i] || locations[0] || "",
       }));
 
-      results.push({
-        source: "CAU Kiel Sportzentrum",
-        courseCode,
-        category,
-        categoryEn,
-        title: fullTitle,
-        titleEn: translateDE(fullTitle),
-        dayOfWeek: scheduleEntries.map(s => s.day).join(", "),
-        startTime: scheduleEntries[0]?.time.split("-")[0] || "",
-        endTime: scheduleEntries[0]?.time.split("-")[1] || "",
-        location: [...new Set(scheduleEntries.map(s => s.location))].join(", "),
-        locationEn: translateDE([...new Set(scheduleEntries.map(s => s.location))].join(", ")),
-        instructor: translateDE(instructor),
-        startDate,
-        endDate,
-        priceStudent: priceValues[0] ?? null,
-        priceStaff: priceValues[1] ?? null,
-        priceExternal: priceValues[2] ?? null,
-        priceExternalReduced: priceValues[3] ?? null,
-        bookingStatus,
-        bookingUrl: bookingUrl ? `https://server.sportzentrum.uni-kiel.de${bookingUrl}` : "",
-        url: pageUrl,
-        semester,
-        details: {
-          ...(duration ? { duration } : {}),
-          ...(scheduleEntries.length > 1 ? { schedule: scheduleEntries } : {}),
-          ...(isEntgeltfrei ? { isEntgeltfrei: true } : {}),
-        },
-        duration,
-      });
+      rowPromises.push(detailLimit(async () => {
+        const plannedDates = durationUrl ? await this.parsePlannedDates(durationUrl) : [];
+        const segments = this.mergeDatesIntoSegments(plannedDates);
+
+        const finalStartDate = segments.length > 0 ? segments[0].start : startDate;
+        const finalEndDate   = segments.length > 0 ? segments[segments.length - 1].end : endDate;
+
+        const uniqueLocations = [...new Set(scheduleEntries.map(s => s.location))].join(", ");
+
+        results.push({
+          source: "CAU Kiel Sportzentrum",
+          courseCode,
+          category,
+          categoryEn,
+          title: fullTitle,
+          titleEn: translateDE(fullTitle),
+          dayOfWeek: scheduleEntries.map(s => s.day).join(", "),
+          startTime: scheduleEntries[0]?.time.split("-")[0] || "",
+          endTime:   scheduleEntries[0]?.time.split("-")[1] || "",
+          location:   uniqueLocations,
+          locationEn: translateDE(uniqueLocations),
+          instructor: translateDE(instructor),
+          startDate: finalStartDate,
+          endDate:   finalEndDate,
+          priceStudent:         priceValues[0] ?? null,
+          priceStaff:           priceValues[1] ?? null,
+          priceExternal:        priceValues[2] ?? null,
+          priceExternalReduced: priceValues[3] ?? null,
+          bookingStatus,
+          bookingUrl: bookingUrl ? `https://server.sportzentrum.uni-kiel.de${bookingUrl}` : "",
+          url: pageUrl,
+          semester,
+          details: {
+            ...(duration           ? { duration }      : {}),
+            ...(scheduleEntries.length > 1 ? { schedule: scheduleEntries } : {}),
+            ...(isEntgeltfrei      ? { isEntgeltfrei: true } : {}),
+            ...(plannedDates.length > 0    ? { plannedDates }  : {}),
+            ...(segments.length > 0        ? { segments }      : {}),
+            ...(durationUrl        ? { durationUrl }   : {}),
+          },
+          duration,
+        });
+      }));
     });
+
+    await Promise.all(rowPromises);
     return results;
   }
 
-  async retrieve(): Promise<Course[]> {
-    const links = await this.links();
-    console.log(`[${this.name}] Processing ${links.length} category pages for semester ${this.semester}...`);
+  async retrieveWorkouts(categoryName?: string): Promise<WorkoutCourse[]> {
+    const allLinks = await this.links();
+    let targetLinks = allLinks;
+
+    if (categoryName) {
+      const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+      const target = normalize(categoryName);
+
+      targetLinks = allLinks.filter(link => {
+        const fileName = link.split("/").pop() || "";
+        const germanName = fileName.replace(/^_/, "").replace(/\.html$/, "").replace(/_/g, " ");
+        return normalize(germanName) === target || normalize(translateDE(germanName)) === target;
+      });
+
+      if (targetLinks.length === 0) {
+        console.log(`[${this.name}] No specific link found for category "${categoryName}".`);
+        return [];
+      }
+      console.log(`[${this.name}] Refreshing specific category: ${categoryName} (found ${targetLinks.length} link(s))`);
+    }
+
+    console.log(`[${this.name}] Processing ${targetLinks.length} category pages for semester ${this.semester}...`);
+
     const pLimit = (await import("p-limit")).default;
     const limit = pLimit(5);
     const allWorkouts: WorkoutCourse[] = [];
+
     await Promise.all(
-      links.map(link =>
+      targetLinks.map(link =>
         limit(async () => {
           const html = await this.fetchPage(link);
           if (html) {
-            const workouts = this.parseWorkouts(html, link);
+            const workouts = await this.parseWorkouts(html, link);
             allWorkouts.push(...workouts);
           }
         })
       )
     );
+
     console.log(`[${this.name}] Found ${allWorkouts.length} total workout instances`);
-    return allWorkouts as unknown as Course[];
+    return allWorkouts;
   }
 
-  async retrieveWorkouts(): Promise<WorkoutCourse[]> {
-    return await this.retrieve() as unknown as WorkoutCourse[];
+  async retrieve(): Promise<Course[]> {
+    return (await this.retrieveWorkouts()) as unknown as Course[];
   }
 }

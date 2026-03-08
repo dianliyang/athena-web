@@ -7,7 +7,6 @@ import {
   LucideIcon,
   Cpu,
   Database,
-  Sparkles,
   Library,
   KeyRound,
   BookOpen } from
@@ -40,7 +39,6 @@ const ExternalApiSwagger = dynamic(() => import("./ExternalApiSwagger"), {
 
 export type SectionId =
 "engine" |
-"course-intel" |
 "usage" |
 "sync" |
 "import" |
@@ -53,8 +51,7 @@ const NAV_GROUPS: Array<{label: string;items: NavItem[];}> = [
 {
   label: "Intelligence",
   items: [
-  { id: "engine", label: "Engine", icon: Cpu },
-  { id: "course-intel", label: "Course Generation Logic", icon: Sparkles }]
+  { id: "engine", label: "Engine", icon: Cpu }]
 
 },
 {
@@ -82,10 +79,6 @@ const SECTION_META: Record<SectionId, {title: string;desc: string;}> = {
     title: "Engine",
     desc: "Control provider, default model, and grounded retrieval behavior."
   },
-  "course-intel": {
-    title: "Course Generation Logic",
-    desc: "Unified prompt for retrieval, description, topics/subdomain, and schedule generation."
-  },
   usage: {
     title: "Usage Statistic",
     desc: "AI call history, token usage, and cost breakdown."
@@ -108,7 +101,7 @@ const SECTION_META: Record<SectionId, {title: string;desc: string;}> = {
   }
 };
 
-const AI_SECTIONS: SectionId[] = ["engine", "course-intel", "usage"];
+const AI_SECTIONS: SectionId[] = ["engine", "usage"];
 
 interface SettingsContainerProps {
   profile: Record<string, unknown> | null;
@@ -291,7 +284,7 @@ export default function SettingsContainer({
         <div className="flex-1 min-h-0 flex flex-col">
             <AISettingsCard
             key={`${active}-${profile ? JSON.stringify(profile) : "default-ai"}`}
-            section={active as "engine" | "course-intel" | "usage"}
+            section={active as "usage"}
             initialProvider={profile?.ai_provider as string || "perplexity"}
             initialModel={
             profile?.ai_default_model as string ||
@@ -302,12 +295,6 @@ export default function SettingsContainer({
             }
             initialWebSearchEnabled={
             profile?.ai_web_search_enabled as boolean | undefined ?? false
-            }
-            initialPlannerPromptTemplate={
-            profile?.ai_planner_prompt_template as string || ""
-            }
-            initialCourseIntelPromptTemplate={
-            profile?.ai_course_intel_prompt_template as string || ""
             }
             modelCatalog={aiDefaults.modelCatalog} />
           

@@ -30,7 +30,7 @@ BEGIN
     WHERE uc.user_id = p_user_id AND uc.status != 'hidden'
   ),
   user_enrolled_workouts AS (
-    SELECT uw.workout_id, w.title, w.title_en, w.category, w.category_en, w.source, w.day_of_week, w.start_date, w.end_date, w.start_time, w.end_time, w.location, w.location_en
+    SELECT uw.workout_id, w.title, w.title_en, w.category, w.category_en, w.source, w.day_of_week, w.start_date, w.end_date, w.start_time, w.end_time, w.location, w.location_en, w.details
     FROM user_workouts uw
     JOIN workouts w ON w.id = uw.workout_id
     WHERE uw.user_id = p_user_id
@@ -107,7 +107,7 @@ BEGIN
   -- 4. Workouts
   expanded_workouts AS (
     SELECT 
-      d.date::DATE as event_date,
+      v.event_date,
       NULL::BIGINT as course_id,
       COALESCE(w.title_en, w.title) as title,
       COALESCE(w.category_en, w.category, 'Workout') as course_code,
@@ -122,23 +122,62 @@ BEGIN
       w.workout_id as workout_id,
       'workout' as source_type
     FROM user_enrolled_workouts w
-    CROSS JOIN LATERAL generate_series(
-      GREATEST(COALESCE(w.start_date, p_start_date), p_start_date),
-      LEAST(COALESCE(w.end_date, p_end_date), p_end_date),
-      '1 day'::interval
-    ) d(date)
-    WHERE (
-      CASE lower(w.day_of_week)
-        WHEN 'sunday' THEN 0 WHEN 'sun' THEN 0
-        WHEN 'monday' THEN 1 WHEN 'mon' THEN 1
-        WHEN 'tuesday' THEN 2 WHEN 'tue' THEN 2
-        WHEN 'wednesday' THEN 3 WHEN 'wed' THEN 3
-        WHEN 'thursday' THEN 4 WHEN 'thu' THEN 4
-        WHEN 'friday' THEN 5 WHEN 'fri' THEN 5
-        WHEN 'saturday' THEN 6 WHEN 'sat' THEN 6
-        ELSE -1
-      END
-    ) = extract(dow from d.date)
+    CROSS JOIN LATERAL (
+      -- 4a. If segments exist, use them (merged weekly continuous sessions)
+      SELECT d.date::DATE as event_date
+      FROM jsonb_array_elements(w.details->'segments') AS seg(val)
+      CROSS JOIN LATERAL generate_series(
+        (seg.val->>'start')::DATE,
+        (seg.val->>'end')::DATE,
+        '1 day'::interval
+      ) d(date)
+      WHERE w.details ? 'segments' AND jsonb_array_length(w.details->'segments') > 0
+      AND (
+        CASE lower(seg.val->>'day')
+          WHEN 'sunday' THEN 0 WHEN 'sun' THEN 0
+          WHEN 'monday' THEN 1 WHEN 'mon' THEN 1
+          WHEN 'tuesday' THEN 2 WHEN 'tue' THEN 2
+          WHEN 'wednesday' THEN 3 WHEN 'wed' THEN 3
+          WHEN 'thursday' THEN 4 WHEN 'thu' THEN 4
+          WHEN 'friday' THEN 5 WHEN 'fri' THEN 5
+          WHEN 'saturday' THEN 6 WHEN 'sat' THEN 6
+          ELSE -1
+        END
+      ) = extract(dow from d.date)
+
+      UNION ALL
+
+      -- 4b. Else if plannedDates exists, use them (discrete dates)
+      SELECT (d.val)::DATE as event_date
+      FROM jsonb_array_elements_text(w.details->'plannedDates') AS d(val)
+      WHERE (NOT (w.details ? 'segments') OR jsonb_array_length(w.details->'segments') = 0)
+      AND w.details ? 'plannedDates' AND jsonb_array_length(w.details->'plannedDates') > 0
+      
+      UNION ALL
+      
+      -- 4c. Fallback to recurring day_of_week logic (calculated from start_date/end_date)
+      SELECT d.date::DATE
+      FROM generate_series(
+        GREATEST(COALESCE(w.start_date, p_start_date), p_start_date),
+        LEAST(COALESCE(w.end_date, p_end_date), p_end_date),
+        '1 day'::interval
+      ) d(date)
+      WHERE (NOT (w.details ? 'segments') OR jsonb_array_length(w.details->'segments') = 0)
+      AND (NOT (w.details ? 'plannedDates') OR jsonb_array_length(w.details->'plannedDates') = 0)
+      AND (
+        CASE lower(w.day_of_week)
+          WHEN 'sunday' THEN 0 WHEN 'sun' THEN 0
+          WHEN 'monday' THEN 1 WHEN 'mon' THEN 1
+          WHEN 'tuesday' THEN 2 WHEN 'tue' THEN 2
+          WHEN 'wednesday' THEN 3 WHEN 'wed' THEN 3
+          WHEN 'thursday' THEN 4 WHEN 'thu' THEN 4
+          WHEN 'friday' THEN 5 WHEN 'fri' THEN 5
+          WHEN 'saturday' THEN 6 WHEN 'sat' THEN 6
+          ELSE -1
+        END
+      ) = extract(dow from d.date)
+    ) v
+    WHERE v.event_date >= p_start_date AND v.event_date <= p_end_date
   ),
   -- Union all sources
   all_events AS (

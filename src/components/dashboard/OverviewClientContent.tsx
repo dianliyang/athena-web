@@ -76,17 +76,18 @@ export default function OverviewClientContent() {
     <div className="min-h-full space-y-6 pb-4">
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
         <section className="overflow-hidden rounded-2xl border border-border bg-background flex flex-col h-full">
-          <div className="border-b border-border px-6 py-5">
+          <div className="border-b border-border px-6 py-5 min-h-[110px]">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0 space-y-1">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80 leading-none mb-2">Schedule</p>
                 <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">Today&apos;s Routine</h2>
                 <p className="text-sm text-muted-foreground">
                   Specific tasks and routine items, ordered by time.
                 </p>
               </div>
               <div className="sm:text-right shrink-0">
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80">Primary focus</p>
-                <p className="mt-1 text-sm font-bold text-foreground truncate max-w-[280px]">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80 leading-none mb-2">Focus</p>
+                <p className="mt-1 text-sm font-bold text-foreground truncate max-w-[200px]">
                   {stats.identity.primaryFocus}
                 </p>
               </div>

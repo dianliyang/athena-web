@@ -11,7 +11,6 @@ import {
   SlidersHorizontal,
   X,
 } from "lucide-react";
-import { useAppToast } from "@/components/common/AppToastProvider";
 import {
   Select,
   SelectContent,
@@ -33,19 +32,23 @@ interface WorkoutListHeaderProps {
   viewMode: "list" | "grid";
   setViewMode: (mode: "list" | "grid") => void;
   dict: Dictionary["dashboard"]["workouts"];
+  isRefreshing: boolean;
+  refreshingCategory: string | null | undefined;
+  refreshList: (category?: string) => Promise<void>;
 }
 
 export default function WorkoutListHeader({
   viewMode,
   setViewMode,
   dict,
+  isRefreshing,
+  refreshingCategory,
+  refreshList,
 }: WorkoutListHeaderProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sortBy = searchParams.get("sort") || "title";
   const [query, setQuery] = useState(searchParams.get("q") || "");
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const { showToast } = useAppToast();
   const lastPushedQuery = useRef(searchParams.get("q") || "");
   const isComposing = useRef(false);
 
@@ -60,35 +63,6 @@ export default function WorkoutListHeader({
     const params = new URLSearchParams(searchParams.toString());
     params.set("filters", "open");
     router.push(`?${params.toString()}`, { scroll: false });
-  };
-
-  const refreshList = async () => {
-    if (isRefreshing) return;
-    setIsRefreshing(true);
-    try {
-      const res = await fetch("/api/workouts/refresh", { method: "POST" });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(body?.error || "Failed to refresh workouts");
-      }
-      const count = typeof body?.count === "number" ? body.count : null;
-      showToast({
-        message:
-          count !== null
-            ? `Refresh complete: ${count} records synced`
-            : "Refresh complete",
-        type: "success",
-      });
-      router.refresh();
-    } catch (error) {
-      console.error("[WorkoutListHeader] Refresh failed:", error);
-      showToast({
-        message: error instanceof Error ? error.message : "Refresh failed",
-        type: "error",
-      });
-    } finally {
-      setIsRefreshing(false);
-    }
   };
 
   useEffect(() => {
@@ -180,14 +154,15 @@ export default function WorkoutListHeader({
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
-              onClick={refreshList}
+              onClick={() => refreshList()}
               disabled={isRefreshing}
               className="flex-1 sm:flex-none"
+              title="Refresh all workout categories"
             >
               <RefreshCw
-                className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`}
+                className={`h-3.5 w-3.5 ${refreshingCategory === null ? "animate-spin" : ""}`}
               />
-              {isRefreshing ? "Refreshing..." : "Refresh"}
+              {isRefreshing && refreshingCategory === null ? "Refreshing..." : "Refresh All"}
             </Button>
             <Button variant="outline" onClick={openFilters} className="flex-1 sm:flex-none">
               <SlidersHorizontal />
