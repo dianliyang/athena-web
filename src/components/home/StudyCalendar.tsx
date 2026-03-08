@@ -20,7 +20,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { DatabaseScheduleRow } from "@/lib/overview-routine";
-import { buildTodayRoutineGroups, shouldIncludeWeekCalendarRow } from "@/lib/week-calendar";
+import { buildTodayRoutineGroups, getWeekCalendarEventColor, shouldIncludeWeekCalendarRow } from "@/lib/week-calendar";
 
 interface EnrolledCourse {
   id: number;
@@ -107,22 +107,6 @@ function getIsoWeekNumber(date: Date) {
 
 function formatTimeLabel(date: Date) {
   return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
-}
-
-function getEventColorClass(kind: string, sourceType: string): { border: string, bg: string, hoverBg: string, solidBg: string, text: string } {
-  if (sourceType === "workout") return { border: "border-emerald-500", bg: "bg-emerald-500/20", hoverBg: "hover:bg-emerald-500/30", solidBg: "bg-emerald-500", text: "text-emerald-950" };
-  if (sourceType === "assignment") return { border: "border-rose-500", bg: "bg-rose-500/20", hoverBg: "hover:bg-rose-500/30", solidBg: "bg-rose-500", text: "text-rose-950" };
-  
-  const k = kind.toLowerCase();
-  if (k.includes("lecture")) return { border: "border-blue-500", bg: "bg-blue-500/20", hoverBg: "hover:bg-blue-500/30", solidBg: "bg-blue-500", text: "text-blue-950" };
-  if (k.includes("lab")) return { border: "border-purple-500", bg: "bg-purple-500/20", hoverBg: "hover:bg-purple-500/30", solidBg: "bg-purple-500", text: "text-purple-950" };
-  if (k.includes("recitation") || k.includes("seminar")) return { border: "border-indigo-500", bg: "bg-indigo-500/20", hoverBg: "hover:bg-indigo-500/30", solidBg: "bg-indigo-500", text: "text-indigo-950" };
-  if (k.includes("project")) return { border: "border-amber-500", bg: "bg-amber-500/20", hoverBg: "hover:bg-amber-500/30", solidBg: "bg-amber-500", text: "text-amber-950" };
-  if (k.includes("exam") || k.includes("quiz")) return { border: "border-rose-500", bg: "bg-rose-500/20", hoverBg: "hover:bg-rose-500/30", solidBg: "bg-rose-500", text: "text-rose-950" };
-  if (k.includes("reading")) return { border: "border-teal-500", bg: "bg-teal-500/20", hoverBg: "hover:bg-teal-500/30", solidBg: "bg-teal-500", text: "text-teal-950" };
-  
-  // Default for standard study sessions
-  return { border: "border-slate-500", bg: "bg-slate-500/20", hoverBg: "hover:bg-slate-500/30", solidBg: "bg-slate-500", text: "text-slate-950" };
 }
 
 /**
@@ -771,7 +755,7 @@ export default function StudyCalendar({ courses, scheduleRows, dict, initialDate
                             const isSlimWidth = visualWidthPct <= 35; // e.g., 3 columns or more
                             const showVerticalTitle = isSlimWidth && visualHeightPx >= 60; // long height, slim width
 
-                            const colors = getEventColorClass(pe.kind, pe.sourceType);
+                            const colors = getWeekCalendarEventColor(pe.courseCode);
                             const eventStyle = getEventStyle(pe);
                             
                             // Adjust totalColumns constraint visually so cards don't shrink past maxColumns

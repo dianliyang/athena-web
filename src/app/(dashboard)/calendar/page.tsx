@@ -25,7 +25,15 @@ export default async function StudySchedulePage() {
   }
 
   return (
-    <main className="flex h-full w-full flex-col p-4">
+    <main className="h-full w-full px-4 py-4">
+      <div className="sticky top-0 z-20 -mx-4 -mt-4 bg-background/95 px-4 pb-5 pt-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Calendar</h1>
+          <p className="text-sm text-muted-foreground">
+            Weekly study sessions, workouts, and today&apos;s routine structure.
+          </p>
+        </div>
+      </div>
       <Suspense fallback={null}>
         <StudyScheduleContent userId={user.id} dict={dict} />
       </Suspense>

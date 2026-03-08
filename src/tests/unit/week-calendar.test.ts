@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { buildTodayRoutineGroups, shouldIncludeWeekCalendarRow } from "@/lib/week-calendar";
+import { buildTodayRoutineGroups, getWeekCalendarEventColor, shouldIncludeWeekCalendarRow } from "@/lib/week-calendar";
 
 describe("shouldIncludeWeekCalendarRow", () => {
   test("includes recurring study plans", () => {
@@ -101,5 +101,35 @@ describe("buildTodayRoutineGroups", () => {
     expect(groups).toHaveLength(1);
     expect(groups[0].parent.key).toBe("workout");
     expect(groups[0].children).toEqual([]);
+  });
+
+  test("keeps course schedule rows standalone when no parent study plan exists", () => {
+    const groups = buildTodayRoutineGroups([
+      {
+        key: "child-only",
+        sourceType: "study_plan" as const,
+        courseId: 1,
+        date: "2026-03-08",
+        planId: null,
+        scheduleId: 20,
+        assignmentId: null,
+        workoutId: null,
+        startTime: "10:00:00",
+      },
+    ]);
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0].parent.key).toBe("child-only");
+    expect(groups[0].children).toEqual([]);
+  });
+});
+
+describe("getWeekCalendarEventColor", () => {
+  test("returns a stable tint for the same course code", () => {
+    expect(getWeekCalendarEventColor("CS 336")).toEqual(getWeekCalendarEventColor("CS 336"));
+  });
+
+  test("can differentiate different course codes", () => {
+    expect(getWeekCalendarEventColor("CS 336")).not.toEqual(getWeekCalendarEventColor("CS 229"));
   });
 });
