@@ -55,6 +55,68 @@ describe("aggregateWorkoutsByName", () => {
     });
   });
 
+  test("prefers an available aggregate status when any non-expired variant is bookable", () => {
+    const input: Workout[] = [
+      createWorkout({ id: 1, courseCode: "SW-1", bookingStatus: "fully_booked" }),
+      createWorkout({ id: 2, courseCode: "SW-2", bookingStatus: "available", dayOfWeek: "Wed" }),
+      createWorkout({ id: 3, courseCode: "SW-3", bookingStatus: "expired", dayOfWeek: "Fri" }),
+    ];
+
+    const output = aggregateWorkoutsByName(input);
+
+    expect(output).toHaveLength(1);
+    expect(output[0].bookingStatus).toBe("available");
+    expect(output[0].details).toMatchObject({
+      aggregatedVariants: 3,
+      aggregatedEntries: [
+        expect.objectContaining({ bookingStatus: "fully_booked" }),
+        expect.objectContaining({ bookingStatus: "available" }),
+        expect.objectContaining({ bookingStatus: "expired" }),
+      ],
+    });
+  });
+
+  test("uses the representative variant session count instead of summing parallel options", () => {
+    const plannedDates = Array.from({ length: 22 }, (_, index) => `2025-10-${String(index + 1).padStart(2, "0")}`);
+    const input: Workout[] = [
+      createWorkout({
+        id: 1,
+        courseCode: "SW-1",
+        bookingStatus: "available",
+        details: { plannedDates },
+      }),
+      createWorkout({
+        id: 2,
+        courseCode: "SW-2",
+        bookingStatus: "fully_booked",
+        dayOfWeek: "Wed",
+        details: { plannedDates },
+      }),
+      createWorkout({
+        id: 3,
+        courseCode: "SW-3",
+        bookingStatus: "fully_booked",
+        dayOfWeek: "Fri",
+        details: { plannedDates },
+      }),
+      createWorkout({
+        id: 4,
+        courseCode: "SW-4",
+        bookingStatus: "expired",
+        dayOfWeek: "Thu",
+        details: { plannedDates },
+      }),
+    ];
+
+    const output = aggregateWorkoutsByName(input);
+
+    expect(output).toHaveLength(1);
+    expect(output[0].details).toMatchObject({
+      aggregatedVariants: 4,
+      totalSessions: 22,
+    });
+  });
+
   test("does not merge workouts with different titles", () => {
     const input: Workout[] = [
       createWorkout({ id: 1, title: "Yoga", titleEn: "Yoga" }),

@@ -6,6 +6,7 @@ import { getLanguage } from "@/actions/language";
 import { getDictionary, Dictionary } from "@/lib/dictionary";
 import { getWorkoutLastUpdateTime } from "@/actions/scrapers";
 import { aggregateWorkoutsByName } from "@/lib/workouts";
+import { buildVisibleWorkoutCategoryState } from "@/lib/workout-category-filtering";
 import { Badge } from "@/components/ui/badge";
 
 interface PageProps {
@@ -145,17 +146,6 @@ selectedCategory: string,
 userId: string | null)
 {
   const supabase = await createClient();
-  const normalizeCategory = (value: string) => {
-    const trimmed = (value || "").trim();
-    if (
-      trimmed.toLowerCase().includes("semester fee") ||
-      trimmed.toLowerCase().includes("semestergebühr")
-    ) {
-      return "Semester Fee";
-    }
-    return trimmed;
-  };
-
   let supabaseQuery = supabase.
   from('workouts').
   select('*', { count: 'exact' });
@@ -177,12 +167,8 @@ userId: string | null)
     supabaseQuery = supabaseQuery.in('day_of_week', days);
   }
 
-  // Filter out expired and fully booked workouts by default unless explicitly requested
-  if (status.length > 0) {
-    supabaseQuery = supabaseQuery.in('booking_status', status);
-  } else {
-    supabaseQuery = supabaseQuery.not('booking_status', 'in', '("expired","fully_booked")');
-  }
+  // Never filter expired at DB level — we need all statuses to build category groups correctly.
+  // Status filtering is applied in-memory below so fully_booked categories still appear.
 
   // Sorting
   if (sort === 'price') supabaseQuery = supabaseQuery.order('price_student', { ascending: true });else
@@ -208,59 +194,18 @@ userId: string | null)
   const enrolledIds = new Set(
     ((enrolledRes.data || []) as Array<{ workout_id: number }>).map((row) => Number(row.workout_id))
   );
+
   const allItemsRaw = aggregateWorkoutsByName((data || []).map((row: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
     ...mapWorkoutFromRow(row),
     enrolled: enrolledIds.has(Number(row.id)),
   })));
-  const normalizedCategoryFilters = new Set(
-    categories.map((value) => normalizeCategory(value)).filter(Boolean)
-  );
-  const allItems =
-    normalizedCategoryFilters.size > 0
-      ? allItemsRaw.filter((w) => {
-          const key = normalizeCategory((w.categoryEn || w.category || "Other").trim());
-          return normalizedCategoryFilters.has(key);
-        })
-      : allItemsRaw;
-  const grouped = new Map<string, typeof allItems>();
-  allItems.forEach((w) => {
-    const key = normalizeCategory((w.categoryEn || w.category || "Other").trim());
-    const arr = grouped.get(key) || [];
-    arr.push(w);
-    grouped.set(key, arr);
-  });
-
-  const categoryGroups = Array.from(grouped.entries()).
-  map(([category, items]) => {
-    const prices = items.
-    map((i) => i.priceStudent).
-    filter((v): v is number => typeof v === "number");
-    return {
-      category,
-      count: items.length,
-      minStudentPrice: prices.length ? Math.min(...prices) : null,
-      maxStudentPrice: prices.length ? Math.max(...prices) : null
-    };
-  }).
-  sort((a, b) => {
-    const isASemesterFee = a.category.toLowerCase().includes("semester fee") || a.category.toLowerCase().includes("semestergebühr");
-    const isBSemesterFee = b.category.toLowerCase().includes("semester fee") || b.category.toLowerCase().includes("semestergebühr");
-    if (isASemesterFee && !isBSemesterFee) return -1;
-    if (!isASemesterFee && isBSemesterFee) return 1;
-    return a.category.localeCompare(b.category);
-  });
-
-  const normalizedSelectedCategory = normalizeCategory(selectedCategory);
-  const activeCategory = normalizedSelectedCategory && grouped.has(normalizedSelectedCategory) ?
-  normalizedSelectedCategory :
-  categoryGroups[0]?.category || "";
-  const items = activeCategory ? grouped.get(activeCategory) || [] : [];
+  const visibleState = buildVisibleWorkoutCategoryState(allItemsRaw, categories, selectedCategory);
 
   return {
-    items,
-    total: items.length,
-    categoryGroups,
-    selectedCategory: activeCategory,
+    items: visibleState.items,
+    total: visibleState.items.length,
+    categoryGroups: visibleState.categoryGroups,
+    selectedCategory: visibleState.selectedCategory,
     enrolledIds: Array.from(enrolledIds),
   };
 }

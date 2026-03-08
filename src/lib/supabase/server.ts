@@ -6,7 +6,6 @@ import { Course as ScrapedCourse } from "../scrapers/types";
 import type { WorkoutCourse } from "../scrapers/cau-sport";
 import type { Course as AppCourse, Workout } from "@/types";
 import { Database, Json } from "./database.types";
-import { aggregateWorkoutCoursesByName } from "@/lib/workouts";
 
 export async function getBaseUrl() {
   const envUrl = process.env.NEXT_PUBLIC_APP_URL;
@@ -497,8 +496,7 @@ export class SupabaseDatabase {
     if (workouts.length === 0) return;
 
     const source = workouts[0].source;
-    const aggregatedWorkouts = aggregateWorkoutCoursesByName(workouts);
-    console.log(`[Supabase] Saving ${aggregatedWorkouts.length} aggregated workouts (from ${workouts.length}) for ${source}...`);
+    console.log(`[Supabase] Saving ${workouts.length} raw workouts for ${source}...`);
 
     const supabase = createAdminClient();
 
@@ -578,7 +576,7 @@ export class SupabaseDatabase {
       return details as Json;
     };
 
-    const toUpsertRaw = aggregatedWorkouts.map((w) => ({
+    const toUpsertRaw = workouts.map((w) => ({
       source: w.source,
       course_code: w.courseCode,
       category: w.category,
@@ -612,6 +610,8 @@ export class SupabaseDatabase {
       deduplicatedMap.set(key, item);
     });
     const toUpsert = Array.from(deduplicatedMap.values());
+
+    console.log(`[Supabase] Upserting ${toUpsert.length} workouts with onConflict: source,course_code`);
 
     // Batch upsert in chunks of 500
     const BATCH_SIZE = 500;

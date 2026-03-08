@@ -65,6 +65,27 @@ describe("aggregateWorkoutCoursesByName", () => {
     });
   });
 
+  test("prefers an available aggregate status when grouped variants include bookable rows", () => {
+    const input: WorkoutCourse[] = [
+      createWorkoutCourse({ courseCode: "SP-100-A", bookingStatus: "fully_booked" }),
+      createWorkoutCourse({ courseCode: "SP-100-B", bookingStatus: "available", dayOfWeek: "Wed", startTime: "18:00", endTime: "19:00" }),
+      createWorkoutCourse({ courseCode: "SP-100-C", bookingStatus: "expired", dayOfWeek: "Fri", startTime: "08:00", endTime: "09:00" }),
+    ];
+
+    const output = aggregateWorkoutCoursesByName(input);
+
+    expect(output).toHaveLength(1);
+    expect(output[0].bookingStatus).toBe("available");
+    expect(output[0].details).toMatchObject({
+      aggregatedVariants: 3,
+      aggregatedEntries: [
+        expect.objectContaining({ bookingStatus: "fully_booked" }),
+        expect.objectContaining({ bookingStatus: "available" }),
+        expect.objectContaining({ bookingStatus: "expired" }),
+      ],
+    });
+  });
+
   test("does not merge different workout names", () => {
     const input: WorkoutCourse[] = [
       createWorkoutCourse({ title: "Yoga", titleEn: "Yoga", courseCode: "SP-1" }),
