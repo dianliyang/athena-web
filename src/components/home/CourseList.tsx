@@ -61,6 +61,7 @@ export default function CourseList({
   const isLoadingRef = useRef(false);
   const scrollGenerationRef = useRef(0);
   const lastLoadScrollGenerationRef = useRef(0);
+  const lastScrollTopRef = useRef<number | null>(null);
   const [selectedCourseIds, setSelectedCourseIds] = useState<number[]>([]);
   const [actionLoadingIds, setActionLoadingIds] = useState<
     Record<number, boolean>
@@ -80,6 +81,7 @@ export default function CourseList({
     isLoadingRef.current = false;
     scrollGenerationRef.current = 0;
     lastLoadScrollGenerationRef.current = 0;
+    lastScrollTopRef.current = null;
     setSelectedCourseIds([]);
   }, [initialCourses, currentPage]);
 
@@ -186,22 +188,33 @@ export default function CourseList({
 
   const effectiveViewMode: "list" | "grid" = isMobileViewport ? "grid" : viewMode;
 
-  const requestNextPage = useCallback(() => {
+  const canScrollMore = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return true;
+    return container.scrollHeight > container.clientHeight + 1;
+  }, []);
+
+  const requestNextPage = useCallback((force = false) => {
     if (
       isLoadingRef.current ||
       pageRef.current >= totalPages ||
-      scrollGenerationRef.current <= lastLoadScrollGenerationRef.current
+      (!force && scrollGenerationRef.current <= lastLoadScrollGenerationRef.current)
     ) {
       return;
     }
 
-    lastLoadScrollGenerationRef.current = scrollGenerationRef.current;
+    if (!force) {
+      lastLoadScrollGenerationRef.current = scrollGenerationRef.current;
+    }
     void loadMore();
   }, [loadMore, totalPages]);
 
   const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
     const target = event.currentTarget;
-    scrollGenerationRef.current += 1;
+    if (lastScrollTopRef.current !== target.scrollTop) {
+      scrollGenerationRef.current += 1;
+      lastScrollTopRef.current = target.scrollTop;
+    }
 
     const remaining = target.scrollHeight - target.scrollTop - target.clientHeight;
     if (remaining <= 320) {
@@ -215,8 +228,14 @@ export default function CourseList({
     const observer = new IntersectionObserver(
       (entries) => {
         const isIntersecting = entries[0]?.isIntersecting === true;
-        if (isIntersecting && scrollGenerationRef.current > 0) {
-          requestNextPage();
+        if (!isIntersecting) return;
+
+        if (
+          scrollGenerationRef.current === 0 &&
+          lastLoadScrollGenerationRef.current === 0 &&
+          !canScrollMore()
+        ) {
+          requestNextPage(true);
         }
       },
       {
@@ -231,7 +250,7 @@ export default function CourseList({
     }
 
     return () => observer.disconnect();
-  }, [requestNextPage, page, totalPages, effectiveViewMode]);
+  }, [canScrollMore, requestNextPage, page, totalPages, effectiveViewMode]);
   const refParams = searchParams.toString();
 
   const toggleSelectAll = (checked: boolean) => {

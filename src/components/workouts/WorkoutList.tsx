@@ -15,6 +15,7 @@ import { useAppToast } from "@/components/common/AppToastProvider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { WorkoutPrice } from "./WorkoutPrice";
 import {
   Card,
   CardAction,
@@ -653,11 +654,15 @@ export default function WorkoutList({
                                 )}
                               </div>
 
-                              <div className={`text-sm space-y-0.5 ${isSemesterFeeChoice ? "lg:text-left xl:text-right" : "lg:text-right"}`}>
-                                <p className="text-muted-foreground font-medium">Student: €{formatPrice(w.priceStudent)}</p>
-                                <p className="text-muted-foreground/60 text-[10px]">
-                                  Staff: €{formatPrice(w.priceStaff)}
-                                </p>
+                              <div className={`text-sm ${isSemesterFeeChoice ? "lg:text-left xl:text-right" : "lg:text-right"}`}>
+                                <WorkoutPrice
+                                  priceStudent={w.priceStudent}
+                                  priceStaff={w.priceStaff}
+                                  priceExternal={w.priceExternal}
+                                  priceExternalReduced={w.priceExternalReduced}
+                                  className={isSemesterFeeChoice ? "items-start xl:items-end" : "items-end"}
+                                  triggerClassName={isSemesterFeeChoice ? "xl:ml-auto" : "ml-auto"}
+                                />
                               </div>
 
                               <div className={`flex ${isSemesterFeeChoice ? "justify-start xl:justify-end" : "justify-end"}`}>
@@ -824,9 +829,14 @@ export default function WorkoutList({
                       </CardHeader>
                       <CardFooter className="mt-auto text-xs text-muted-foreground">
                         <Badge className={statusClass}>{statusLabel}</Badge>
-                        <p className="ml-auto font-medium text-foreground">
-                          €{formatPrice(workout.priceStudent)}
-                        </p>
+                        <WorkoutPrice
+                          priceStudent={workout.priceStudent}
+                          priceStaff={workout.priceStaff}
+                          priceExternal={workout.priceExternal}
+                          priceExternalReduced={workout.priceExternalReduced}
+                          className="ml-auto items-end"
+                          triggerClassName="ml-auto"
+                        />
                       </CardFooter>
                     </Card>
                   );

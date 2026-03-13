@@ -9,6 +9,7 @@ const observerInstances: MockIntersectionObserver[] = [];
 
 class MockIntersectionObserver {
   callback: IntersectionObserverCallback;
+  disconnected = false;
 
   constructor(callback: IntersectionObserverCallback) {
     this.callback = callback;
@@ -17,7 +18,9 @@ class MockIntersectionObserver {
 
   observe() {}
 
-  disconnect() {}
+  disconnect() {
+    this.disconnected = true;
+  }
 
   unobserve() {}
 
@@ -26,6 +29,7 @@ class MockIntersectionObserver {
   }
 
   trigger(isIntersecting: boolean) {
+    if (this.disconnected) return;
     this.callback(
       [{ isIntersecting } as IntersectionObserverEntry],
       this as unknown as IntersectionObserver,
@@ -256,7 +260,7 @@ describe("CourseList infinite scroll", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     await waitFor(() => {
-      expect(view.getByText("Data Structures")).toBeDefined();
+      expect(view.getAllByText("Data Structures").length).toBeGreaterThan(0);
     });
 
     await act(async () => {
@@ -270,5 +274,64 @@ describe("CourseList infinite scroll", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("loads the next page when the sentinel is already visible and the list cannot scroll yet", async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        items: [
+          {
+            id: 2,
+            title: "Data Structures",
+            courseCode: "CS-102",
+            university: "Test U",
+            url: "https://example.com/2",
+            description: "Second course",
+            popularity: 1,
+            isHidden: false,
+            fields: [],
+            semesters: ["Spring 2026"],
+          },
+        ],
+      }),
+    } as Response);
+
+    render(
+      <CourseList
+        initialCourses={[
+          {
+            id: 1,
+            title: "Algorithms",
+            courseCode: "CS-101",
+            university: "Test U",
+            url: "https://example.com/1",
+            description: "Intro course",
+            popularity: 1,
+            isHidden: false,
+            fields: [],
+            semesters: ["Spring 2026"],
+          },
+        ]}
+        totalPages={3}
+        currentPage={1}
+        perPage={20}
+        initialEnrolledIds={[]}
+        dict={{} as never}
+        filterUniversities={[]}
+        filterSemesters={[]}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(observerInstances.length).toBeGreaterThan(0);
+    });
+
+    await act(async () => {
+      observerInstances[0].trigger(true);
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith("/api/courses?page=2&size=20&q=&sort=title&enrolled=false&universities=&levels=&semesters=");
   });
 });

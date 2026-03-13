@@ -2,11 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { Workout } from "@/types";
-import { Bell, Check, ChevronDown, ChevronUp, Clock, ExternalLink, Info, MapPin, Plus } from "lucide-react";
+import { Bell, Check, ChevronDown, ChevronUp, Clock, ExternalLink, MapPin, Plus } from "lucide-react";
 import { Dictionary } from "@/lib/dictionary";
 import { formatWorkoutBookingOpensTime } from "@/lib/workout-reminders";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";import { Card } from "@/components/ui/card";
+import { WorkoutPrice, getPrimaryWorkoutPriceLabel } from "./WorkoutPrice";
 
 interface WorkoutCardProps {
   workout: Workout;
@@ -189,18 +190,12 @@ export default function WorkoutCard({
   const duration = typeof workout.details?.duration === "string" ?
   workout.details.duration :
   workout.startDate && workout.endDate ? `${workout.startDate} - ${workout.endDate}` : "-";
-  const price = workout.priceStudent == null ? "-" : Number(workout.priceStudent).toFixed(2);
+  const price = getPrimaryWorkoutPriceLabel(workout);
   const actionHref = workout.bookingUrl || workout.url || null;
   const isEnrolled = Boolean(workout.enrolled);
   const bookingOpenTime = formatWorkoutBookingOpensTime(workout.details);
   const showReminderAction = workout.bookingStatus === "scheduled";
   const isReminderSent = Boolean(reminderSentAt);
-  const priceDetails = [
-  workout.priceStudent != null ? { label: "Student", value: Number(workout.priceStudent).toFixed(2) } : null,
-  workout.priceStaff != null ? { label: "Staff", value: Number(workout.priceStaff).toFixed(2) } : null,
-  workout.priceExternal != null ? { label: "External", value: Number(workout.priceExternal).toFixed(2) } : null,
-  workout.priceExternalReduced != null ? { label: "External (reduced)", value: Number(workout.priceExternalReduced).toFixed(2) } : null].
-  filter((item): item is {label: string;value: string;} => item !== null);
 
   if (viewMode === "list") {
     const rowBg = rowIndex % 2 === 0 ? "bg-[#fcfcfc]" : "bg-[#f7f7f7]";
@@ -215,7 +210,7 @@ export default function WorkoutCard({
               <p className="text-xs text-[#7a7a7a] truncate">{displayCategory}</p>
               <div className="mt-1.5 flex flex-wrap items-center gap-1.5 md:hidden">
                 <Badge className="bg-[#efefef] px-1.5 py-0.5 text-[10px] font-medium text-[#666]">{schedule}</Badge>
-                <Badge className="bg-[#efefef] px-1.5 py-0.5 text-[10px] font-medium text-[#666]">{price}</Badge>
+                <Badge className="bg-[#efefef] px-1.5 py-0.5 text-[10px] font-medium text-[#666]">Price {price}</Badge>
                 <Badge className={`px-1.5 py-0.5 text-[10px] font-medium ${statusClass}`}>{statusLabel}</Badge>
                 {showReminderAction && bookingOpenTime ? (
                   <Badge className="bg-[#efefef] px-1.5 py-0.5 text-[10px] font-medium text-[#666]">
@@ -230,7 +225,7 @@ export default function WorkoutCard({
               <p className="text-xs text-[#7a7a7a] truncate">{displayCategory}</p>
               <div className="mt-1.5 flex flex-wrap items-center gap-1.5 md:hidden">
                 <Badge className="bg-[#efefef] px-1.5 py-0.5 text-[10px] font-medium text-[#666]">{schedule}</Badge>
-                <Badge className="bg-[#efefef] px-1.5 py-0.5 text-[10px] font-medium text-[#666]">{price}</Badge>
+                <Badge className="bg-[#efefef] px-1.5 py-0.5 text-[10px] font-medium text-[#666]">Price {price}</Badge>
                 <Badge className={`px-1.5 py-0.5 text-[10px] font-medium ${statusClass}`}>{statusLabel}</Badge>
                 {showReminderAction && bookingOpenTime ? (
                   <Badge className="bg-[#efefef] px-1.5 py-0.5 text-[10px] font-medium text-[#666]">
@@ -256,9 +251,17 @@ export default function WorkoutCard({
             null}
           </div>
           <div className="w-[18%] hidden md:block text-sm text-[#484848] truncate">{displayLocation}</div>
-          <div className="w-[10%] hidden md:flex items-center justify-end gap-1 pr-1 text-sm text-[#484848] text-right">
-            <span>{price}</span>
-            <PriceHelpButton priceDetails={priceDetails} />
+          <div className="w-[10%] hidden md:flex justify-end pr-1 text-right">
+            <WorkoutPrice
+              priceStudent={workout.priceStudent}
+              priceStaff={workout.priceStaff}
+              priceExternal={workout.priceExternal}
+              priceExternalReduced={workout.priceExternalReduced}
+              className="items-end"
+              labelClassName="text-[10px] text-[#8a8a8a]"
+              valueClassName="text-sm text-[#484848]"
+              triggerClassName="ml-auto"
+            />
           </div>
 
           <div className="w-[12%] hidden md:block">
@@ -350,11 +353,15 @@ export default function WorkoutCard({
           </p>
         </div>
         <div className=" bg-white px-2 py-1.5 text-[12px] text-[#555]">
-          <p className="text-[10px] uppercase tracking-wide text-[#9a9a9a]">Price</p>
-          <p className="mt-0.5 inline-flex items-center gap-1">
-            <span className="text-[13px] font-medium text-[#3b3b3b]">{price}</span>
-            <PriceHelpButton priceDetails={priceDetails} />
-          </p>
+          <WorkoutPrice
+            priceStudent={workout.priceStudent}
+            priceStaff={workout.priceStaff}
+            priceExternal={workout.priceExternal}
+            priceExternalReduced={workout.priceExternalReduced}
+            className="mt-0.5"
+            labelClassName="text-[10px] text-[#9a9a9a]"
+            valueClassName="text-[13px] text-[#3b3b3b]"
+          />
         </div>
       </div>
 
@@ -415,33 +422,4 @@ export default function WorkoutCard({
           />
         </div>}
     </Card>);
-
-}
-
-function PriceHelpButton({ priceDetails }: {priceDetails: Array<{label: string;value: string;}>;}) {
-  if (priceDetails.length === 0) return null;
-
-  return (
-    <div className="relative inline-flex group/help">
-      <Button variant="outline" size="icon"
-      type="button"
-      aria-label="Price details">
-
-        
-        <Info />
-      </Button>
-
-      <Card>
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-[#8a8a8a] mb-1">Price details</p>
-        <div className="space-y-0.5">
-          {priceDetails.map((item) =>
-          <p key={item.label} className="flex items-center justify-between gap-3 text-[11px] text-[#555]">
-              <span>{item.label}</span>
-              <span className="text-right font-medium text-[#444]">{item.value}</span>
-            </p>
-          )}
-        </div>
-      </Card>
-    </div>);
-
 }

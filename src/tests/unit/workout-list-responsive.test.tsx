@@ -236,6 +236,49 @@ describe("WorkoutList responsive behavior", () => {
     expect(replaceStateMock).toHaveBeenCalled();
   });
 
+  test("shows a Price label for workout choices and falls back when student pricing is missing", async () => {
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      writable: true,
+      value: 1280,
+    });
+
+    const { default: WorkoutList } = await import("@/components/workouts/WorkoutList");
+    const fallbackWorkout: Workout = {
+      ...workout,
+      id: 4,
+      priceStudent: null,
+      priceStaff: 22,
+      priceExternal: 30,
+      priceExternalReduced: null,
+    };
+
+    render(
+      <WorkoutList
+        initialWorkouts={[fallbackWorkout]}
+        initialWorkoutTracking={{}}
+        dict={dict}
+        categoryGroups={[
+          {
+            category: "Cardio",
+            count: 1,
+            minStudentPrice: null,
+            maxStudentPrice: null,
+          },
+        ]}
+        selectedCategory="Cardio"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId("workout-list-header").at(-1)?.textContent).toContain("mode:list");
+    });
+
+    expect(screen.getAllByText("Price").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("€22.00").length).toBeGreaterThan(0);
+    expect(screen.queryByText(/^Student:/)).toBeNull();
+  });
+
   test("shows reminder instead of enroll for scheduled workouts and displays booking open time", async () => {
     Object.defineProperty(window, "innerWidth", {
       configurable: true,
