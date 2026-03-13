@@ -13,21 +13,23 @@ export async function GET() {
   const user = await getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const supabase = await createClient();
-  const { data: profile } = await supabase
+  const { data: profileRaw } = await supabase
     .from("profiles")
-    .select("ai_provider, ai_default_model")
+    .select("ai_provider, ai_default_model, openai_api_key, perplexity_api_key, gemini_api_key")
     .eq("id", user.id)
     .maybeSingle();
+  
+  const profile = profileRaw as any; // eslint-disable-line @typescript-eslint/no-explicit-any
 
   const checksByProvider: Record<ProviderKey, Record<string, boolean>> = {
     openai: {
-      OPENAI_API_KEY: isSet(process.env.OPENAI_API_KEY),
+      OPENAI_API_KEY: isSet(profile?.openai_api_key || process.env.OPENAI_API_KEY),
     },
     gemini: {
-      GEMINI_API_KEY: isSet(process.env.GEMINI_API_KEY),
+      GEMINI_API_KEY: isSet(profile?.gemini_api_key || process.env.GEMINI_API_KEY),
     },
     perplexity: {
-      PERPLEXITY_API_KEY: isSet(process.env.PERPLEXITY_API_KEY),
+      PERPLEXITY_API_KEY: isSet(profile?.perplexity_api_key || process.env.PERPLEXITY_API_KEY),
     },
   };
 
@@ -51,7 +53,8 @@ export async function GET() {
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
       if (provider === "perplexity") {
-        if (!isSet(process.env.PERPLEXITY_API_KEY)) {
+        const apiKey = profile?.perplexity_api_key || process.env.PERPLEXITY_API_KEY;
+        if (!isSet(apiKey)) {
           return { ok: false, status: null, reason: "PERPLEXITY_API_KEY missing" };
         }
         const preferredModel =
@@ -60,7 +63,7 @@ export async function GET() {
             : "sonar";
         const res = await fetch("https://api.perplexity.ai/chat/completions", {
           method: "POST",
-          headers: { Authorization: `Bearer ${process.env.PERPLEXITY_API_KEY}` },
+          headers: { Authorization: `Bearer ${apiKey}` },
           body: JSON.stringify({
             model: preferredModel,
             messages: [{ role: "user", content: "ping" }],
@@ -84,11 +87,12 @@ export async function GET() {
       }
 
       if (provider === "openai") {
-        if (!isSet(process.env.OPENAI_API_KEY)) {
+        const apiKey = profile?.openai_api_key || process.env.OPENAI_API_KEY;
+        if (!isSet(apiKey)) {
           return { ok: false, status: null, reason: "OPENAI_API_KEY missing" };
         }
         const res = await fetch("https://api.openai.com/v1/models", {
-          headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
+          headers: { Authorization: `Bearer ${apiKey}` },
           cache: "no-store",
           signal: controller.signal,
         });
@@ -99,10 +103,11 @@ export async function GET() {
         };
       }
 
-      if (!isSet(process.env.GEMINI_API_KEY)) {
+      const geminiApiKey = profile?.gemini_api_key || process.env.GEMINI_API_KEY;
+      if (!isSet(geminiApiKey)) {
         return { ok: false, status: null, reason: "GEMINI_API_KEY missing" };
       }
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(process.env.GEMINI_API_KEY || "")}`;
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(geminiApiKey || "")}`;
       const res = await fetch(endpoint, { cache: "no-store", signal: controller.signal });
       return {
         ok: res.ok,

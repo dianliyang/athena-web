@@ -104,7 +104,7 @@ export default async function IdentityPage() {
         </div>
       </section>
 
-      <section className="flex flex-col gap-6">
+      <section className="flex flex-wrap items-stretch gap-6">
         <SecurityIdentitySection view="identity" provider={provider} githubProfile={githubProfile} />
         <SecurityIdentitySection view="account" provider={provider} />
       </section>

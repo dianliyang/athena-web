@@ -21,17 +21,34 @@ import {
   toIsoDateUtc,
 } from "@/lib/ai/course-intel-plan";
 
-const perplexity = createOpenAI({
-  apiKey: process.env.PERPLEXITY_API_KEY || "",
-  baseURL: "https://api.perplexity.ai",
-});
-const openai = createOpenAI({
-  apiKey: process.env.OPENAI_API_KEY || "",
-});
-const localOpenAICompatible = createOpenAI({
-  apiKey: process.env.LOCAL_LLM_API_KEY || "local",
-  baseURL: process.env.LOCAL_LLM_BASE_URL || "",
-});
+/**
+ * Helper to get the correct API key for a provider, prioritizing user profile
+ * and falling back to environment variables.
+ */
+function getProviderApiKey(provider: string, profile: any): string { // eslint-disable-line @typescript-eslint/no-explicit-any
+  if (provider === "openai") {
+    return profile?.openai_api_key || process.env.OPENAI_API_KEY || "";
+  }
+  if (provider === "perplexity") {
+    return profile?.perplexity_api_key || process.env.PERPLEXITY_API_KEY || "";
+  }
+  if (provider === "gemini") {
+    return profile?.gemini_api_key || process.env.GEMINI_API_KEY || "";
+  }
+  return "";
+}
+
+function createAiClient(provider: string, profile: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+  const apiKey = getProviderApiKey(provider, profile);
+  if (provider === "perplexity") {
+    return createOpenAI({
+      apiKey,
+      baseURL: "https://api.perplexity.ai",
+    });
+  }
+  // Default to standard OpenAI or compatible
+  return createOpenAI({ apiKey });
+}
 
 type AssignmentKind = "assignment" | "lab" | "exam" | "project" | "quiz" | "other";
 
@@ -1512,10 +1529,12 @@ async function generateDailyPlanWithModel(params: {
   provider: "perplexity" | "openai" | "gemini" | "local";
   modelName: string;
   prompt: string;
+  profile: any; // eslint-disable-line @typescript-eslint/no-explicit-any
 }): Promise<string> {
-  const { provider, modelName, prompt } = params;
+  const { provider, modelName, prompt, profile } = params;
   if (provider === "gemini") {
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelName)}:generateContent?key=${encodeURIComponent(process.env.GEMINI_API_KEY || "")}`;
+    const apiKey = getProviderApiKey("gemini", profile);
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelName)}:generateContent?key=${encodeURIComponent(apiKey)}`;
     const res = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1536,12 +1555,9 @@ async function generateDailyPlanWithModel(params: {
     const parts = Array.isArray(content.parts) ? (content.parts as Array<Record<string, unknown>>) : [];
     return parts.map((p) => (typeof p.text === "string" ? p.text : "")).join("");
   }
+  const aiClient = createAiClient(provider, profile);
   const out = await generateText({
-    model: provider === "openai"
-      ? openai.chat(modelName)
-      : provider === "local"
-        ? localOpenAICompatible.chat(modelName)
-        : perplexity.chat(modelName),
+    model: aiClient.chat(modelName),
     prompt,
     maxOutputTokens: 8000,
   });
@@ -1605,11 +1621,13 @@ async function generateCourseMetadataWithModel(params: {
   provider: "perplexity" | "openai" | "gemini" | "local";
   modelName: string;
   prompt: string;
+  profile: any; // eslint-disable-line @typescript-eslint/no-explicit-any
 }): Promise<{ description: string | null; subdomain: string | null; topics: string[] }> {
   const text = await generateDailyPlanWithModel({
     provider: params.provider,
     modelName: params.modelName,
     prompt: params.prompt,
+    profile: params.profile,
   });
   const parsed = parseLenientJson(text);
   const fromParsed = extractMetadataFromAny(parsed);
@@ -2147,11 +2165,13 @@ export async function runCourseIntel(
   mark("loaded_course");
   await emitProgress("load", "Loaded course record.", 5);
 
-  const { data: profile } = await supabase
+  const { data: profileRaw } = await supabase
     .from("profiles")
-    .select("ai_provider, ai_web_search_enabled, ai_default_model, ai_course_intel_prompt_template, ai_course_update_prompt_template, ai_syllabus_prompt_template")
+    .select("ai_provider, ai_web_search_enabled, ai_default_model, ai_course_intel_prompt_template, ai_course_update_prompt_template, ai_syllabus_prompt_template, openai_api_key, perplexity_api_key, gemini_api_key")
     .eq("id", userId)
     .maybeSingle();
+  
+  const profile = profileRaw as any; // eslint-disable-line @typescript-eslint/no-explicit-any
 
   const template = String(profile?.ai_course_intel_prompt_template || "").trim()
     || [
@@ -2179,14 +2199,15 @@ export async function runCourseIntel(
   const webSearchEnabled = executionMode === "deterministic" ? true : Boolean(profile?.ai_web_search_enabled);
   const provider: "perplexity" | "openai" | "gemini" | "local" =
     executionMode === "local" ? "local" : preferredProvider;
-  if (llmEnabled && provider === "openai" && !process.env.OPENAI_API_KEY) {
-    throw new Error("AI service not configured: OPENAI_API_KEY missing");
+  const apiKey = getProviderApiKey(provider, profile);
+  if (llmEnabled && provider === "openai" && !apiKey) {
+    throw new Error("AI service not configured: OpenAI key missing");
   }
-  if (llmEnabled && provider === "gemini" && !process.env.GEMINI_API_KEY) {
-    throw new Error("AI service not configured: GEMINI_API_KEY missing");
+  if (llmEnabled && provider === "gemini" && !apiKey) {
+    throw new Error("AI service not configured: Gemini key missing");
   }
-  if (llmEnabled && provider === "perplexity" && !process.env.PERPLEXITY_API_KEY) {
-    throw new Error("AI service not configured: PERPLEXITY_API_KEY missing");
+  if (llmEnabled && provider === "perplexity" && !apiKey) {
+    throw new Error("AI service not configured: Perplexity key missing");
   }
   if (executionMode === "local" && !process.env.LOCAL_LLM_BASE_URL) {
     throw new Error("AI service not configured: LOCAL_LLM_BASE_URL missing");
@@ -2302,6 +2323,7 @@ export async function runCourseIntel(
           provider,
           modelName,
           prompt: metadataPrompt,
+          profile,
         });
         if (!description) description = generated.description;
         if (!subdomain) subdomain = generated.subdomain;
@@ -2452,7 +2474,7 @@ export async function runCourseIntel(
             difficulty: task.difficulty,
           })),
         });
-        const rawPlan = await generateDailyPlanWithModel({ provider, modelName, prompt: planPrompt });
+        const rawPlan = await generateDailyPlanWithModel({ provider, modelName, prompt: planPrompt, profile });
         const parsedPlan = parseLenientJson(rawPlan);
         const sanitized = clampDailyPlanToRange(
           sanitizeDailyPlan(parsedPlan, planningWindow.startIso),
@@ -2802,7 +2824,8 @@ export async function runCourseIntel(
     let text = "";
     let usage = { inputTokens: 0, outputTokens: 0 };
     if (provider === "gemini") {
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelName)}:generateContent?key=${encodeURIComponent(process.env.GEMINI_API_KEY || "")}`;
+      const apiKey = getProviderApiKey("gemini", profile);
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelName)}:generateContent?key=${encodeURIComponent(apiKey)}`;
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -2830,12 +2853,9 @@ export async function runCourseIntel(
         outputTokens: Number(usageMetadata.candidatesTokenCount || 0),
       };
     } else {
+      const aiClient = createAiClient(provider, profile);
       const out = await generateText({
-        model: provider === "openai"
-          ? openai.chat(modelName)
-          : provider === "local"
-            ? localOpenAICompatible.chat(modelName)
-            : perplexity.chat(modelName),
+        model: aiClient.chat(modelName),
         prompt: promptOverride || prompt,
         maxOutputTokens,
       });
@@ -2981,7 +3001,7 @@ export async function runCourseIntel(
           difficulty: task.difficulty,
         })),
       });
-      const rawPlan = await generateDailyPlanWithModel({ provider, modelName, prompt: planPrompt });
+      const rawPlan = await generateDailyPlanWithModel({ provider, modelName, prompt: planPrompt, profile });
       const parsedPlan = parseLenientJson(rawPlan);
       const sanitized = clampDailyPlanToRange(
         sanitizeDailyPlan(parsedPlan, planningWindow.startIso),

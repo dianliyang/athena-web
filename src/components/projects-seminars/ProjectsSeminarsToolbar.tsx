@@ -43,6 +43,21 @@ export default function ProjectsSeminarsToolbar({
   const [isMobileViewport, setIsMobileViewport] = useState(false);
 
   useEffect(() => {
+    const saved = localStorage.getItem("athena_sp_filters");
+    const current = searchParams.toString();
+    if (saved && !current) {
+      router.replace(`?${saved}`, { scroll: false });
+    }
+  }, [router, searchParams]);
+
+  useEffect(() => {
+    const current = searchParams.toString();
+    if (current) {
+      localStorage.setItem("athena_sp_filters", current);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
     const updateViewport = () => setIsMobileViewport(window.innerWidth < 768);
     updateViewport();
     window.addEventListener("resize", updateViewport);

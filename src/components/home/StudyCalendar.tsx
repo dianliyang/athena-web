@@ -959,7 +959,7 @@ export default function StudyCalendar({ courses, scheduleRows, studyPlans = [], 
               const dayHeaderClassNames = getWeekCalendarDayHeaderClassNames(isToday);
 
               return (
-                <div key={key} className="flex-1 relative border-r border-border/50">
+                <div key={key} className={cn("flex-1 relative border-r border-border/50", isToday && "bg-primary/[0.02]")}>
                   {/* Sticky Day Header */}
                   <div
                     className={cn(

@@ -110,6 +110,18 @@ export async function getCachedProfileSettings(userId: string): Promise<Record<s
   return fetchProfileSettings(userId);
 }
 
+export async function getCachedProfileSettingsWithKeys(userId: string): Promise<Record<string, unknown> | null> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*, openai_api_key, perplexity_api_key, gemini_api_key")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error) return null;
+  return data ? JSON.parse(JSON.stringify(data as any)) : null; // eslint-disable-line @typescript-eslint/no-explicit-any
+}
+
 export function invalidateCachedProfileSettings(userId: string) {
   void userId;
 }

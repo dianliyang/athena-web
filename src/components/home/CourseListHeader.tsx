@@ -72,6 +72,21 @@ export default function CourseListHeader({
     searchParams.get("semesters")?.split(",").filter(Boolean) || [];
   const showEnrolledOnly = searchParams.get("enrolled") === "true";
 
+  useEffect(() => {
+    const saved = localStorage.getItem("athena_course_filters");
+    const current = searchParams.toString();
+    if (saved && !current) {
+      router.replace(`?${saved}`, { scroll: false });
+    }
+  }, [router, searchParams]);
+
+  useEffect(() => {
+    const current = searchParams.toString();
+    if (current) {
+      localStorage.setItem("athena_course_filters", current);
+    }
+  }, [searchParams]);
+
   const pushWith = (
     patch: Record<string, string | string[] | boolean | null>,
   ) => {
@@ -159,7 +174,7 @@ export default function CourseListHeader({
     (showEnrolledOnly ? 1 : 0);
 
   return (
-    <div className="flex flex-col gap-2.5">
+    <div className="sticky top-0 z-30 flex flex-col gap-2.5 bg-white/95 backdrop-blur-xl px-4 py-4 border-b shadow-sm -mx-4 mb-2">
       <div className="flex w-full items-center justify-between gap-2 md:flex-row md:items-center md:justify-between">
         <div
           className="flex min-w-0 flex-1 items-center gap-2"

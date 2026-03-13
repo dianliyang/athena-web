@@ -2,7 +2,7 @@
 
 import { Dictionary } from "@/lib/dictionary";
 import { cn } from "@/lib/utils";
-import { LogOut, Power } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface LogoutButtonProps {
@@ -38,8 +38,15 @@ export default function LogoutButton({ showLabel, dict, fullWidth, className }: 
   }
 
   return (
-    <Button variant="outline" size="icon" className={className} onClick={handleLogout} type="button">
-      <Power />
+    <Button
+      variant="ghost"
+      size="icon"
+      className={cn("h-9 w-9 text-sidebar-foreground hover:text-red-600", className)}
+      onClick={handleLogout}
+      type="button"
+      title={dict?.dashboard.identity.sign_out || "Sign Out"}
+    >
+      <LogOut className="h-4 w-4" />
     </Button>
   );
 }

@@ -28,9 +28,11 @@ export function getStorageBaseUrl(): string {
 export function getPublicAssetUrl(filename: string): string {
   const base = getStorageBaseUrl();
   if (!base) return `/${filename}`;
-  // Ensure no leading slash in filename if base is present
-  const cleanFilename = filename.startsWith('/') ? filename.slice(1) : filename;
-  return `${base}/${cleanFilename}`;
+  // User says all images are under / in the bucket, no nested folders.
+  // We extract just the basename if a path like 'brands/openai.svg' is passed.
+  const parts = filename.split('/');
+  const basename = parts[parts.length - 1];
+  return `${base}/${basename}`;
 }
 
 function toSlug(universityName: string): string {

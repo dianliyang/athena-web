@@ -69,33 +69,10 @@ class MockIntersectionObserver {
 }
 
 vi.stubGlobal("IntersectionObserver", MockIntersectionObserver);
-
 function triggerIntersection(isIntersecting: boolean) {
   act(() => {
     observerCallback([{ isIntersecting }] as IntersectionObserverEntry[]);
   });
-}
-
-function stubScrollMetrics(element: HTMLElement, metrics: {
-  scrollTop: number;
-  scrollHeight: number;
-  clientHeight: number;
-}) {
-  Object.defineProperty(element, "scrollTop", {
-    configurable: true,
-    writable: true,
-    value: metrics.scrollTop,
-  });
-  Object.defineProperty(element, "scrollHeight", {
-    configurable: true,
-    value: metrics.scrollHeight,
-  });
-  Object.defineProperty(element, "clientHeight", {
-    configurable: true,
-    value: metrics.clientHeight,
-  });
-  // Trigger scroll event to update virtualizer
-  fireEvent.scroll(element);
 }
 
 describe("CourseList infinite scroll", () => {

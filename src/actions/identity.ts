@@ -68,6 +68,34 @@ export async function updateAiPreferences(input: {
   invalidateCachedProfileSettings(user.id);
 }
 
+export async function updateAiApiKeys(input: {
+  openai?: string;
+  perplexity?: string;
+  gemini?: string;
+}) {
+  const user = await getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const supabase = await createClient();
+  const update: Record<string, string> = {
+    updated_at: new Date().toISOString(),
+  };
+
+  if (input.openai !== undefined) update.openai_api_key = input.openai;
+  if (input.perplexity !== undefined) update.perplexity_api_key = input.perplexity;
+  if (input.gemini !== undefined) update.gemini_api_key = input.gemini;
+
+  const { error } = await supabase
+    .from("profiles")
+    .update(update)
+    .eq("id", user.id);
+
+  if (error) throw new Error(error.message || "Failed to update API keys");
+
+  revalidatePath("/settings");
+  invalidateCachedProfileSettings(user.id);
+}
+
 export async function upsertAiModelPricing(input: {
   provider: string;
   model: string;

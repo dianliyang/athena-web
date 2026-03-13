@@ -13,6 +13,43 @@ const DAY_MAP: Record<string, string> = {
   So: "Sun",
 };
 
+/**
+ * Deduplicates segments of a location string like:
+ * "Beach-Volleyballplatz 1, Olshausenstr. 70, 24118 Kiel; Beach-Volleyballplatz 2, Olshausenstr. 70, 24118 Kiel"
+ * -> "Beach-Volleyballplatz 1, Beach-Volleyballplatz 2, Olshausenstr. 70, 24118 Kiel"
+ */
+function deduplicateLocationString(input: string): string {
+  if (!input.includes(';')) return input;
+  
+  const entries = input.split(';').map(s => s.trim()).filter(Boolean);
+  if (entries.length <= 1) return input;
+
+  const allSubSegments = entries.map(entry => entry.split(',').map(s => s.trim()).filter(Boolean));
+  
+  // Find common trailing segments
+  const reversedSegments = allSubSegments.map(segs => [...segs].reverse());
+  const commonTrailing: string[] = [];
+  
+  const minLen = Math.min(...reversedSegments.map(r => r.length));
+  for (let i = 0; i < minLen; i++) {
+    const candidate = reversedSegments[0][i];
+    if (reversedSegments.every(r => r[i] === candidate)) {
+      commonTrailing.push(candidate);
+    } else {
+      break;
+    }
+  }
+
+  if (commonTrailing.length === 0) return input;
+
+  const uniqueLeading = allSubSegments.map(segs => {
+    return segs.slice(0, segs.length - commonTrailing.length).join(', ');
+  }).filter(Boolean);
+
+  const finalTrailing = [...commonTrailing].reverse().join(', ');
+  return `${uniqueLeading.join(', ')}, ${finalTrailing}`;
+}
+
 // German → English translation map for categories, titles, and locations
 const DE_EN: Record<string, string> = {
   // --- Categories / Sports ---
@@ -988,10 +1025,12 @@ export class CAUSport extends BaseScraper {
           ? parseBookingAvailability(bookingLabel, semester, finalStartDate || undefined)
           : {};
 
-        const uniqueLocations = [...new Set(scheduleEntries.map(s => s.location))].join(", ");
-        const resolvedLocation = durationPageMetadata.locations.length > 0
-          ? durationPageMetadata.locations.join("; ")
-          : uniqueLocations;
+        const uniqueLocations = [...new Set(scheduleEntries.map(s => s.location))].join("; ");
+        const resolvedLocation = deduplicateLocationString(
+          durationPageMetadata.locations.length > 0
+            ? durationPageMetadata.locations.join("; ")
+            : uniqueLocations
+        );
 
         results.push({
           source: "CAU Kiel Sportzentrum",

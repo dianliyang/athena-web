@@ -1,12 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import { AlertTriangle, Fingerprint, Github, Mail, ShieldCheck, Trash2 } from "lucide-react";
+import { AlertTriangle, Fingerprint, Github, Mail, ShieldCheck, Trash2, ExternalLink } from "lucide-react";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import {
   Card,
@@ -86,122 +85,140 @@ export default function SecurityIdentitySection({
 
   if (view === "identity") {
     return (
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <Card className="flex flex-col h-full">
+      <div className="flex flex-wrap items-stretch gap-4 w-full">
+        {/* Core Identity */}
+        <Card className="flex flex-col min-w-[300px] flex-1">
           <CardHeader>
             <div className="flex items-center gap-2">
               <Fingerprint className="h-4 w-4 text-muted-foreground" />
-              <CardTitle>Active Identity</CardTitle>
+              <CardTitle>Core Identity</CardTitle>
             </div>
             <CardDescription>
-              Authentication and verification status for your account.
+              Primary authentication anchor.
             </CardDescription>
           </CardHeader>
-          <CardContent className="mt-auto space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Provider</span>
-              <span className="text-sm font-medium">{normalizeProvider(provider)}</span>
+          <CardContent className="mt-auto space-y-4">
+            <div className="flex items-center justify-between p-3 rounded-lg border bg-slate-50/50">
+              <div className="space-y-0.5">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Provider</p>
+                <p className="text-sm font-medium">{normalizeProvider(provider)}</p>
+              </div>
+              <div className="size-8 rounded-md bg-white border shadow-sm flex items-center justify-center">
+                {provider === "github" ? <Github className="size-4" /> : <Mail className="size-4" />}
+              </div>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Status</span>
-              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-600">
-                <ShieldCheck className="h-4 w-4" />
-                Verified
-              </span>
+            <div className="flex items-center justify-between p-3 rounded-lg border border-emerald-100 bg-emerald-50/30">
+              <div className="space-y-0.5">
+                <p className="text-[10px] text-emerald-700/70 uppercase tracking-widest font-bold">Status</p>
+                <p className="text-sm font-semibold text-emerald-700">Verified Access</p>
+              </div>
+              <ShieldCheck className="h-5 w-5 text-emerald-500" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="flex flex-col h-full">
+        {/* GitHub Integration */}
+        <Card className="flex flex-col min-w-[340px] flex-1">
           <CardHeader>
             <div className="flex items-center gap-2">
               <Github className="h-4 w-4 text-muted-foreground" />
-              <CardTitle>GitHub Profile</CardTitle>
+              <CardTitle>Developer Node</CardTitle>
             </div>
             <CardDescription>
-              Read-only developer identity snapshot connected through GitHub OAuth.
+              Connected GitHub developer profile.
             </CardDescription>
           </CardHeader>
-          <CardContent className="mt-auto space-y-3">
+          <CardContent className="mt-auto flex-1">
             {githubProfile ? (
-              <>
-                <div className="flex items-center gap-3">
-                  {githubProfile.avatar_url ? (
-                    <Image
-                      src={githubProfile.avatar_url}
-                      alt={`${githubProfile.login || githubProfile.name || "GitHub"} avatar`}
-                      className="h-10 w-10 rounded-full border object-cover"
-                      width={40}
-                      height={40}
-                      unoptimized
-                    />
-                  ) : null}
+              <div className="space-y-4 h-full flex flex-col justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="relative size-12 shrink-0 overflow-hidden rounded-xl border-2 border-white shadow-md bg-muted">
+                    {githubProfile.avatar_url ? (
+                      <Image
+                        src={githubProfile.avatar_url}
+                        alt="Avatar"
+                        fill
+                        className="object-cover"
+                        unoptimized
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-stone-100 text-stone-400">
+                        <Github className="size-6" />
+                      </div>
+                    )}
+                  </div>
                   <div className="min-w-0">
-                    {githubProfile.name ? (
-                      <p className="truncate text-sm font-medium">{githubProfile.name}</p>
-                    ) : null}
-                    <p className="truncate text-sm text-muted-foreground">{githubProfile.login || "GitHub"}</p>
+                    <p className="truncate text-sm font-bold text-foreground">
+                      {githubProfile.name || githubProfile.login}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground font-mono">@{githubProfile.login}</p>
                   </div>
                 </div>
-                {githubProfile.bio ? (
-                  <p className="text-sm text-muted-foreground">{githubProfile.bio}</p>
-                ) : null}
-                {githubProfile.company ? (
-                  <p className="text-sm text-muted-foreground">{githubProfile.company}</p>
-                ) : null}
-                {githubProfile.profile_url ? (
-                  <Button asChild variant="outline" className="w-full justify-center">
-                    <a
-                      href={githubProfile.profile_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      aria-label="View GitHub Profile"
-                    >
-                      View GitHub Profile
-                    </a>
-                  </Button>
-                ) : null}
-                <p className="text-xs text-muted-foreground">
-                  Synced {new Date(githubProfile.updated_at).toLocaleString()}
-                </p>
-              </>
+                
+                {githubProfile.bio && (
+                  <p className="text-xs text-muted-foreground line-clamp-2 italic leading-relaxed">
+                    &quot;{githubProfile.bio}&quot;
+                  </p>
+                )}
+
+                <div className="pt-2 border-t flex items-center justify-between">
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-tight">Synced {new Date(githubProfile.updated_at).toLocaleDateString()}</span>
+                  {githubProfile.profile_url && (
+                    <Button asChild variant="link" size="sm" className="h-auto p-0 text-brand-blue">
+                      <a href={githubProfile.profile_url} target="_blank" rel="noreferrer">
+                        View Profile <ExternalLink className="ml-1 size-3" />
+                      </a>
+                    </Button>
+                  )}
+                </div>
+              </div>
             ) : (
-              <>
-                <p className="text-sm text-muted-foreground">
-                  Connect GitHub to display your public profile inside Athena.
-                </p>
+              <div className="flex flex-col items-center justify-center py-4 text-center space-y-4">
+                <div className="size-10 rounded-full bg-slate-50 flex items-center justify-center border border-dashed">
+                  <Github className="size-5 text-muted-foreground" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-stone-600">No developer node linked.</p>
+                  <p className="text-[10px] text-muted-foreground">Connect GitHub to enable developer workflows.</p>
+                </div>
                 <Button
                   variant="outline"
+                  size="sm"
                   onClick={handleConnectGitHub}
                   disabled={isPending}
-                  className="w-full justify-center"
+                  className="w-full"
                 >
-                  <Github className="h-4 w-4" />
                   Connect GitHub
                 </Button>
-              </>
+              </div>
             )}
           </CardContent>
         </Card>
 
-        <Card className="flex flex-col h-full">
+        {/* System Communication */}
+        <Card className="flex flex-col min-w-[300px] flex-1">
           <CardHeader>
             <div className="flex items-center gap-2">
               <Mail className="h-4 w-4 text-muted-foreground" />
-              <CardTitle>Communication</CardTitle>
+              <CardTitle>System Logic</CardTitle>
             </div>
             <CardDescription>
-              Notification routing for security and account events.
+              Notification and alert routing.
             </CardDescription>
           </CardHeader>
-          <CardContent className="mt-auto space-y-3">
-            <p className="text-sm text-muted-foreground">
-              System notifications and security alerts are dispatched through your authentication
-              provider endpoint.
+          <CardContent className="mt-auto space-y-4">
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              Critical system alerts and security protocols are dispatched to your primary anchor.
             </p>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Alerts</span>
-              <Badge variant="secondary">Active</Badge>
+            <div className="flex items-center justify-between p-3 rounded-lg border bg-slate-50/50">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-stone-500">Alert State</span>
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span className="text-[10px] font-bold uppercase text-emerald-700">Active</span>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -210,34 +227,43 @@ export default function SecurityIdentitySection({
   }
 
   return (
-    <Card className="flex flex-col h-full border-rose-100 bg-rose-50/10">
-      <CardHeader>
-        <div className="flex items-center gap-2 text-rose-600">
-          <AlertTriangle className="h-4 w-4" />
-          <CardTitle>Danger Zone</CardTitle>
+    <Card className="w-full border-rose-100 bg-rose-50/5 overflow-hidden">
+      <div className="flex flex-col md:flex-row items-stretch">
+        <div className="p-6 flex-1">
+          <div className="flex items-center gap-2 text-rose-600 mb-2">
+            <AlertTriangle className="h-4 w-4" />
+            <CardTitle className="text-lg">Danger Zone</CardTitle>
+          </div>
+          <CardDescription className="mb-6">
+            Systems operations that involve permanent data destruction.
+          </CardDescription>
+          
+          <div className="space-y-4">
+            <div className="flex items-start gap-3 p-4 rounded-xl border border-rose-100 bg-rose-50/30">
+              <div className="space-y-1">
+                <p className="text-sm font-bold text-rose-950 uppercase tracking-tight">System Purge</p>
+                <p className="text-xs text-rose-900/70 leading-relaxed">
+                  Purging your account will immediately delete all enrolled courses, study plans, cognitive fingerprints, and usage history. 
+                  <span className="block mt-1 font-bold">This operation is final and irreversible.</span>
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
-        <CardDescription>
-          Irreversible account operations.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="mt-auto flex flex-col gap-3 md:flex-row md:items-center md:justify-between pt-4">
-        <div className="space-y-1">
-          <h4 className="text-sm font-medium text-rose-600">Delete Account</h4>
-          <p className="max-w-xl text-sm text-muted-foreground">
-            This will permanently purge your profile, enrollment history, and scheduling data.
-            This operation is irreversible.
-          </p>
+        
+        <div className="bg-rose-50/30 border-t md:border-t-0 md:border-l border-rose-100 p-6 flex flex-col justify-center items-center gap-4 min-w-[240px]">
+          <p className="text-[10px] font-bold text-rose-900/50 uppercase tracking-[0.2em]">Authorized Access Only</p>
+          <Button 
+            variant="outline" 
+            onClick={handleDeleteAccount} 
+            disabled={isPending}
+            className="w-full border-rose-200 text-rose-600 hover:bg-rose-600 hover:text-white transition-all duration-300 font-bold uppercase tracking-widest text-[10px] h-12 shadow-sm"
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Purge Account
+          </Button>
         </div>
-        <Button 
-          variant="outline" 
-          onClick={handleDeleteAccount} 
-          disabled={isPending}
-          className="border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 shrink-0"
-        >
-          <Trash2 className="mr-2 h-4 w-4" />
-          Purge Account
-        </Button>
-      </CardContent>
+      </div>
     </Card>
   );
 }

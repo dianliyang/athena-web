@@ -13,9 +13,8 @@ vi.mock("next/image", () => ({
   default: ({
     alt,
     src,
-    unoptimized: _unoptimized,
     ...props
-  }: React.ImgHTMLAttributes<HTMLImageElement> & { src: string; unoptimized?: boolean }) => <img alt={alt} src={src} {...props} />, // eslint-disable-line @next/next/no-img-element, @typescript-eslint/no-unused-vars
+  }: React.ImgHTMLAttributes<HTMLImageElement> & { src: string }) => <img alt={alt} src={src} {...props} />, // eslint-disable-line @next/next/no-img-element
 }));
 
 vi.mock("@/lib/supabase/client", () => ({

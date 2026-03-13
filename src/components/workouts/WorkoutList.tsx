@@ -457,7 +457,7 @@ export default function WorkoutList({
       />
 
       <div
-        className={`mt-3 ${isListMode ? "min-h-0 flex-1 overflow-hidden" : "overflow-visible"}`}
+        className={`${isListMode ? "min-h-0 flex-1 overflow-hidden" : "overflow-visible"} px-4`}
         data-testid="workout-list-content"
       >
         {effectiveViewMode === "list" ? (

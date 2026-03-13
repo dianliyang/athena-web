@@ -64,7 +64,7 @@ export default function CourseList({
 
   const LIST_ROW_HEIGHT = 88;
   const GRID_CARD_HEIGHT = 260;
-  const GRID_GAP = 12;
+  const GRID_GAP = 24;
 
   useEffect(() => {
     const savedMode = localStorage.getItem("courseViewMode");
@@ -278,7 +278,7 @@ export default function CourseList({
   ];
 
   return (
-    <main className="flex h-full min-h-0 min-w-0 flex-col gap-3">
+    <main className="flex h-full min-h-0 min-w-0 flex-col gap-0">
       <CourseListHeader
         viewMode={effectiveViewMode}
         setViewMode={handleViewModeChange}
@@ -289,14 +289,14 @@ export default function CourseList({
 
       <div
         ref={parentRef}
-        className="min-h-0 flex-1 overflow-y-auto relative"
+        className="min-h-0 flex-1 overflow-y-auto px-4"
         data-testid="course-scroll-container"
       >
         {effectiveViewMode === "list" ? (
           <div className="min-w-full inline-block align-middle">
             <div className="border rounded-md">
               <Table>
-                <TableHeader className="sticky top-0 z-20 bg-white border-b shadow-sm">
+                <TableHeader className="bg-slate-50/50 border-b">
                   <TableRow className="flex items-center">
                     <TableHead className={`${COLUMNS[0].width} flex items-center justify-center`}>
                       <Checkbox
@@ -443,14 +443,18 @@ export default function CourseList({
                   className="px-0.5" // Slight padding to avoid focus ring cut-offs
                 >
                   {rowCourses.map((course) => (
+                  <div
+                    key={course.id}
+                    className="h-full transition-all duration-300 hover:translate-y-[-4px] hover:shadow-lg rounded-xl"
+                  >
                     <CourseCard
-                      key={course.id}
                       course={course}
                       isInitialEnrolled={enrolledIds.includes(course.id)}
                       onEnrollToggle={fetchEnrolled}
                       onHide={handleHide}
                       viewMode="grid"
                     />
+                  </div>
                   ))}
                 </div>
               );
