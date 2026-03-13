@@ -119,7 +119,7 @@ describe("workout reminder qstash route chaining", () => {
         reminderAt: "2026-03-25T10:00:00.000Z",
       },
       notBefore: new Date("2026-03-20T10:00:00.000Z"),
-      deduplicationId: "workout-reminder:user_1:42:2026-03-20T10:00:00.000Z",
+      deduplicationId: "workout-reminder-user_1-42-2026-03-20T10-00-00.000Z",
     });
     expect(supabase.updateMatchMock).toHaveBeenCalledWith({
       user_id: "user_1",
@@ -163,7 +163,7 @@ describe("workout reminder qstash route chaining", () => {
         reminderAt: "2026-03-18T10:15:00.000Z",
       },
       notBefore: new Date("2026-03-18T10:15:00.000Z"),
-      deduplicationId: "workout-reminder:user_1:42:2026-03-18T10:15:00.000Z",
+      deduplicationId: "workout-reminder-user_1-42-2026-03-18T10-15-00.000Z",
     });
   });
 });

@@ -924,6 +924,29 @@ export function mapCourseFromRow(
   };
 }
 
+export async function getWorkoutProviders(): Promise<Array<{ name: string; count: number }>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("workouts")
+    .select("source");
+
+  if (error) {
+    console.error("[Supabase] Error fetching workout providers:", error);
+    return [];
+  }
+
+  const counts = (data || []).reduce((acc, row) => {
+    const source = String(row.source || "").trim();
+    if (!source) return acc;
+    acc[source] = (acc[source] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  return Object.entries(counts)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
 export function mapWorkoutFromRow(row: any): Workout { // eslint-disable-line @typescript-eslint/no-explicit-any
   const rawDetails = row.details as Record<string, unknown> | null;
   const plannedDates = Array.isArray(rawDetails?.plannedDates) ? rawDetails.plannedDates : [];

@@ -66,7 +66,7 @@ export default function SystemMaintenanceCard() {
       ttlMs: 60_000,
       init: jobsFetchInit,
     });
-  const recentJobs = Array.isArray(recentJobsPayload?.items) ? recentJobsPayload.items : [];
+  const recentJobs = Array.isArray(recentJobsPayload?.items) ? recentJobsPayload.items.slice(0, 5) : [];
 
   useEffect(() => {
     const supabase = createBrowserSupabaseClient();

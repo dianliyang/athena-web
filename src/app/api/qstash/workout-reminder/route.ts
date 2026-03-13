@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
               reminderAt: reminderAt.toISOString(),
             },
             notBefore: nextScheduleAt,
-            deduplicationId: `workout-reminder:${body.userId}:${body.workoutId}:${nextScheduleAt.toISOString()}`,
+            deduplicationId: `workout-reminder-${body.userId}-${body.workoutId}-${nextScheduleAt.toISOString().replace(/:/g, "-")}`,
           });
 
           const { error: updateScheduleError } = await supabase

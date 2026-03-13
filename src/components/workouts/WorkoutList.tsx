@@ -36,6 +36,7 @@ interface WorkoutListProps {
     maxStudentPrice: number | null;
   }>;
   selectedCategory: string;
+  initialProviders: Array<{ name: string; count: number }>;
 }
 
 type WorkoutRefreshSource = "cau-sport" | "urban-apes";
@@ -194,6 +195,7 @@ export default function WorkoutList({
   dict,
   categoryGroups,
   selectedCategory,
+  initialProviders,
 }: WorkoutListProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -211,6 +213,7 @@ export default function WorkoutList({
   const [trackingByWorkoutId, setTrackingByWorkoutId] = useState<Record<number, WorkoutTrackingState>>(
     initialWorkoutTracking,
   );
+  const [providers, setProviders] = useState(initialProviders);
   const [pendingEnrollIds, setPendingEnrollIds] = useState<Record<number, boolean>>({});
   const [pendingReminderIds, setPendingReminderIds] = useState<Record<number, boolean>>({});
   const [isMobileViewport, setIsMobileViewport] = useState(false);
@@ -318,14 +321,6 @@ export default function WorkoutList({
   const selectedProviders = Array.from(
     new Set(selectedGroup.items.map((item) => item.source).filter(Boolean)),
   );
-  const providerOptions = Array.from(
-    workouts.reduce((map, workout) => {
-      if (!workout.source) return map;
-      map.set(workout.source, (map.get(workout.source) || 0) + 1);
-      return map;
-    }, new Map<string, number>()),
-    ([name, count]) => ({ name, count }),
-  ).sort((a, b) => a.name.localeCompare(b.name));
 
   const formatPrice = (value: number | null) =>
     value == null ? "-" : Number(value).toFixed(2);
@@ -356,6 +351,10 @@ export default function WorkoutList({
     setActiveCategory(selectedCategory);
     setExpandedGridCategory(selectedCategory || null);
   }, [selectedCategory]);
+
+  useEffect(() => {
+    setProviders(initialProviders);
+  }, [initialProviders]);
 
   useEffect(() => {
     if (!searchParams.get("category") && selectedCategory) {
@@ -454,7 +453,7 @@ export default function WorkoutList({
         isRefreshing={isRefreshing}
         refreshingCategory={refreshingCategory}
         refreshList={(options) => refreshSources(options?.sources ?? ["cau-sport"])}
-        providers={providerOptions}
+        providers={providers}
       />
 
       <div

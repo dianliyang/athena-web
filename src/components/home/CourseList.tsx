@@ -1,15 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Course, EnrolledCoursesResponse } from "@/types";
 import { Dictionary } from "@/lib/dictionary";
 import CourseCard from "./CourseCard";
 import CourseListHeader from "./CourseListHeader";
 import { useAppToast } from "@/components/common/AppToastProvider";
 import { Check, Loader2, UserPlus } from "lucide-react";
-import {
-  toggleCourseEnrollmentAction,
-} from "@/actions/courses";
+import { toggleCourseEnrollmentAction } from "@/actions/courses";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -23,7 +21,7 @@ import {
 } from "@/components/ui/table";
 import UniversityIcon from "@/components/common/UniversityIcon";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
 interface CourseListProps {
   initialCourses: Course[];
@@ -55,23 +53,18 @@ export default function CourseList({
   const [isBulkEnrolling, setIsBulkEnrolling] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const { showToast } = useAppToast();
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  
+  const parentRef = useRef<HTMLDivElement>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  
   const pageRef = useRef(currentPage);
   const isLoadingRef = useRef(false);
-  const lastRequestedCourseCountRef = useRef(0);
-  const hasBootstrappedInitialLoadRef = useRef(false);
   const [selectedCourseIds, setSelectedCourseIds] = useState<number[]>([]);
-  const [actionLoadingIds, setActionLoadingIds] = useState<
-    Record<number, boolean>
-  >({});
-  const [scrollTop, setScrollTop] = useState(0);
-  const [containerSize, setContainerSize] = useState({ height: 0, width: 0, scrollHeight: 0 });
+  const [actionLoadingIds, setActionLoadingIds] = useState<Record<number, boolean>>({});
 
   const LIST_ROW_HEIGHT = 88;
   const GRID_CARD_HEIGHT = 260;
   const GRID_GAP = 12;
-  const OVERSCAN_ROWS = 4;
-  const LOAD_MORE_THRESHOLD_ITEMS = 8;
 
   useEffect(() => {
     const savedMode = localStorage.getItem("courseViewMode");
@@ -85,10 +78,6 @@ export default function CourseList({
     setPage(currentPage);
     pageRef.current = currentPage;
     isLoadingRef.current = false;
-    lastRequestedCourseCountRef.current = 0;
-    hasBootstrappedInitialLoadRef.current = false;
-    setScrollTop(0);
-    setContainerSize((prev) => ({ ...prev, scrollHeight: 0 }));
     setSelectedCourseIds([]);
   }, [initialCourses, currentPage]);
 
@@ -98,14 +87,8 @@ export default function CourseList({
     window.addEventListener("resize", updateViewport);
     return () => window.removeEventListener("resize", updateViewport);
   }, []);
-  const visibleCourseIds = courses.map((course) => course.id);
-  const selectedVisibleCount = visibleCourseIds.filter((id) =>
-    selectedCourseIds.includes(id),
-  ).length;
-  const allVisibleSelected =
-    visibleCourseIds.length > 0 &&
-    selectedVisibleCount === visibleCourseIds.length;
-  const hasPartialSelection = selectedVisibleCount > 0 && !allVisibleSelected;
+
+  const effectiveViewMode: "list" | "grid" = isMobileViewport ? "grid" : viewMode;
 
   const handleViewModeChange = (mode: "list" | "grid") => {
     setViewMode(mode);
@@ -122,28 +105,6 @@ export default function CourseList({
     setCourses((prev) => prev.filter((c) => c.id !== courseId));
     setSelectedCourseIds((prev) => prev.filter((id) => id !== courseId));
     showToast({ message: "Course hidden successfully", type: "success" });
-  };
-
-  const handleBulkEnroll = async () => {
-    if (selectedCourseIds.length < 2 || isBulkEnrolling) return;
-    const idsToEnroll = selectedCourseIds.filter((id) => !enrolledIds.includes(id));
-    if (idsToEnroll.length === 0) return;
-    setIsBulkEnrolling(true);
-    try {
-      await Promise.all(idsToEnroll.map((id) => toggleCourseEnrollmentAction(id, false)));
-      await fetchEnrolled();
-      showToast({
-        type: "success",
-        message: `Enrolled ${idsToEnroll.length} course(s).`,
-      });
-    } catch (error) {
-      showToast({
-        type: "error",
-        message: error instanceof Error ? error.message : "Bulk enroll failed.",
-      });
-    } finally {
-      setIsBulkEnrolling(false);
-    }
   };
 
   const loadMore = useCallback(async () => {
@@ -193,123 +154,54 @@ export default function CourseList({
     }
   }, [totalPages, searchParams, perPage]);
 
-  const effectiveViewMode: "list" | "grid" = isMobileViewport ? "grid" : viewMode;
-
-  const updateContainerMetrics = useCallback(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-    setContainerSize((prev) => {
-      const next = {
-        height: container.clientHeight,
-        width: container.clientWidth,
-        scrollHeight: container.scrollHeight,
-      };
-      return prev.height === next.height && prev.width === next.width && prev.scrollHeight === next.scrollHeight
-        ? prev
-        : next;
-    });
-  }, []);
-
+  // Infinite scroll observer
   useEffect(() => {
-    updateContainerMetrics();
-    const handleResize = () => updateContainerMetrics();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, [updateContainerMetrics]);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          void loadMore();
+        }
+      },
+      { threshold: 0.1, rootMargin: "400px" }
+    );
 
-  useEffect(() => {
-    updateContainerMetrics();
-  }, [courses.length, effectiveViewMode, updateContainerMetrics]);
-
-  const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
-    const target = event.currentTarget;
-    const threshold = effectiveViewMode === "list"
-      ? LIST_ROW_HEIGHT * 2
-      : (GRID_CARD_HEIGHT + GRID_GAP) * 2;
-    const isNearTail = target.scrollTop + target.clientHeight >= target.scrollHeight - threshold;
-
-    setScrollTop(target.scrollTop);
-    setContainerSize((prev) => {
-      const next = {
-        height: target.clientHeight,
-        width: target.clientWidth,
-        scrollHeight: target.scrollHeight,
-      };
-      return prev.height === next.height && prev.width === next.width && prev.scrollHeight === next.scrollHeight
-        ? prev
-        : next;
-    });
-    if (!isNearTail) return;
-    if (isLoadingRef.current || pageRef.current >= totalPages) return;
-    if (lastRequestedCourseCountRef.current === courses.length) return;
-    lastRequestedCourseCountRef.current = courses.length;
-    void loadMore();
-  }, [courses.length, effectiveViewMode, loadMore, totalPages]);
-
-  const gridColumnCount = effectiveViewMode === "grid"
-    ? containerSize.width >= 1280
-      ? 3
-      : containerSize.width >= 768
-        ? 2
-        : 1
-    : 1;
-
-  const virtualListRowCount = courses.length;
-  const visibleListRows = containerSize.height > 0
-    ? Math.ceil(containerSize.height / LIST_ROW_HEIGHT) + OVERSCAN_ROWS * 2
-    : virtualListRowCount;
-  const virtualListStart = Math.max(0, Math.floor(scrollTop / LIST_ROW_HEIGHT) - OVERSCAN_ROWS);
-  const virtualListEnd = Math.min(virtualListRowCount, virtualListStart + visibleListRows);
-  const visibleListCourses = courses.slice(virtualListStart, virtualListEnd);
-  const listTopSpacerHeight = virtualListStart * LIST_ROW_HEIGHT;
-  const listBottomSpacerHeight = Math.max(0, (virtualListRowCount - virtualListEnd) * LIST_ROW_HEIGHT);
-
-  const virtualGridRowCount = Math.ceil(courses.length / gridColumnCount);
-  const gridRowHeight = GRID_CARD_HEIGHT + GRID_GAP;
-  const visibleGridRows = containerSize.height > 0
-    ? Math.ceil(containerSize.height / gridRowHeight) + OVERSCAN_ROWS * 2
-    : virtualGridRowCount;
-  const virtualGridStartRow = Math.max(0, Math.floor(scrollTop / gridRowHeight) - OVERSCAN_ROWS);
-  const virtualGridEndRow = Math.min(virtualGridRowCount, virtualGridStartRow + visibleGridRows);
-  const visibleGridCourses = courses.slice(virtualGridStartRow * gridColumnCount, virtualGridEndRow * gridColumnCount);
-  const gridTopSpacerHeight = virtualGridStartRow * gridRowHeight;
-  const gridBottomSpacerHeight = Math.max(0, (virtualGridRowCount - virtualGridEndRow) * gridRowHeight);
-
-  const visibleTailIndex = effectiveViewMode === "list"
-    ? virtualListEnd
-    : virtualGridEndRow * gridColumnCount;
-  const loadMoreThresholdPx = effectiveViewMode === "list"
-    ? LIST_ROW_HEIGHT * 2
-    : gridRowHeight * 2;
-  const hasMeasuredScrollContainer = containerSize.height > 0 && containerSize.scrollHeight > 0;
-  const isScrollable = hasMeasuredScrollContainer && containerSize.scrollHeight > containerSize.height + 1;
-  const isNearActualTail = hasMeasuredScrollContainer &&
-    scrollTop + containerSize.height >= containerSize.scrollHeight - loadMoreThresholdPx;
-
-  useEffect(() => {
-    if (isLoadingRef.current || pageRef.current >= totalPages) return;
-    if (courses.length === 0) return;
-
-    const isNearVirtualTail = visibleTailIndex >= courses.length - LOAD_MORE_THRESHOLD_ITEMS;
-    if (!isNearActualTail && !isNearVirtualTail) return;
-
-    const hasScrolled = scrollTop > 0;
-    if (!hasScrolled) {
-      if (isScrollable) return;
-      if (hasBootstrappedInitialLoadRef.current) return;
-      hasBootstrappedInitialLoadRef.current = true;
+    const currentLoadMore = loadMoreRef.current;
+    if (currentLoadMore) {
+      observer.observe(currentLoadMore);
     }
 
-    if (lastRequestedCourseCountRef.current === courses.length) return;
-    lastRequestedCourseCountRef.current = courses.length;
-    void loadMore();
-  }, [courses.length, isNearActualTail, isScrollable, loadMore, scrollTop, totalPages, visibleTailIndex]);
+    return () => {
+      if (currentLoadMore) {
+        observer.unobserve(currentLoadMore);
+      }
+    };
+  }, [loadMore]);
 
-  const refParams = searchParams.toString();
+  // Virtualization
+  const gridColumnCount = useMemo(() => {
+    if (effectiveViewMode !== "grid") return 1;
+    if (typeof window === "undefined") return 3;
+    if (window.innerWidth >= 1280) return 3;
+    if (window.innerWidth >= 768) return 2;
+    return 1;
+  }, [effectiveViewMode]);
+
+  const rowCount = effectiveViewMode === "list" 
+    ? courses.length 
+    : Math.ceil(courses.length / gridColumnCount);
+
+  const rowVirtualizer = useVirtualizer({
+    count: rowCount,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => (effectiveViewMode === "list" ? LIST_ROW_HEIGHT : GRID_CARD_HEIGHT + GRID_GAP),
+    overscan: 10,
+  });
+
+  const virtualItems = rowVirtualizer.getVirtualItems();
 
   const toggleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedCourseIds(visibleCourseIds);
+      setSelectedCourseIds(courses.map(c => c.id));
       return;
     }
     setSelectedCourseIds([]);
@@ -343,6 +235,48 @@ export default function CourseList({
     }
   };
 
+  const handleBulkEnroll = async () => {
+    if (selectedCourseIds.length < 2 || isBulkEnrolling) return;
+    const idsToEnroll = selectedCourseIds.filter((id) => !enrolledIds.includes(id));
+    if (idsToEnroll.length === 0) return;
+    setIsBulkEnrolling(true);
+    try {
+      await Promise.all(idsToEnroll.map((id) => toggleCourseEnrollmentAction(id, false)));
+      await fetchEnrolled();
+      showToast({
+        type: "success",
+        message: `Enrolled ${idsToEnroll.length} course(s).`,
+      });
+    } catch (error) {
+      showToast({
+        type: "error",
+        message: error instanceof Error ? error.message : "Bulk enroll failed.",
+      });
+    } finally {
+      setIsBulkEnrolling(false);
+    }
+  };
+
+  const visibleCourseIds = courses.map((course) => course.id);
+  const selectedVisibleCount = visibleCourseIds.filter((id) =>
+    selectedCourseIds.includes(id),
+  ).length;
+  const allVisibleSelected =
+    visibleCourseIds.length > 0 &&
+    selectedVisibleCount === visibleCourseIds.length;
+  const hasPartialSelection = selectedVisibleCount > 0 && !allVisibleSelected;
+  const refParams = searchParams.toString();
+
+  // Column layout for list view
+  const COLUMNS = [
+    { key: "select", width: "w-[48px]", shrink: 0 },
+    { key: "course", width: "flex-1 min-w-0" },
+    { key: "subdomain", width: "w-[180px]", shrink: 0, className: "hidden lg:table-cell" },
+    { key: "credit", width: "w-[80px]", shrink: 0, className: "hidden sm:table-cell" },
+    { key: "semester", width: "w-[120px]", shrink: 0, className: "hidden md:table-cell" },
+    { key: "actions", width: "w-[100px]", shrink: 0 },
+  ];
+
   return (
     <main className="flex h-full min-h-0 min-w-0 flex-col gap-3">
       <CourseListHeader
@@ -353,193 +287,196 @@ export default function CourseList({
         filterSemesters={filterSemesters}
       />
 
-      {effectiveViewMode === "list" ? (
-        <div
-          ref={scrollContainerRef}
-          className="min-h-0 flex-1 overflow-y-auto"
-          onScroll={handleScroll}
-          data-testid="course-scroll-container"
-        >
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>
-                  <Checkbox
-                    checked={
-                      allVisibleSelected ||
-                      (hasPartialSelection ? "indeterminate" : false)
-                    }
-                    onCheckedChange={(checked) =>
-                      toggleSelectAll(checked === true)
-                    }
-                    aria-label="Select all courses"
-                  />
-                </TableHead>
-                <TableHead>Course</TableHead>
-                <TableHead>Subdomain</TableHead>
-                <TableHead>Credit</TableHead>
-                <TableHead>Semester</TableHead>
-                <TableHead className="text-right">
-                  <div className="flex items-center justify-end gap-2">
-                    <span>Actions</span>
-                    {selectedCourseIds.length >= 2 ? (
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="size-7"
-                        type="button"
-                        onClick={handleBulkEnroll}
-                        disabled={
-                          isBulkEnrolling ||
-                          selectedCourseIds.every((id) => enrolledIds.includes(id))
-                        }
-                        title="Enroll selected courses"
-                        aria-label="Enroll selected courses"
-                      >
-                        {isBulkEnrolling ? <Loader2 className="size-3.5 animate-spin" /> : <UserPlus className="size-3.5" />}
-                      </Button>
-                    ) : null}
-                  </div>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {listTopSpacerHeight > 0 ? (
-                <TableRow aria-hidden="true">
-                  <TableCell colSpan={6} style={{ height: listTopSpacerHeight, padding: 0 }} />
-                </TableRow>
-              ) : null}
-              {visibleListCourses.map((course) => {
-                const latestSemester = getLatestSemesterLabel(
-                  course.semesters || [],
-                );
-                const detailHref = `/courses/${course.id}${refParams ? `?refParams=${encodeURIComponent(refParams)}` : ""}`;
-                const isEnrolled = enrolledIds.includes(course.id);
-                const isRowLoading = Boolean(actionLoadingIds[course.id]);
-                const primaryField = course.subdomain || course.fields?.[0];
-
-                return (
-                  <TableRow key={course.id}>
-                    <TableCell>
+      <div
+        ref={parentRef}
+        className="min-h-0 flex-1 overflow-y-auto relative"
+        data-testid="course-scroll-container"
+      >
+        {effectiveViewMode === "list" ? (
+          <div className="min-w-full inline-block align-middle">
+            <div className="border rounded-md">
+              <Table>
+                <TableHeader className="sticky top-0 z-20 bg-white border-b shadow-sm">
+                  <TableRow className="flex items-center">
+                    <TableHead className={`${COLUMNS[0].width} flex items-center justify-center`}>
                       <Checkbox
-                        checked={selectedCourseIds.includes(course.id)}
-                        onCheckedChange={(checked) =>
-                          toggleSelectOne(course.id, checked === true)
+                        checked={
+                          allVisibleSelected ||
+                          (hasPartialSelection ? "indeterminate" : false)
                         }
-                        aria-label={`Select ${course.title}`}
+                        onCheckedChange={(checked) =>
+                          toggleSelectAll(checked === true)
+                        }
+                        aria-label="Select all courses"
                       />
-                    </TableCell>
-                    <TableCell>
-                      <Link href={detailHref} prefetch={false} className="block">
-                        <div className="min-w-0 flex items-start gap-3">
-                          <UniversityIcon
-                            name={course.university}
-                            size={26}
-                            className="bg-white border border-[#dfdfdf]"
-                          />
-                          <div className="min-w-0">
-                            <h2 className="text-[14px] md:text-[15px] font-medium text-[#2e2e2e] line-clamp-2 md:truncate hover:text-black transition-colors">
-                              {course.title}
-                            </h2>
-                            <p className="text-xs text-[#7a7a7a] truncate">
-                              {course.courseCode} · {course.university}
-                            </p>
-                            <div className="mt-1.5 flex flex-wrap items-center gap-1.5 md:hidden">
-                              {latestSemester ? (
-                                <Badge>{latestSemester}</Badge>
-                              ) : null}
-                              {course.credit != null ? (
-                                <Badge>{course.credit} cr</Badge>
-                              ) : null}
-                              {primaryField ? (
-                                <Badge>{primaryField}</Badge>
-                              ) : null}
-                            </div>
-                          </div>
-                        </div>
-                      </Link>
-                    </TableCell>
-                    <TableCell>{course.subdomain || "-"}</TableCell>
-                    <TableCell>{course.credit ?? "-"}</TableCell>
-                    <TableCell>{latestSemester ?? "-"}</TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="size-7"
-                        type="button"
-                        disabled={isRowLoading || isEnrolled}
-                        onClick={() => void runRowEnrollAction(course.id)}
-                        title={isEnrolled ? "Enrolled" : "Enroll"}
-                        aria-label={isEnrolled ? "Enrolled" : "Enroll"}
-                      >
-                        {isRowLoading ? (
-                          <Loader2 className="size-3.5 animate-spin" />
-                        ) : isEnrolled ? (
-                          <Check className="size-3.5" />
-                        ) : (
-                          <UserPlus className="size-3.5" />
-                        )}
-                      </Button>
-                    </TableCell>
+                    </TableHead>
+                    <TableHead className={COLUMNS[1].width}>Course</TableHead>
+                    <TableHead className={`${COLUMNS[2].width} ${COLUMNS[2].className}`}>Subdomain</TableHead>
+                    <TableHead className={`${COLUMNS[3].width} ${COLUMNS[3].className}`}>Credit</TableHead>
+                    <TableHead className={`${COLUMNS[4].width} ${COLUMNS[4].className}`}>Semester</TableHead>
+                    <TableHead className={`${COLUMNS[5].width} text-right flex items-center justify-end pr-4`}>
+                      <div className="flex items-center gap-2">
+                        <span>Actions</span>
+                        {selectedCourseIds.length >= 2 ? (
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="size-7"
+                            type="button"
+                            onClick={handleBulkEnroll}
+                            disabled={
+                              isBulkEnrolling ||
+                              selectedCourseIds.every((id) => enrolledIds.includes(id))
+                            }
+                            title="Enroll selected courses"
+                          >
+                            {isBulkEnrolling ? <Loader2 className="size-3.5 animate-spin" /> : <UserPlus className="size-3.5" />}
+                          </Button>
+                        ) : null}
+                      </div>
+                    </TableHead>
                   </TableRow>
-                );
-              })}
-              {listBottomSpacerHeight > 0 ? (
-                <TableRow aria-hidden="true">
-                  <TableCell colSpan={6} style={{ height: listBottomSpacerHeight, padding: 0 }} />
-                </TableRow>
-              ) : null}
-            </TableBody>
-          </Table>
-          <div className="py-4 flex justify-center">
-            {isLoading && (
-              <Loader2 className="w-5 h-5 text-slate-500 animate-spin" />
-            )}
-            {!isLoading && page >= totalPages && courses.length > 0 && (
-              <span className="text-xs text-slate-400">End of catalog</span>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div
-          ref={scrollContainerRef}
-          className="min-h-0 flex-1 overflow-y-auto py-3"
-          onScroll={handleScroll}
-          data-testid="course-scroll-container"
-        >
-          <div
-            className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3"
-            style={{ paddingTop: gridTopSpacerHeight, paddingBottom: gridBottomSpacerHeight }}
-          >
-            {visibleGridCourses.map((course) => (
-              <CourseCard
-                key={course.id}
-                course={course}
-                isInitialEnrolled={enrolledIds.includes(course.id)}
-                onEnrollToggle={fetchEnrolled}
-                onHide={handleHide}
-                viewMode="grid"
-              />
-            ))}
-          </div>
-          <div className="py-4 flex justify-center">
-            {isLoading && (
-              <Loader2 className="w-5 h-5 text-slate-500 animate-spin" />
-            )}
-            {!isLoading && page >= totalPages && courses.length > 0 && (
-              <span className="text-xs text-slate-400">End of catalog</span>
-            )}
-          </div>
-        </div>
-      )}
+                </TableHeader>
+                <TableBody className="relative" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
+                  {virtualItems.map((virtualRow) => {
+                    const course = courses[virtualRow.index];
+                    if (!course) return null;
+                    
+                    const latestSemester = getLatestSemesterLabel(course.semesters || []);
+                    const detailHref = `/courses/${course.id}${refParams ? `?refParams=${encodeURIComponent(refParams)}` : ""}`;
+                    const isEnrolled = enrolledIds.includes(course.id);
+                    const isRowLoading = Boolean(actionLoadingIds[course.id]);
 
-      {courses.length === 0 && (
-        <div className="text-center py-16">
-          <h3 className="text-sm font-semibold text-slate-900">
+                    return (
+                      <TableRow
+                        key={course.id}
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          width: "100%",
+                          height: `${virtualRow.size}px`,
+                          transform: `translateY(${virtualRow.start}px)`,
+                        }}
+                        className="flex items-center hover:bg-slate-50/50"
+                      >
+                        <TableCell className={`${COLUMNS[0].width} flex items-center justify-center`}>
+                          <Checkbox
+                            checked={selectedCourseIds.includes(course.id)}
+                            onCheckedChange={(checked) =>
+                              toggleSelectOne(course.id, checked === true)
+                            }
+                          />
+                        </TableCell>
+                        <TableCell className={COLUMNS[1].width}>
+                          <Link href={detailHref} prefetch={false} className="block group">
+                            <div className="min-w-0 flex items-start gap-3">
+                              <UniversityIcon
+                                name={course.university}
+                                size={26}
+                                className="bg-white border border-[#dfdfdf] shrink-0"
+                              />
+                              <div className="min-w-0 overflow-hidden">
+                                <h2 className="text-[14px] md:text-[15px] font-medium text-[#2e2e2e] truncate group-hover:text-black transition-colors">
+                                  {course.title}
+                                </h2>
+                                <p className="text-xs text-[#7a7a7a] truncate">
+                                  {course.courseCode} · {course.university}
+                                </p>
+                              </div>
+                            </div>
+                          </Link>
+                        </TableCell>
+                        <TableCell className={`${COLUMNS[2].width} ${COLUMNS[2].className} truncate`}>
+                          {course.subdomain || "-"}
+                        </TableCell>
+                        <TableCell className={`${COLUMNS[3].width} ${COLUMNS[3].className}`}>
+                          {course.credit ?? "-"}
+                        </TableCell>
+                        <TableCell className={`${COLUMNS[4].width} ${COLUMNS[4].className}`}>
+                          {latestSemester ?? "-"}
+                        </TableCell>
+                        <TableCell className={`${COLUMNS[5].width} text-right flex items-center justify-end pr-4`}>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="size-7"
+                            disabled={isRowLoading || isEnrolled}
+                            onClick={() => void runRowEnrollAction(course.id)}
+                          >
+                            {isRowLoading ? <Loader2 className="size-3.5 animate-spin" /> : isEnrolled ? <Check className="size-3.5" /> : <UserPlus className="size-3.5" />}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        ) : (
+          <div
+            className="grid gap-3 relative"
+            style={{
+              height: `${rowVirtualizer.getTotalSize()}px`,
+              width: "100%",
+            }}
+          >
+            {virtualItems.map((virtualRow) => {
+              const rowStart = virtualRow.index * gridColumnCount;
+              const rowCourses = courses.slice(rowStart, rowStart + gridColumnCount);
+
+              return (
+                <div
+                  key={virtualRow.index}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    height: `${virtualRow.size}px`,
+                    transform: `translateY(${virtualRow.start}px)`,
+                    display: "grid",
+                    gridTemplateColumns: `repeat(${gridColumnCount}, minmax(0, 1fr))`,
+                    gap: `${GRID_GAP}px`,
+                  }}
+                  className="px-0.5" // Slight padding to avoid focus ring cut-offs
+                >
+                  {rowCourses.map((course) => (
+                    <CourseCard
+                      key={course.id}
+                      course={course}
+                      isInitialEnrolled={enrolledIds.includes(course.id)}
+                      onEnrollToggle={fetchEnrolled}
+                      onHide={handleHide}
+                      viewMode="grid"
+                    />
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Sentinel for infinite scroll */}
+        <div ref={loadMoreRef} className="h-20 w-full" aria-hidden="true" />
+        
+        <div className="py-6 flex justify-center">
+          {isLoading && <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />}
+          {!isLoading && page >= totalPages && courses.length > 0 && (
+            <span className="text-sm font-medium text-slate-400 bg-slate-50 px-3 py-1 rounded-full border">
+              End of catalog
+            </span>
+          )}
+        </div>
+      </div>
+
+      {courses.length === 0 && !isLoading && (
+        <div className="text-center py-20 bg-slate-50/50 rounded-lg border-2 border-dashed border-slate-200 mx-4">
+          <h3 className="text-base font-semibold text-slate-900">
             {dict?.empty_header || "No matches found"}
           </h3>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-sm text-slate-500 mt-2">
             {dict?.empty_desc || "Try adjusting your current filters."}
           </p>
         </div>

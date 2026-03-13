@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import WorkoutList from "@/components/workouts/WorkoutList";
-import { createClient, getUser, mapWorkoutFromRow } from "@/lib/supabase/server";
+import { createClient, getUser, mapWorkoutFromRow, getWorkoutProviders } from "@/lib/supabase/server";
 import { getLanguage } from "@/actions/language";
 import { getDictionary, Dictionary } from "@/lib/dictionary";
 import { getWorkoutLastUpdateTime } from "@/actions/scrapers";
@@ -14,11 +14,12 @@ interface PageProps {
 }
 
 export default async function WorkoutsPage({ searchParams }: PageProps) {
-  const [lang, params, lastUpdated] = await Promise.all([
-  getLanguage(),
-  searchParams,
-  getWorkoutLastUpdateTime()]
-  );
+  const [lang, params, lastUpdated, initialProviders] = await Promise.all([
+    getLanguage(),
+    searchParams,
+    getWorkoutLastUpdateTime(),
+    getWorkoutProviders(),
+  ]);
   const dict = await getDictionary(lang);
   const formattedUpdate = lastUpdated
     ? new Date(lastUpdated).toLocaleString("en-US", {
@@ -50,16 +51,16 @@ export default async function WorkoutsPage({ searchParams }: PageProps) {
       </div>
       <div className="flex-1 min-h-0">
         <Suspense fallback={null}>
-          <WorkoutListData params={params} dict={dict.dashboard.workouts} />
+          <WorkoutListData params={params} dict={dict.dashboard.workouts} initialProviders={initialProviders} />
         </Suspense>
       </div>
     </div>);
 
 }
-async function WorkoutListData({ params, dict
+async function WorkoutListData({ params, dict, initialProviders
 
 
-}: {params: Record<string, string | string[] | undefined>;dict: Dictionary['dashboard']['workouts'];}) {
+}: {params: Record<string, string | string[] | undefined>;dict: Dictionary['dashboard']['workouts']; initialProviders: Array<{ name: string; count: number }>;}) {
   const user = await getUser();
   const query = params.q as string || "";
   const sort = params.sort as string || "title";
@@ -86,7 +87,8 @@ async function WorkoutListData({ params, dict
       initialWorkoutTracking={dbWorkouts.trackingByWorkoutId}
       dict={dict}
       categoryGroups={dbWorkouts.categoryGroups}
-      selectedCategory={dbWorkouts.selectedCategory} />);
+      selectedCategory={dbWorkouts.selectedCategory}
+      initialProviders={initialProviders} />);
 
 
 }
@@ -107,28 +109,19 @@ userId: string | null)
   select('*', { count: 'exact' });
 
   if (query) {
-    // Transform query for prefix matching (e.g. "swim" -> "swim:*")
-    const formattedQuery = query.
-    trim().
-    split(/\s+/).
-    map((term) => `${term}:*`).
-    join(' & ');
-
-    supabaseQuery = supabaseQuery.textSearch('search_vector', formattedQuery, {
-      config: 'english'
-    });
+    // We'll use a simple or-based match on title/category to ensure better results
+    // in addition to the textSearch, or just rely on a broader filter.
+    // Given Postgres textSearch can be strict, we'll also use ilike for common title matches.
+    supabaseQuery = supabaseQuery.or(`title.ilike.%${query}%,title_en.ilike.%${query}%,category.ilike.%${query}%,category_en.ilike.%${query}%,location.ilike.%${query}%,location_en.ilike.%${query}%`);
   }
 
   if (days.length > 0) {
     supabaseQuery = supabaseQuery.in('day_of_week', days);
   }
 
-  if (selectedProvider) {
-    supabaseQuery = supabaseQuery.eq('source', selectedProvider);
-  }
-
-  // Never filter expired at DB level — we need all statuses to build category groups correctly.
-  // Status filtering is applied in-memory below so fully_booked categories still appear.
+  // Never filter source/provider or category at DB level — we need all statuses 
+  // and all items to build category groups correctly.
+  // Filtering is applied in-memory in buildVisibleWorkoutCategoryState.
 
   // Sorting
   if (sort === 'price') supabaseQuery = supabaseQuery.order('price_student', { ascending: true });else

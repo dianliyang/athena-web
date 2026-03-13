@@ -43,6 +43,39 @@ vi.mock("@/components/home/CourseListHeader", () => ({
   default: () => <div data-testid="course-list-header" />,
 }));
 
+vi.mock("@tanstack/react-virtual", () => ({
+  useVirtualizer: vi.fn(({ count, estimateSize }) => ({
+    getVirtualItems: () => Array.from({ length: count }, (_, index) => ({
+      index,
+      start: index * estimateSize(),
+      size: estimateSize(),
+      key: index,
+    })),
+    getTotalSize: () => count * estimateSize(),
+    scrollToIndex: vi.fn(),
+    scrollToOffset: vi.fn(),
+  })),
+}));
+
+let observerCallback: (entries: IntersectionObserverEntry[]) => void;
+
+class MockIntersectionObserver {
+  constructor(callback: (entries: IntersectionObserverEntry[]) => void) {
+    observerCallback = callback;
+  }
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+}
+
+vi.stubGlobal("IntersectionObserver", MockIntersectionObserver);
+
+function triggerIntersection(isIntersecting: boolean) {
+  act(() => {
+    observerCallback([{ isIntersecting }] as IntersectionObserverEntry[]);
+  });
+}
+
 function stubScrollMetrics(element: HTMLElement, metrics: {
   scrollTop: number;
   scrollHeight: number;
@@ -61,6 +94,8 @@ function stubScrollMetrics(element: HTMLElement, metrics: {
     configurable: true,
     value: metrics.clientHeight,
   });
+  // Trigger scroll event to update virtualizer
+  fireEvent.scroll(element);
 }
 
 describe("CourseList infinite scroll", () => {
@@ -88,7 +123,7 @@ describe("CourseList infinite scroll", () => {
         }),
     );
 
-    const view = render(
+    render(
       <CourseList
         initialCourses={[
           {
@@ -114,16 +149,9 @@ describe("CourseList infinite scroll", () => {
       />,
     );
 
-    const scrollContainer = view.getAllByTestId("course-scroll-container")[0];
-    stubScrollMetrics(scrollContainer, {
-      scrollTop: 800,
-      scrollHeight: 1200,
-      clientHeight: 300,
-    });
-
     await act(async () => {
-      fireEvent.scroll(scrollContainer);
-      fireEvent.scroll(scrollContainer);
+      triggerIntersection(true);
+      triggerIntersection(true);
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -204,15 +232,8 @@ describe("CourseList infinite scroll", () => {
       />,
     );
 
-    const scrollContainer = view.getAllByTestId("course-scroll-container")[0];
-    stubScrollMetrics(scrollContainer, {
-      scrollTop: 800,
-      scrollHeight: 1200,
-      clientHeight: 300,
-    });
-
     await act(async () => {
-      fireEvent.scroll(scrollContainer);
+      triggerIntersection(true);
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -270,11 +291,15 @@ describe("CourseList infinite scroll", () => {
       />,
     );
 
+    // Bootstrap load triggered by visible sentinel
+    await act(async () => {
+      triggerIntersection(true);
+    });
+
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith("/api/courses?page=2&size=20&q=&sort=title&enrolled=false&universities=&levels=&semesters=");
   });
 
@@ -345,6 +370,10 @@ describe("CourseList infinite scroll", () => {
       />,
     );
 
+    await act(async () => {
+      triggerIntersection(true);
+    });
+
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
@@ -401,15 +430,8 @@ describe("CourseList infinite scroll", () => {
       />,
     );
 
-    const scrollContainer = view.getAllByTestId("course-scroll-container")[0];
-    stubScrollMetrics(scrollContainer, {
-      scrollTop: 2600,
-      scrollHeight: 3200,
-      clientHeight: 600,
-    });
-
     await act(async () => {
-      fireEvent.scroll(scrollContainer);
+      triggerIntersection(true);
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);

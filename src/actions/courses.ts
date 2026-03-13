@@ -1823,7 +1823,7 @@ export async function toggleWorkoutReminderAction(workoutId: number, isReminderS
         reminderAt: reminderAt.toISOString(),
       },
       notBefore: firstScheduleAt,
-      deduplicationId: `workout-reminder:${user.id}:${workoutId}:${firstScheduleAt.toISOString()}`,
+      deduplicationId: `workout-reminder-${user.id}-${workoutId}-${firstScheduleAt.toISOString().replace(/:/g, "-")}`,
     });
 
     const { error } = await supabase

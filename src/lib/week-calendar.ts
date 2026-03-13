@@ -90,73 +90,67 @@ export function buildTodayRoutineGroups<T extends TodayRoutineEventLike>(events:
     event.sourceType === "assignment" ? "98:00:00" : event.startTime;
 
   const sorted = [...events].sort((a, b) => getRoutineSortTime(a).localeCompare(getRoutineSortTime(b)) || a.key.localeCompare(b.key));
-  const parentByCourseDate = new Map<string, T>();
+  
+  const explicitParentsByParentKey = new Map<string, T>();
   const eventsByParentKey = new Map<string, T[]>();
 
   for (const event of sorted) {
     const parentKey = getRoutineParentKey(event);
-    const groupedEvents = eventsByParentKey.get(parentKey);
-    if (groupedEvents) groupedEvents.push(event);
-    else eventsByParentKey.set(parentKey, [event]);
+    const list = eventsByParentKey.get(parentKey) || [];
+    list.push(event);
+    eventsByParentKey.set(parentKey, list);
 
     if (isExplicitRoutineParent(event)) {
-      parentByCourseDate.set(getRoutineParentKey(event), event);
+      explicitParentsByParentKey.set(parentKey, event);
     }
   }
 
   const groups: TodayRoutineGroup<T>[] = [];
-  const groupByParentKey = new Map<string, TodayRoutineGroup<T>>();
+  const groupMapByParentKey = new Map<string, TodayRoutineGroup<T>>();
   const consumedKeys = new Set<string>();
 
   for (const event of sorted) {
     if (consumedKeys.has(event.key)) continue;
 
-    const isParentStudyPlan = isExplicitRoutineParent(event);
-    const isCourseScheduleChild = event.sourceType === "study_plan" && event.scheduleId != null;
-    const isCourseAssignmentChild = event.sourceType === "assignment" && event.assignmentId != null;
+    const parentKey = getRoutineParentKey(event);
+    const explicitParent = explicitParentsByParentKey.get(parentKey);
 
-    if (isParentStudyPlan || event.sourceType === "workout") {
-      const group = { parent: event, children: [] };
-      groups.push(group);
-      groupByParentKey.set(event.key, group);
+    if (explicitParent) {
+      let group = groupMapByParentKey.get(parentKey);
+      if (!group) {
+        group = { parent: explicitParent, children: [] };
+        groupMapByParentKey.set(parentKey, group);
+        groups.push(group);
+      }
+
+      if (event.key !== explicitParent.key) {
+        group.children.push(event);
+      }
+      consumedKeys.add(event.key);
+      consumedKeys.add(explicitParent.key); // Ensure parent itself is consumed
+      continue;
+    }
+
+    if (event.sourceType === "workout") {
+      groups.push({ parent: event, children: [] });
       consumedKeys.add(event.key);
       continue;
     }
 
-    if (isCourseScheduleChild || isCourseAssignmentChild) {
-      const siblingEvents = eventsByParentKey.get(getRoutineParentKey(event)) || [];
-      const parent =
-        parentByCourseDate.get(getRoutineParentKey(event)) ||
-        (event.groupKey != null
-          ? sorted.find((candidate) =>
-              candidate.sourceType === "study_plan" &&
-              candidate.planId != null &&
-              candidate.scheduleId == null &&
-              candidate.assignmentId == null &&
-              candidate.groupKey === event.groupKey &&
-              candidate.date === event.date,
-            )
-          : undefined);
-      if (parent) {
-        const group = groupByParentKey.get(parent.key);
-        if (group) {
-          group.children.push(event);
-          consumedKeys.add(event.key);
-          continue;
-        }
-      }
-
-      const syntheticChildren = siblingEvents.filter((candidate) => isRoutineChildEvent(candidate));
+    if (isRoutineChildEvent(event)) {
+      const siblings = eventsByParentKey.get(parentKey) || [];
+      const syntheticChildren = siblings.filter((candidate) => isRoutineChildEvent(candidate));
+      
       const shouldSynthesizeParent =
         syntheticChildren.length > 1 &&
-        siblingEvents.every((candidate) => candidate.sourceType !== "workout") &&
-        !siblingEvents.some((candidate) => isExplicitRoutineParent(candidate));
+        siblings.every((candidate) => candidate.sourceType !== "workout") &&
+        !siblings.some((candidate) => isExplicitRoutineParent(candidate));
 
       if (shouldSynthesizeParent) {
         const base = syntheticChildren[0];
         const syntheticParent = {
           ...base,
-          key: `synthetic-parent:${getRoutineParentKey(base)}`,
+          key: `synthetic-parent:${parentKey}`,
           planId: null,
           scheduleId: null,
           assignmentId: null,

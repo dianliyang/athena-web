@@ -12,7 +12,7 @@ export async function GET() {
     .from("scraper_jobs")
     .select("id, university, semester, status, job_type, triggered_by, force_update, started_at, completed_at, duration_ms, course_count, error, created_at")
     .order("created_at", { ascending: false })
-    .limit(10);
+    .limit(5);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
