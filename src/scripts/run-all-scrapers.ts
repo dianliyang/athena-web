@@ -3,10 +3,10 @@ import { Stanford } from '../lib/scrapers/stanford';
 import { CMU } from '../lib/scrapers/cmu';
 import { UCB } from '../lib/scrapers/ucb';
 import { CAU } from '../lib/scrapers/cau';
-import { CAUSport } from '../lib/scrapers/cau-sport';
 import { SupabaseDatabase } from '../lib/supabase/server';
 import { BaseScraper } from '../lib/scrapers/BaseScraper';
 import { completeScraperJob, failScraperJob, startScraperJob } from '../lib/scrapers/scraper-jobs';
+import { retrieveWorkoutSourceBatches } from '../lib/scrapers/workout-sources';
 
 function isCauProjectSeminarWorkshop(
   item: { title?: string; details?: Record<string, unknown> },
@@ -97,22 +97,21 @@ async function runWorkoutScraper(db: SupabaseDatabase, semester: string) {
     jobType: "workouts",
   });
   try {
-    const scraper = new CAUSport();
-    scraper.semester = semester;
-    console.log(`\n=== Running Scraper: ${scraper.name.toUpperCase()} ===`);
-
-    const workouts = await scraper.retrieveWorkouts();
-    console.log(`Successfully scraped ${workouts.length} workouts from ${scraper.name}.`);
+    console.log(`\n=== Running Workout Scrapers ===`);
+    const workoutBatches = await retrieveWorkoutSourceBatches({ semester, source: "cau-sport" });
+    const workouts = workoutBatches.flatMap((batch) => batch.workouts);
+    console.log(`Successfully scraped ${workouts.length} workouts across ${workoutBatches.length} sources.`);
 
     if (workouts.length > 0) {
-      // Always override: clear existing workouts for this source first
-      console.log(`[Supabase] Overriding existing workouts for ${scraper.name}...`);
       const { createAdminClient } = await import('../lib/supabase/server');
       const supabase = createAdminClient();
-      await supabase.from('workouts').delete().eq('source', 'CAU Kiel Sportzentrum');
+      for (const batch of workoutBatches) {
+        console.log(`[Supabase] Overriding existing workouts for ${batch.source}...`);
+        await supabase.from('workouts').delete().eq('source', batch.source);
+      }
 
       await db.saveWorkouts(workouts);
-      console.log(`Completed ${scraper.name}.`);
+      console.log(`Completed workout scraping.`);
     }
 
     await completeScraperJob(jobId, {

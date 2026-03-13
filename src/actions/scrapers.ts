@@ -5,7 +5,6 @@ import { Stanford } from "@/lib/scrapers/stanford";
 import { CMU } from "@/lib/scrapers/cmu";
 import { UCB } from "@/lib/scrapers/ucb";
 import { CAU } from "@/lib/scrapers/cau";
-import { CAUSport } from "@/lib/scrapers/cau-sport";
 import { BaseScraper } from "@/lib/scrapers/BaseScraper";
 import { SupabaseDatabase, createAdminClient, createClient, mapWorkoutFromRow } from "@/lib/supabase/server";
 import { getUser } from "@/lib/supabase/server";
@@ -13,6 +12,7 @@ import { aggregateWorkoutsByName } from "@/lib/workouts";
 import { partitionStaleWorkoutIds } from "@/lib/workout-refresh";
 import { revalidatePath } from "next/cache";
 import { completeScraperJob, failScraperJob, startScraperJob } from "@/lib/scrapers/scraper-jobs";
+import { retrieveWorkoutSourceBatches } from "@/lib/scrapers/workout-sources";
 
 function isCauProjectSeminarWorkshop(
   item: { title?: string; details?: Record<string, unknown> },
@@ -55,29 +55,32 @@ export async function runManualScraperAction({
       const db = new SupabaseDatabase();
       const startedAtMs = Date.now();
 
-      if (university === "cau-sport") {
+      if (university === "cau-sport" || university === "urban-apes") {
         const jobId = await startScraperJob({
-          university: "cau-sport",
+          university,
           semester: sem,
           trigger: "manual",
           triggeredByUserId: user.id,
           forceUpdate: true,
           jobType: "workouts",
         });
-        const scraper = new CAUSport();
-        scraper.semester = sem;
         try {
-          const workouts = await scraper.retrieveWorkouts();
+          const workoutBatches = await retrieveWorkoutSourceBatches({
+            semester: sem,
+            source: university === "urban-apes" ? "urban-apes" : "cau-sport",
+          });
+          const workouts = workoutBatches.flatMap((batch) => batch.workouts);
 
           const supabase = createAdminClient();
-          const source = "CAU Kiel Sportzentrum";
-          const { error: deleteError } = await supabase
-            .from("workouts")
-            .delete()
-            .eq("source", source);
+          for (const batch of workoutBatches) {
+            const { error: deleteError } = await supabase
+              .from("workouts")
+              .delete()
+              .eq("source", batch.source);
 
-          if (deleteError) {
-            throw new Error(deleteError.message);
+            if (deleteError) {
+              throw new Error(deleteError.message);
+            }
           }
 
           if (workouts.length > 0) {
@@ -335,33 +338,34 @@ export async function refreshCauSportWorkoutsAction() {
 
   try {
     const db = new SupabaseDatabase();
-    const scraper = new CAUSport();
-    const workouts = await scraper.retrieveWorkouts();
+  const workoutBatches = await retrieveWorkoutSourceBatches({ source: "cau-sport" });
+    const workouts = workoutBatches.flatMap((batch) => batch.workouts);
 
     const supabase = createAdminClient();
-    const source = "CAU Kiel Sportzentrum";
 
     if (workouts.length > 0) {
       await db.saveWorkouts(workouts);
     }
 
-    const latestCodes = new Set(workouts.map((workout) => workout.courseCode));
-    const { data: sourceRows, error: sourceRowsError } = await supabase
-      .from("workouts")
-      .select("id, course_code")
-      .eq("source", source);
+    for (const batch of workoutBatches) {
+      const latestCodes = new Set(batch.workouts.map((workout) => workout.courseCode));
+      const { data: sourceRows, error: sourceRowsError } = await supabase
+        .from("workouts")
+        .select("id, course_code")
+        .eq("source", batch.source);
 
-    if (sourceRowsError) {
-      console.error("[refreshCauSportWorkoutsAction] Failed to load source workouts:", sourceRowsError);
-      return { success: false, error: sourceRowsError.message };
-    }
+      if (sourceRowsError) {
+        console.error("[refreshCauSportWorkoutsAction] Failed to load source workouts:", sourceRowsError);
+        return { success: false, error: sourceRowsError.message };
+      }
 
-    const staleWorkoutIds = (sourceRows || [])
-      .filter((row) => !latestCodes.has(String(row.course_code || "")))
-      .map((row) => Number(row.id))
-      .filter((id) => Number.isFinite(id));
+      const staleWorkoutIds = (sourceRows || [])
+        .filter((row) => !latestCodes.has(String(row.course_code || "")))
+        .map((row) => Number(row.id))
+        .filter((id) => Number.isFinite(id));
 
-    if (staleWorkoutIds.length > 0) {
+      if (staleWorkoutIds.length === 0) continue;
+
       const [{ data: enrollments, error: enrollmentsError }, { data: logs, error: logsError }] = await Promise.all([
         supabase
           .from("user_workouts")
@@ -390,7 +394,7 @@ export async function refreshCauSportWorkoutsAction() {
       const { deletableIds, preservedIds } = partitionStaleWorkoutIds(staleWorkoutIds, referencedIds);
 
       if (preservedIds.length > 0) {
-        console.log(`[refreshCauSportWorkoutsAction] Preserving ${preservedIds.length} stale workouts with user history.`);
+        console.log(`[refreshCauSportWorkoutsAction] Preserving ${preservedIds.length} stale workouts with user history for ${batch.source}.`);
       }
 
       if (deletableIds.length > 0) {
