@@ -1,12 +1,21 @@
 import React from "react";
-import { beforeEach, describe, expect, test, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { resetCachedJsonResourceCache } from "@/hooks/useCachedJsonResource";
 
 const fetchMock = vi.fn();
 
 vi.mock("@/actions/scrapers", () => ({
   runManualScraperAction: vi.fn(),
+}));
+
+vi.mock("next/image", () => ({
+  default: ({
+    alt,
+    src,
+    unoptimized: _unoptimized,
+    ...props
+  }: React.ImgHTMLAttributes<HTMLImageElement> & { src: string; unoptimized?: boolean }) => <img alt={alt} src={src} {...props} />, // eslint-disable-line @next/next/no-img-element, @typescript-eslint/no-unused-vars
 }));
 
 vi.mock("@/lib/supabase/client", () => ({
@@ -24,6 +33,10 @@ vi.mock("@/lib/supabase/client", () => ({
 }));
 
 describe("SystemMaintenanceCard cache behavior", () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   beforeEach(() => {
     window.sessionStorage.clear();
     resetCachedJsonResourceCache();
@@ -75,10 +88,35 @@ describe("SystemMaintenanceCard cache behavior", () => {
 
     render(<SystemMaintenanceCard />);
 
-    expect(screen.getByText("Stanford")).toBeDefined();
+    expect(screen.getByText(/STANFORD/)).toBeDefined();
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith("/api/scraper-jobs/recent", { cache: "no-store" });
     });
+  });
+
+  test("uses its own vertical scroll container so the full recent runs list remains reachable", async () => {
+    const { default: SystemMaintenanceCard } = await import("@/components/identity/SystemMaintenanceCard");
+
+    const { getByTestId } = render(<SystemMaintenanceCard />);
+
+    expect(getByTestId("system-maintenance-scroll").className).toContain("overflow-y-auto");
+    expect(getByTestId("system-maintenance-scroll").className).toContain("min-h-0");
+  });
+
+  test("renders institution toggles as fixed-size logo tiles with accessible names", async () => {
+    const { default: SystemMaintenanceCard } = await import("@/components/identity/SystemMaintenanceCard");
+
+    render(<SystemMaintenanceCard />);
+
+    const mitToggle = screen.getByRole("button", { name: "MIT" });
+    expect(mitToggle.className).toContain("h-20");
+    expect(mitToggle.className).toContain("w-full");
+
+    const stanfordLogo = screen.getByAltText("Stanford");
+    expect(stanfordLogo.getAttribute("src")).toBe("/stanford-text.png");
+
+    const cmuLogo = screen.getByAltText("CMU");
+    expect(cmuLogo.getAttribute("src")).toBe("/cmu-text.svg");
   });
 });

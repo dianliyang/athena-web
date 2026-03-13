@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import Image from "next/image";
 import { runManualScraperAction } from "@/actions/scrapers";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { Loader2, Play, CheckCircle2, AlertCircle, RefreshCw, Landmark, CalendarRange, Zap } from "lucide-react";
@@ -20,6 +21,15 @@ const UNIVERSITIES = [
   { id: "cau", name: "CAU Kiel" },
   { id: "cau-sport", name: "CAU Sport" },
 ];
+
+const UNIVERSITY_LOGO_PATHS: Record<string, string> = {
+  mit: "/mit-text.png",
+  stanford: "/stanford-text.png",
+  cmu: "/cmu-text.svg",
+  ucb: "/ucb-text.png",
+  cau: "/cau-text.png",
+  "cau-sport": "/cau-text.png",
+};
 
 export default function SystemMaintenanceCard() {
   const [isPending, startTransition] = useTransition();
@@ -195,7 +205,10 @@ export default function SystemMaintenanceCard() {
   };
 
   return (
-    <div className="space-y-4 pb-12">
+    <div
+      data-testid="system-maintenance-scroll"
+      className="h-full min-h-0 space-y-4 overflow-y-auto pb-12"
+    >
       <div className="overflow-x-auto pb-1" data-testid="sync-stats-row">
         <div className="flex min-w-max gap-2.5 sm:gap-3">
           <Card className="min-w-[170px] flex-1 overflow-hidden">
@@ -245,9 +258,20 @@ export default function SystemMaintenanceCard() {
                     pressed={selectedUnis.includes(uni.id)}
                     onPressedChange={() => toggleUni(uni.id)}
                     disabled={isPending}
-                    className="w-full data-[state=on]:bg-transparent data-[state=on]:text-foreground data-[state=on]:border-black data-[state=on]:border-2"
+                    aria-label={uni.name}
+                    title={uni.name}
+                    className="h-20 w-full rounded-xl px-3 py-3 data-[state=on]:bg-transparent data-[state=on]:text-foreground data-[state=on]:border-black data-[state=on]:border-2"
                   >
-                    {uni.name}
+                    <span className="flex h-full w-full items-center justify-center rounded-lg bg-muted/20">
+                      <Image
+                        src={UNIVERSITY_LOGO_PATHS[uni.id]}
+                        alt={uni.name}
+                        width={120}
+                        height={28}
+                        className="h-5 w-auto max-w-full object-contain"
+                        unoptimized
+                      />
+                    </span>
                   </Toggle>
                 ))}
               </div>
