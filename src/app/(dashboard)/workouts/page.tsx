@@ -4,6 +4,7 @@ import { createClient, getUser, mapWorkoutFromRow } from "@/lib/supabase/server"
 import { getLanguage } from "@/actions/language";
 import { getDictionary, Dictionary } from "@/lib/dictionary";
 import { getWorkoutLastUpdateTime } from "@/actions/scrapers";
+import { buildVisibleWorkoutCategoryState } from "@/lib/workout-category-filtering";
 import { getDashboardPageHeaderClassName } from "@/lib/dashboard-layout";
 import { Badge } from "@/components/ui/badge";
 import type { WorkoutTrackingState } from "@/types";
