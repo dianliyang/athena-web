@@ -11,6 +11,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Toggle } from "@/components/ui/toggle";
 import { useCachedJsonResource } from "@/hooks/useCachedJsonResource";
 
+import { getPublicAssetUrl } from "@/lib/supabase/storage";
+
 const ACTIVE_SECTION_STORAGE_KEY = "settings_active_section";
 
 const UNIVERSITIES = [
@@ -23,12 +25,12 @@ const UNIVERSITIES = [
 ];
 
 const UNIVERSITY_LOGO_PATHS: Record<string, string> = {
-  mit: "/mit-text.png",
-  stanford: "/stanford-text.png",
-  cmu: "/cmu-text.svg",
-  ucb: "/ucb-text.png",
-  cau: "/cau-text.png",
-  "cau-sport": "/cau-text.png",
+  mit: getPublicAssetUrl("mit-text.png"),
+  stanford: getPublicAssetUrl("stanford-text.png"),
+  cmu: getPublicAssetUrl("cmu-text.svg"),
+  ucb: getPublicAssetUrl("ucb-text.png"),
+  cau: getPublicAssetUrl("cau-text.png"),
+  "cau-sport": getPublicAssetUrl("cau-text.png"),
 };
 
 const HIDDEN_SELECTOR_UNIVERSITY_IDS = new Set(["cau-sport"]);

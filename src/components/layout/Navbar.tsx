@@ -6,8 +6,11 @@ import NavLinks from "./NavLinks";
 import { Dictionary } from "@/lib/dictionary";
 import { User } from "lucide-react";import { Card } from "@/components/ui/card";
 
+import { getPublicAssetUrl } from "@/lib/supabase/storage";
+
 export default async function Navbar({ dict }: {dict: Dictionary['navbar'];}) {
   const user = await getUser();
+  const logoUrl = getPublicAssetUrl("athena.svg");
 
   return (
     <nav className="hidden lg:block bg-white/95 backdrop-blur-xl border-b border-gray-200 sticky top-0 z-50">
@@ -18,7 +21,7 @@ export default async function Navbar({ dict }: {dict: Dictionary['navbar'];}) {
             <Link href="/" className="group flex items-center gap-2">
               <div className="relative w-7 h-7 transition-transform duration-300 group-hover:rotate-12 group-hover:scale-105">
                 <Image
-                  src="/athena.svg"
+                  src={logoUrl}
                   alt="Athena"
                   fill
                   priority

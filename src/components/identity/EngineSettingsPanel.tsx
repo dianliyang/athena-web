@@ -62,10 +62,12 @@ function providerLabel(value: AIProvider) {
   return "Perplexity";
 }
 
+import { getPublicAssetUrl } from "@/lib/supabase/storage";
+
 function providerIconPath(value: AIProvider) {
-  if (value === "openai") return "/brands/openai-combine.svg";
-  if (value === "gemini") return "/brands/gemini-combine.svg";
-  return "/brands/perplexity-combine.svg";
+  if (value === "openai") return getPublicAssetUrl("brands/openai-combine.svg");
+  if (value === "gemini") return getPublicAssetUrl("brands/gemini-combine.svg");
+  return getPublicAssetUrl("brands/perplexity-combine.svg");
 }
 
 function providerIconClass(value: AIProvider) {
@@ -74,9 +76,9 @@ function providerIconClass(value: AIProvider) {
 }
 
 function providerSummaryIconPath(value: AIProvider) {
-  if (value === "openai") return "/brands/openai.svg";
-  if (value === "gemini") return "/brands/gemini.svg";
-  return "/brands/perplexity.svg";
+  if (value === "openai") return getPublicAssetUrl("brands/openai.svg");
+  if (value === "gemini") return getPublicAssetUrl("brands/gemini.svg");
+  return getPublicAssetUrl("brands/perplexity.svg");
 }
 
 function providerSummaryIconClass(value: AIProvider) {

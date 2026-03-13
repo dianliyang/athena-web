@@ -3,10 +3,12 @@ import Link from "next/link";
 import OrbitingCircles from "@/components/home/OrbitingCircles";
 import { getLanguage } from "@/actions/language";
 import { getDictionary } from "@/lib/dictionary";import { Card } from "@/components/ui/card";
+import { getPublicAssetUrl } from "@/lib/supabase/storage";
 
 export default async function VerifyRequestPage() {
   const lang = await getLanguage();
   const dict = await getDictionary(lang);
+  const logoUrl = getPublicAssetUrl("athena.svg");
 
   return (
     <div className="min-h-screen grid grid-cols-1 lg:grid-cols-2 bg-white overflow-hidden">
@@ -15,7 +17,7 @@ export default async function VerifyRequestPage() {
         <div className="relative z-10">
           <Link href="/" className="flex items-center gap-3 w-fit">
             <Image
-              src="/athena.svg"
+              src={logoUrl}
               alt="Athena"
               width={48}
               height={48}
@@ -57,7 +59,7 @@ export default async function VerifyRequestPage() {
           {/* Mobile Logo Only */}
           <div className="lg:hidden flex justify-center mb-12">
             <Image
-              src="/athena.svg"
+              src={logoUrl}
               alt="Athena"
               width={64}
               height={64}

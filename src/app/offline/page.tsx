@@ -4,12 +4,15 @@ import Image from "next/image";
 import { WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+import { getPublicAssetUrl } from "@/lib/supabase/storage";
+
 export default function OfflinePage() {
+  const logoUrl = getPublicAssetUrl("athena.svg");
   return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center p-8">
       <div className="max-w-md text-center">
         <Image
-          src="/athena.svg"
+          src={logoUrl}
           alt="Athena"
           width={64}
           height={64}

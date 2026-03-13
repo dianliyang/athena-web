@@ -4,6 +4,7 @@ import LoginForm from "@/components/auth/LoginForm";
 import { getLanguage } from "@/actions/language";
 import { getDictionary } from "@/lib/dictionary";
 import { createClient, getBaseUrl } from "@/lib/supabase/server";
+import { getPublicAssetUrl } from "@/lib/supabase/storage";
 
 interface PageProps {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -52,7 +53,7 @@ export default async function LoginPage({ searchParams }: PageProps) {
           className="flex items-center gap-3 text-2xl tracking-tight text-stone-900"
           style={{ fontFamily: "var(--font-landing-serif)" }}
         >
-          <Image src="/athena.svg" alt="Athena logo" width={24} height={24} />
+          <Image src={getPublicAssetUrl("athena.svg")} alt="Athena logo" width={24} height={24} />
           Athena
         </Link>
 
