@@ -1,8 +1,6 @@
 import AILearningPlanner from "@/components/home/AILearningPlanner";
 import { getDashboardPageHeaderClassName } from "@/lib/dashboard-layout";
 
-export const dynamic = "force-dynamic";
-
 export default function SmartPlannerPage() {
   return (
     <div className="h-full min-h-0 px-4 pb-4">

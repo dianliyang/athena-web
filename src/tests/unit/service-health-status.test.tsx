@@ -43,6 +43,7 @@ const healthResponse = {
 
 describe("ServiceHealthStatus", () => {
   beforeEach(() => {
+    window.localStorage.clear();
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -77,5 +78,34 @@ describe("ServiceHealthStatus", () => {
     expect(verifiedLabel.className).not.toContain("uppercase");
     expect(probeMessage.className).toContain("text-[11px]");
     expect(verifiedMessage.className).toContain("text-[11px]");
+  });
+
+  test("renders cached health immediately and still refreshes in the background", async () => {
+    window.localStorage.setItem(
+      "cc:ai-health-cache",
+      JSON.stringify({
+        cachedAt: Date.now(),
+        data: {
+          ...healthResponse,
+          healthy: true,
+          providers: [],
+        },
+      }),
+    );
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      json: async () => healthResponse,
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { default: ServiceHealthStatus } = await import("@/components/identity/ServiceHealthStatus");
+    render(<ServiceHealthStatus />);
+
+    expect(screen.getByText("Systems Online")).toBeDefined();
+    expect(screen.queryByText("Checking environment status...")).toBeNull();
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith("/api/ai/health", { cache: "no-store" });
+    });
   });
 });

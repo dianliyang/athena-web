@@ -9,8 +9,6 @@ import { getCalendarPageShellClassName } from "@/lib/routine-layout";
 import type { CalendarStudyPlanRecord } from "@/lib/week-calendar-drag";
 import { Button } from "@/components/ui/button";
 
-export const dynamic = "force-dynamic";
-
 export default async function StudySchedulePage() {
   const [user, lang] = await Promise.all([
     getUser(),

@@ -6,8 +6,6 @@ import { getDashboardPageHeaderClassName } from "@/lib/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import OverviewClientContent from "@/components/dashboard/OverviewClientContent";
 
-export const dynamic = "force-dynamic";
-
 export default async function OverviewPage() {
   const [user, lang] = await Promise.all([getUser(), getLanguage()]);
   const dict = await getDictionary(lang);

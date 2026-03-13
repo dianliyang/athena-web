@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCachedJsonResource } from "@/hooks/useCachedJsonResource";
 import LearningProfileChart from "@/components/identity/LearningProfileChart";
 import CourseStatusChart from "@/components/identity/CourseStatusChart";
 import AttendanceLearningChart from "@/components/dashboard/AttendanceLearningChart";
@@ -31,26 +31,11 @@ interface DashboardStats {
 }
 
 export default function OverviewClientContent() {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    async function fetchStats() {
-      try {
-        const res = await fetch("/api/dashboard/stats");
-        if (!res.ok) throw new Error("Failed to fetch dashboard metrics");
-        const data = await res.json();
-        setStats(data);
-      } catch (err) {
-        console.error(err);
-        setError(err instanceof Error ? err.message : "An error occurred");
-      } finally {
-        setLoading(false);
-      }
-    }
-    void fetchStats();
-  }, []);
+  const { data: stats, loading, error } = useCachedJsonResource<DashboardStats>({
+    cacheKey: "cc:cached-json:dashboard-stats",
+    url: "/api/dashboard/stats",
+    ttlMs: 60_000,
+  });
 
   if (loading) {
     return (

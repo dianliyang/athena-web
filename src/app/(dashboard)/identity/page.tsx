@@ -9,8 +9,6 @@ import { getDashboardPageHeaderClassName } from "@/lib/dashboard-layout";
 import { Badge } from "@/components/ui/badge";
 import SecurityIdentitySection from "@/components/identity/SecurityIdentitySection";
 
-export const dynamic = "force-dynamic";
-
 function formatRelativeLastActive(date: Date | null, lang: string) {
   if (!date) return "No recent activity";
 
@@ -32,7 +30,7 @@ function formatRelativeLastActive(date: Date | null, lang: string) {
 export default async function IdentityPage() {
   const [user, lang, supabase] = await Promise.all([getUser(), getLanguage(), createClient()]);
 
-  const [dict, { data: enrolledData }] = await Promise.all([
+  const [dict, { data: enrolledData }, { data: githubProfile }] = await Promise.all([
     getDictionary(lang),
     user
       ? supabase
@@ -40,6 +38,13 @@ export default async function IdentityPage() {
           .select("updated_at")
           .eq("user_id", user.id)
           .neq("status", "hidden")
+      : Promise.resolve({ data: null }),
+    user
+      ? supabase
+          .from("user_connected_profiles")
+          .select("provider, login, name, profile_url, avatar_url, bio, company, updated_at")
+          .eq("provider", "github")
+          .maybeSingle()
       : Promise.resolve({ data: null }),
   ]);
 
@@ -100,7 +105,7 @@ export default async function IdentityPage() {
       </section>
 
       <section className="grid gap-4 xl:grid-cols-2">
-        <SecurityIdentitySection view="identity" provider={provider} />
+        <SecurityIdentitySection view="identity" provider={provider} githubProfile={githubProfile} />
         <SecurityIdentitySection view="account" provider={provider} />
       </section>
 

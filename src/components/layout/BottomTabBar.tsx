@@ -175,7 +175,6 @@ export default function BottomTabBar({ labels }: BottomTabBarProps) {
             <Link
               key={tab.href}
               href={tab.href}
-              prefetch={false}
               aria-current={tab.isActive ? "page" : undefined}
               className={`flex min-w-[56px] flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 transition-all ${
                 tab.isActive
@@ -229,7 +228,6 @@ export default function BottomTabBar({ labels }: BottomTabBarProps) {
                       <Link
                         key={item.href}
                         href={item.href}
-                        prefetch={false}
                         onClick={() => setMoreOpen(false)}
                         aria-current={item.isActive ? "page" : undefined}
                         className={`flex items-center gap-3 rounded-2xl border px-3 py-3 transition-colors ${

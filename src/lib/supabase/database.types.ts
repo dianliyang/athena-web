@@ -439,6 +439,54 @@ export type Database = {
         }
         Relationships: []
       }
+      user_connected_profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          company: string | null
+          created_at: string
+          id: number
+          login: string | null
+          name: string | null
+          profile_url: string | null
+          provider: string
+          provider_user_id: string
+          raw_profile: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          company?: string | null
+          created_at?: string
+          id?: number
+          login?: string | null
+          name?: string | null
+          profile_url?: string | null
+          provider: string
+          provider_user_id: string
+          raw_profile?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          company?: string | null
+          created_at?: string
+          id?: number
+          login?: string | null
+          name?: string | null
+          profile_url?: string | null
+          provider?: string
+          provider_user_id?: string
+          raw_profile?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       projects_seminars: {
         Row: {
           category: string

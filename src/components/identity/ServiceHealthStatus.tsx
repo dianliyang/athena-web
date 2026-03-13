@@ -38,9 +38,25 @@ const PROVIDER_LABELS: Record<AIProvider, string> = {
   perplexity: "Perplexity",
 };
 
+function readInitialHealthCache() {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(AI_HEALTH_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { cachedAt?: number; data?: AIHealthStats };
+    const cachedAt = Number(parsed?.cachedAt || 0);
+    if (cachedAt > 0 && parsed?.data && Date.now() - cachedAt < AI_HEALTH_CACHE_TTL_MS) {
+      return parsed.data;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 export default function ServiceHealthStatus() {
-  const [healthStats, setHealthStats] = useState<AIHealthStats | null>(null);
-  const [healthLoading, setHealthLoading] = useState(true);
+  const [healthStats, setHealthStats] = useState<AIHealthStats | null>(() => readInitialHealthCache());
+  const [healthLoading, setHealthLoading] = useState(() => readInitialHealthCache() == null);
 
   const loadHealth = useCallback(async (force = false) => {
     setHealthLoading(true);

@@ -7,8 +7,6 @@ import { getDictionary, Dictionary } from "@/lib/dictionary";
 import { Course } from "@/types";
 import CourseDetailContent from "@/components/courses/CourseDetailContent";
 
-export const dynamic = "force-dynamic";
-
 interface PageProps {
   params: Promise<{id: string;}>;
 }

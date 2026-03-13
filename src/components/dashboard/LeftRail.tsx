@@ -138,7 +138,6 @@ function SidebarLinkItem({
       >
         <Link
           href={href}
-          prefetch={false}
           className={active ? cn("font-bold", c.text) : ""}
         >
           <Icon className={cn("transition-colors", active ? c.icon : "text-muted-foreground/70")} strokeWidth={active ? 2.5 : 2} />

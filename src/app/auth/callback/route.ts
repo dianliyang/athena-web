@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { syncGitHubProfileFromSession } from "@/lib/github/profile";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
@@ -8,8 +9,13 @@ export async function GET(request: Request) {
 
   if (code) {
     const supabase = await createClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { error, data } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      try {
+        await syncGitHubProfileFromSession(data?.session);
+      } catch (syncError) {
+        console.error("GitHub profile sync failed:", syncError);
+      }
       // Use a relative URL for the final redirect to stay on the same domain
       return NextResponse.redirect(new URL(next, request.url));
     }

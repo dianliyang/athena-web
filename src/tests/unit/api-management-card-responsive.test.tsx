@@ -1,11 +1,14 @@
 import React from "react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import { resetCachedJsonResourceCache } from "@/hooks/useCachedJsonResource";
 
 const fetchMock = vi.fn();
 
 describe("ApiManagementCard responsive layout", () => {
   beforeEach(() => {
+    window.sessionStorage.clear();
+    resetCachedJsonResourceCache();
     fetchMock.mockReset();
     fetchMock.mockResolvedValue({
       json: async () => ({
@@ -58,5 +61,38 @@ describe("ApiManagementCard responsive layout", () => {
     expect(screen.getAllByTestId("api-total-keys-icon").at(-1)).toBeDefined();
     expect(screen.getAllByTestId("api-active-keys-icon").at(-1)).toBeDefined();
     expect(screen.getAllByTestId("api-requests-used-icon").at(-1)).toBeDefined();
+  });
+
+  test("renders cached keys immediately and refreshes in the background", async () => {
+    window.sessionStorage.setItem(
+      "cc:cached-json:api-keys",
+      JSON.stringify({
+        cachedAt: Date.now(),
+        data: {
+          keys: [
+            {
+              id: 7,
+              name: "Cached Key",
+              keyPrefix: "ak_cached",
+              isActive: true,
+              isReadOnly: false,
+              requestsLimit: 250,
+              requestsUsed: 42,
+              lastUsedAt: "2026-03-09T08:00:00.000Z",
+            },
+          ],
+        },
+      }),
+    );
+
+    const { default: ApiManagementCard } = await import("@/components/identity/ApiManagementCard");
+
+    render(<ApiManagementCard />);
+
+    expect(screen.getByText("Cached Key")).toBeDefined();
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith("/api/settings/api-key", { cache: "no-store" });
+    });
   });
 });

@@ -1,11 +1,13 @@
 "use client";
 
-import { AlertTriangle, Fingerprint, Mail, ShieldCheck, Trash2 } from "lucide-react";
+import Image from "next/image";
+import { AlertTriangle, Fingerprint, Github, Mail, ShieldCheck, Trash2 } from "lucide-react";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import {
   Card,
   CardContent,
@@ -17,6 +19,16 @@ import {
 interface SecurityIdentitySectionProps {
   view: "identity" | "account";
   provider?: string;
+  githubProfile?: {
+    provider: string;
+    login: string | null;
+    name: string | null;
+    profile_url: string | null;
+    avatar_url: string | null;
+    bio?: string | null;
+    company?: string | null;
+    updated_at: string;
+  } | null;
 }
 
 function normalizeProvider(provider?: string): string {
@@ -27,7 +39,8 @@ function normalizeProvider(provider?: string): string {
 
 export default function SecurityIdentitySection({
   view,
-  provider
+  provider,
+  githubProfile = null,
 }: SecurityIdentitySectionProps) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
@@ -49,9 +62,31 @@ export default function SecurityIdentitySection({
     });
   };
 
+  const handleConnectGitHub = () => {
+    startTransition(async () => {
+      try {
+        const supabase = createBrowserSupabaseClient();
+        const redirectTo = `${window.location.origin}/auth/callback?next=/identity`;
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: "github",
+          options: {
+            redirectTo,
+            scopes: "read:user",
+          },
+        });
+
+        if (error) {
+          toast.error("GitHub connect failed.", { position: "bottom-right" });
+        }
+      } catch {
+        toast.error("GitHub connect failed.", { position: "bottom-right" });
+      }
+    });
+  };
+
   if (view === "identity") {
     return (
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
         <Card className="flex flex-col h-full">
           <CardHeader>
             <div className="flex items-center gap-2">
@@ -74,6 +109,78 @@ export default function SecurityIdentitySection({
                 Verified
               </span>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card className="flex flex-col h-full">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Github className="h-4 w-4 text-muted-foreground" />
+              <CardTitle>GitHub Profile</CardTitle>
+            </div>
+            <CardDescription>
+              Read-only developer identity snapshot connected through GitHub OAuth.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="mt-auto space-y-3">
+            {githubProfile ? (
+              <>
+                <div className="flex items-center gap-3">
+                  {githubProfile.avatar_url ? (
+                    <Image
+                      src={githubProfile.avatar_url}
+                      alt={`${githubProfile.login || githubProfile.name || "GitHub"} avatar`}
+                      className="h-10 w-10 rounded-full border object-cover"
+                      width={40}
+                      height={40}
+                      unoptimized
+                    />
+                  ) : null}
+                  <div className="min-w-0">
+                    {githubProfile.name ? (
+                      <p className="truncate text-sm font-medium">{githubProfile.name}</p>
+                    ) : null}
+                    <p className="truncate text-sm text-muted-foreground">{githubProfile.login || "GitHub"}</p>
+                  </div>
+                </div>
+                {githubProfile.bio ? (
+                  <p className="text-sm text-muted-foreground">{githubProfile.bio}</p>
+                ) : null}
+                {githubProfile.company ? (
+                  <p className="text-sm text-muted-foreground">{githubProfile.company}</p>
+                ) : null}
+                {githubProfile.profile_url ? (
+                  <Button asChild variant="outline" className="w-full justify-center">
+                    <a
+                      href={githubProfile.profile_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label="View GitHub Profile"
+                    >
+                      View GitHub Profile
+                    </a>
+                  </Button>
+                ) : null}
+                <p className="text-xs text-muted-foreground">
+                  Synced {new Date(githubProfile.updated_at).toLocaleString()}
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Connect GitHub to display your public profile inside Athena.
+                </p>
+                <Button
+                  variant="outline"
+                  onClick={handleConnectGitHub}
+                  disabled={isPending}
+                  className="w-full justify-center"
+                >
+                  <Github className="h-4 w-4" />
+                  Connect GitHub
+                </Button>
+              </>
+            )}
           </CardContent>
         </Card>
 

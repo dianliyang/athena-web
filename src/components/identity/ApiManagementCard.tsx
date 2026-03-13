@@ -14,6 +14,7 @@ import {
   FieldLabel,
   FieldSet,
 } from "@/components/ui/field";
+import { useCachedJsonResource } from "@/hooks/useCachedJsonResource";
 
 type ApiKeyItem = {
   id: number;
@@ -36,7 +37,6 @@ function toMaskedKey(prefix: string | null): string {
 export default function ApiManagementCard() {
   const [items, setItems] = useState<ApiKeyItem[]>([]);
   const [drafts, setDrafts] = useState<DraftById>({});
-  const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [workingId, setWorkingId] = useState<number | null>(null);
   const [shakingId, setShakingId] = useState<number | null>(null);
@@ -54,33 +54,26 @@ export default function ApiManagementCard() {
   const [newReadOnly, setNewReadOnly] = useState(false);
   const [nameError, setNameError] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
-
-  const load = async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch("/api/settings/api-key", { cache: "no-store" });
-      const payload = await response.json();
-      const nextItems: ApiKeyItem[] = Array.isArray(payload?.keys) ? payload.keys : [];
-      setItems(nextItems);
-      const nextDrafts: DraftById = {};
-      for (const item of nextItems) {
-        nextDrafts[item.id] = {
-          isActive: Boolean(item.isActive),
-          isReadOnly: Boolean(item.isReadOnly),
-        };
-      }
-      setDrafts(nextDrafts);
-    } catch {
-      setItems([]);
-      setDrafts({});
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const apiKeysFetchInit = useMemo(() => ({ cache: "no-store" } as RequestInit), []);
+  const { data: apiKeysData, loading: isLoading, refresh } = useCachedJsonResource<{ keys?: ApiKeyItem[] }>({
+    cacheKey: "cc:cached-json:api-keys",
+    url: "/api/settings/api-key",
+    ttlMs: 60_000,
+    init: apiKeysFetchInit,
+  });
 
   useEffect(() => {
-    void load();
-  }, []);
+    const nextItems: ApiKeyItem[] = Array.isArray(apiKeysData?.keys) ? apiKeysData.keys : [];
+    setItems(nextItems);
+    const nextDrafts: DraftById = {};
+    for (const item of nextItems) {
+      nextDrafts[item.id] = {
+        isActive: Boolean(item.isActive),
+        isReadOnly: Boolean(item.isReadOnly),
+      };
+    }
+    setDrafts(nextDrafts);
+  }, [apiKeysData]);
 
   useEffect(() => {
     const updateViewport = () => setIsMobileViewport(window.innerWidth < 768);
@@ -171,7 +164,7 @@ export default function ApiManagementCard() {
       setNewName("");
       setNewLimit("");
       setNewReadOnly(false);
-      await load();
+      await refresh().catch(() => null);
     } catch (error) {
       showSaved(error instanceof Error ? error.message : "Failed to generate key.");
     } finally {

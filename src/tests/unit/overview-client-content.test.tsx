@@ -1,7 +1,8 @@
 import React from "react";
-import { beforeEach, describe, expect, test, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, test, vi, afterEach } from "vitest";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import OverviewClientContent from "@/components/dashboard/OverviewClientContent";
+import { resetCachedJsonResourceCache } from "@/hooks/useCachedJsonResource";
 
 const statsPayload = {
   routine: [],
@@ -43,6 +44,8 @@ vi.mock("@/components/dashboard/OverviewRoutineList", () => ({
 
 describe("OverviewClientContent", () => {
   beforeEach(() => {
+    window.sessionStorage.clear();
+    resetCachedJsonResourceCache();
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -50,6 +53,10 @@ describe("OverviewClientContent", () => {
         json: async () => statsPayload,
       }),
     );
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   test("adds extra mobile bottom padding so content clears the bottom tab bar", async () => {
@@ -61,5 +68,36 @@ describe("OverviewClientContent", () => {
 
     const root = container.firstElementChild as HTMLElement;
     expect(root.className).toContain("pb-24");
+  });
+
+  test("renders cached stats immediately and still refreshes in the background", async () => {
+    window.sessionStorage.setItem(
+      "cc:cached-json:dashboard-stats",
+      JSON.stringify({
+        cachedAt: Date.now(),
+        data: {
+          ...statsPayload,
+          identity: {
+            ...statsPayload.identity,
+            primaryFocus: "Cached Focus",
+          },
+        },
+      }),
+    );
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => statsPayload,
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<OverviewClientContent />);
+
+    expect(screen.getByText("Cached Focus")).toBeDefined();
+    expect(screen.queryByText("Syncing dashboard data...")).toBeNull();
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith("/api/dashboard/stats", undefined);
+    });
   });
 });

@@ -15,8 +15,6 @@ import CourseIntelSyncWindow from "@/components/home/CourseIntelSyncWindow";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 
-export const dynamic = "force-dynamic";
-
 interface EnrolledCourse extends Course {
   status: string;
   progress: number;

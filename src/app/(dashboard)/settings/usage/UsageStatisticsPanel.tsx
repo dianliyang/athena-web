@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { ArrowUpRight, Cpu, DollarSign, History, Loader2, Sparkles } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { useCachedJsonResource } from "@/hooks/useCachedJsonResource";
 
 type UsageStats = {
   totals: { requests: number; tokens_input: number; tokens_output: number; cost_usd: number };
@@ -62,29 +63,13 @@ function StatBlock({
 }
 
 export default function UsageStatisticsPanel() {
-  const [stats, setStats] = useState<UsageStats | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    const run = async () => {
-      setLoading(true);
-      try {
-        const res = await fetch("/api/ai/usage/stats", { cache: "no-store" });
-        if (!res.ok) throw new Error("Failed to load usage statistics");
-        const payload = (await res.json()) as UsageStats;
-        if (!cancelled) setStats(payload);
-      } catch {
-        if (!cancelled) setStats(null);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-    void run();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const fetchInit = useMemo(() => ({ cache: "no-store" } as RequestInit), []);
+  const { data: stats, loading } = useCachedJsonResource<UsageStats>({
+    cacheKey: "cc:cached-json:usage-statistics",
+    url: "/api/ai/usage/stats",
+    ttlMs: 60_000,
+    init: fetchInit,
+  });
 
   const featureRows = useMemo(
     () =>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { runManualScraperAction } from "@/actions/scrapers";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { Loader2, Play, CheckCircle2, AlertCircle, RefreshCw, Landmark, CalendarRange, Zap } from "lucide-react";
@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Toggle } from "@/components/ui/toggle";
+import { useCachedJsonResource } from "@/hooks/useCachedJsonResource";
 
 const ACTIVE_SECTION_STORAGE_KEY = "settings_active_section";
 
@@ -33,53 +34,41 @@ export default function SystemMaintenanceCard() {
     message?: string;
     runs?: Array<{ label: string; count: number; ok: boolean; error?: string }>;
   }>({ type: "idle" });
-  const [recentJobs, setRecentJobs] = useState<
-    Array<{
-      id: number;
-      university: string;
-      semester?: string | null;
-      status: string;
-      job_type?: string | null;
-      triggered_by?: string | null;
-      course_count?: number | null;
-      duration_ms?: number | null;
-      error?: string | null;
-    }>
-  >([]);
-  const [jobsLoading, setJobsLoading] = useState(false);
-
-  const loadRecentJobs = async () => {
-    setJobsLoading(true);
-    try {
-      const response = await fetch("/api/scraper-jobs/recent");
-      const payload = await response.json();
-      if (!payload?.error && Array.isArray(payload?.items)) {
-        setRecentJobs(payload.items);
-      }
-    } catch {
-      // ignore
-    } finally {
-      setJobsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void loadRecentJobs();
-  }, []);
+  const jobsFetchInit = useMemo(() => ({ cache: "no-store" } as RequestInit), []);
+  const { data: recentJobsPayload, loading: jobsLoading, refresh: refreshRecentJobs } =
+    useCachedJsonResource<{
+      items?: Array<{
+        id: number;
+        university: string;
+        semester?: string | null;
+        status: string;
+        job_type?: string | null;
+        triggered_by?: string | null;
+        course_count?: number | null;
+        duration_ms?: number | null;
+        error?: string | null;
+      }>;
+    }>({
+      cacheKey: "cc:cached-json:scraper-jobs",
+      url: "/api/scraper-jobs/recent",
+      ttlMs: 60_000,
+      init: jobsFetchInit,
+    });
+  const recentJobs = Array.isArray(recentJobsPayload?.items) ? recentJobsPayload.items : [];
 
   useEffect(() => {
     const supabase = createBrowserSupabaseClient();
     const channel = supabase
       .channel("scraper_jobs:live")
       .on("postgres_changes", { event: "*", schema: "public", table: "scraper_jobs" }, () => {
-        void loadRecentJobs();
+        void refreshRecentJobs().catch(() => null);
       })
       .subscribe();
 
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, []);
+  }, [refreshRecentJobs]);
 
   const toggleUni = (id: string) => {
     setSelectedUnis((prev) => (prev.includes(id) ? prev.filter((u) => u !== id) : [...prev, id]));
@@ -193,14 +182,14 @@ export default function SystemMaintenanceCard() {
             runs,
           });
         }
-        await loadRecentJobs();
+        await refreshRecentJobs().catch(() => null);
       } catch (error) {
         setStatus({
           type: "error",
           message: error instanceof Error ? error.message : "An unexpected error occurred.",
           runs: [],
         });
-        await loadRecentJobs();
+        await refreshRecentJobs().catch(() => null);
       }
     });
   };
@@ -359,7 +348,7 @@ export default function SystemMaintenanceCard() {
                   <CardTitle>Recent Runs</CardTitle>
                   <CardDescription>Latest scraper tasks and outcomes.</CardDescription>
                 </div>
-                <Button variant="ghost" size="sm" type="button" onClick={() => void loadRecentJobs()} disabled={jobsLoading}>
+                <Button variant="ghost" size="sm" type="button" onClick={() => void refreshRecentJobs().catch(() => null)} disabled={jobsLoading}>
                   <RefreshCw className={jobsLoading ? "animate-spin" : ""} />
                   Refresh
                 </Button>

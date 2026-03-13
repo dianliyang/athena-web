@@ -1,7 +1,8 @@
 import React from "react";
-import { describe, expect, test, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import UsageStatisticsPanel from "@/app/(dashboard)/settings/usage/UsageStatisticsPanel";
+import { resetCachedJsonResourceCache } from "@/hooks/useCachedJsonResource";
 
 const statsPayload = {
   totals: { requests: 12, tokens_input: 1000, tokens_output: 2000, cost_usd: 1.23 },
@@ -19,6 +20,8 @@ const zeroRecentStatsPayload = {
 
 describe("UsageStatisticsPanel", () => {
   beforeEach(() => {
+    window.sessionStorage.clear();
+    resetCachedJsonResourceCache();
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -28,11 +31,15 @@ describe("UsageStatisticsPanel", () => {
     );
   });
 
+  afterEach(() => {
+    cleanup();
+  });
+
   test("does not add extra horizontal page padding at the panel root", async () => {
     const { container } = render(<UsageStatisticsPanel />);
 
     await waitFor(() => {
-      expect(screen.getByText("Usage Statistics")).toBeDefined();
+      expect(screen.getAllByText("Usage Statistics").length).toBeGreaterThan(0);
     });
 
     const root = container.firstElementChild as HTMLElement;
@@ -63,5 +70,36 @@ describe("UsageStatisticsPanel", () => {
     expect(screen.getAllByText("in last 7 days").at(-1)).toBeDefined();
     expect(screen.queryByText("0 in last 7 days")).toBeNull();
     expect(screen.queryByText("$0.0000 in last 7 days")).toBeNull();
+  });
+
+  test("renders cached usage stats immediately and refreshes in the background", async () => {
+    window.sessionStorage.setItem(
+      "cc:cached-json:usage-statistics",
+      JSON.stringify({
+        cachedAt: Date.now(),
+        data: {
+          ...statsPayload,
+          totals: {
+            ...statsPayload.totals,
+            requests: 99,
+          },
+        },
+      }),
+    );
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => statsPayload,
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<UsageStatisticsPanel />);
+
+    expect(screen.getByText("99")).toBeDefined();
+    expect(screen.queryByRole("status")).toBeNull();
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith("/api/ai/usage/stats", { cache: "no-store" });
+    });
   });
 });
