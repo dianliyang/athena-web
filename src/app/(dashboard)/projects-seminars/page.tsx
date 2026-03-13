@@ -201,7 +201,6 @@ export default async function ProjectsSeminarsPage({
         </div>
       </div>
       <ProjectsSeminarsToolbar
-        categories={uniqueCategories}
         semesters={uniqueSemesters}
       />
 

@@ -24,7 +24,7 @@ describe("Projects seminars responsive behavior", () => {
     const { default: ProjectsSeminarsToolbar } = await import("@/components/projects-seminars/ProjectsSeminarsToolbar");
 
     const { container } = render(
-      <ProjectsSeminarsToolbar categories={["Seminar"]} semesters={["Spring 2026"]} />,
+      <ProjectsSeminarsToolbar semesters={["Spring 2026"]} />,
     );
 
     await waitFor(() => {
@@ -39,7 +39,7 @@ describe("Projects seminars responsive behavior", () => {
     const { default: ProjectsSeminarsToolbar } = await import("@/components/projects-seminars/ProjectsSeminarsToolbar");
 
     render(
-      <ProjectsSeminarsToolbar categories={["Seminar"]} semesters={["Spring 2026"]} />,
+      <ProjectsSeminarsToolbar semesters={["Spring 2026"]} />,
     );
 
     await waitFor(() => {

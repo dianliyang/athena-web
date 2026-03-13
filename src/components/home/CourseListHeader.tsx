@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Dictionary } from "@/lib/dictionary";
 import {
-  ArrowDownWideNarrow,
   LayoutGrid,
   List,
   Search,
@@ -49,7 +48,6 @@ export default function CourseListHeader({
   const searchParams = useSearchParams();
   const sortBy = searchParams.get("sort") || "title";
   const [query, setQuery] = useState(searchParams.get("q") || "");
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const lastPushedQuery = useRef(searchParams.get("q") || "");
   const isComposing = useRef(false);
@@ -99,11 +97,6 @@ export default function CourseListHeader({
     params.set("page", "1");
     router.push(`?${params.toString()}`, { scroll: false });
   };
-
-  const toggleItem = (list: string[], value: string) =>
-    list.includes(value)
-      ? list.filter((item) => item !== value)
-      : [...list, value];
 
   const handleSortChange = (value: string) => pushWith({ sort: value });
 

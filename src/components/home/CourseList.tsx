@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Course, EnrolledCoursesResponse } from "@/types";
 import { Dictionary } from "@/lib/dictionary";
+import { cn } from "@/lib/utils";
 import CourseCard from "./CourseCard";
 import CourseListHeader from "./CourseListHeader";
 import { useAppToast } from "@/components/common/AppToastProvider";
@@ -297,7 +298,7 @@ export default function CourseList({
             <div className="">
               <Table>
                 <TableHeader>
-                  <TableRow className="flex items-center hover:bg-transparent">
+                  <TableRow className="flex items-center h-12 hover:bg-transparent border-b">
                     <TableHead className={`${COLUMNS[0].width} flex items-center justify-center`}>
                       <Checkbox
                         checked={
@@ -310,11 +311,11 @@ export default function CourseList({
                         aria-label="Select all courses"
                       />
                     </TableHead>
-                    <TableHead className={COLUMNS[1].width}>Course</TableHead>
-                    <TableHead className={`${COLUMNS[2].width} ${COLUMNS[2].className}`}>Subdomain</TableHead>
-                    <TableHead className={`${COLUMNS[3].width} ${COLUMNS[3].className}`}>Credit</TableHead>
-                    <TableHead className={`${COLUMNS[4].width} ${COLUMNS[4].className}`}>Semester</TableHead>
-                    <TableHead className={`${COLUMNS[5].width} text-right flex items-center justify-end pr-4`}>
+                    <TableHead className={cn(COLUMNS[1].width, "flex items-center")}>Course</TableHead>
+                    <TableHead className={cn(COLUMNS[2].width, COLUMNS[2].className, "flex items-center")}>Subdomain</TableHead>
+                    <TableHead className={cn(COLUMNS[3].width, COLUMNS[3].className, "flex items-center")}>Credit</TableHead>
+                    <TableHead className={cn(COLUMNS[4].width, COLUMNS[4].className, "flex items-center")}>Semester</TableHead>
+                    <TableHead className={cn(COLUMNS[5].width, "text-right flex items-center justify-end pr-4")}>
                       <div className="flex items-center gap-2">
                         <span>Actions</span>
                         {selectedCourseIds.length >= 2 ? (
@@ -368,8 +369,8 @@ export default function CourseList({
                             }
                           />
                         </TableCell>
-                        <TableCell className={COLUMNS[1].width}>
-                          <Link href={detailHref} prefetch={false} className="block group">
+                        <TableCell className={cn(COLUMNS[1].width, "flex items-center")}>
+                          <Link href={detailHref} prefetch={false} className="block group w-full">
                             <div className="min-w-0 flex items-start gap-3">
                               <UniversityIcon
                                 name={course.university}
@@ -387,16 +388,16 @@ export default function CourseList({
                             </div>
                           </Link>
                         </TableCell>
-                        <TableCell className={`${COLUMNS[2].width} ${COLUMNS[2].className} truncate`}>
+                        <TableCell className={cn(COLUMNS[2].width, COLUMNS[2].className, "flex items-center truncate")}>
                           {course.subdomain || "-"}
                         </TableCell>
-                        <TableCell className={`${COLUMNS[3].width} ${COLUMNS[3].className}`}>
+                        <TableCell className={cn(COLUMNS[3].width, COLUMNS[3].className, "flex items-center")}>
                           {course.credit ?? "-"}
                         </TableCell>
-                        <TableCell className={`${COLUMNS[4].width} ${COLUMNS[4].className}`}>
+                        <TableCell className={cn(COLUMNS[4].width, COLUMNS[4].className, "flex items-center")}>
                           {latestSemester ?? "-"}
                         </TableCell>
-                        <TableCell className={`${COLUMNS[5].width} text-right flex items-center justify-end pr-4`}>
+                        <TableCell className={cn(COLUMNS[5].width, "text-right flex items-center justify-end pr-4")}>
                           <Button
                             variant="outline"
                             size="icon"

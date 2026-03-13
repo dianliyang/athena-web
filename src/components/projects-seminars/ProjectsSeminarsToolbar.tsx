@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { LayoutGrid, List, Search, ArrowDownWideNarrow, X } from "lucide-react";
+import { LayoutGrid, List, Search, X } from "lucide-react";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -14,20 +14,16 @@ import {
 } from "@/components/ui/input-group";
 
 interface ProjectsSeminarsToolbarProps {
-  categories: string[];
   semesters: string[];
 }
 
 export default function ProjectsSeminarsToolbar({
-  categories,
   semesters
 }: ProjectsSeminarsToolbarProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [query, setQuery] = useState(searchParams.get("q") || "");
   const view = searchParams.get("view") === "grid" ? "grid" : "list";
-  const selectedCategories =
-  searchParams.get("category")?.split(",").filter(Boolean) || [];
   const selectedSemesters =
   searchParams.get("semester")?.split(",").filter(Boolean) || [];
   const sort = searchParams.get("sort") || "title";
@@ -55,9 +51,6 @@ export default function ProjectsSeminarsToolbar({
     window.addEventListener("resize", updateViewport);
     return () => window.removeEventListener("resize", updateViewport);
   }, []);
-
-  const activeFilterCount =
-    (selectedSemesters.length > 0 ? 1 : 0);
 
   const pushWith = (patch: Record<string, string | string[] | null>) => {
     const params = new URLSearchParams(searchParams.toString());
