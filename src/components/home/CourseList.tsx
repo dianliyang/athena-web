@@ -55,17 +55,23 @@ export default function CourseList({
   const [isBulkEnrolling, setIsBulkEnrolling] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const { showToast } = useAppToast();
-  const observerTarget = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef(currentPage);
   const isLoadingRef = useRef(false);
-  const scrollGenerationRef = useRef(0);
-  const lastLoadScrollGenerationRef = useRef(0);
-  const lastScrollTopRef = useRef<number | null>(null);
+  const lastRequestedCourseCountRef = useRef(0);
+  const hasBootstrappedInitialLoadRef = useRef(false);
   const [selectedCourseIds, setSelectedCourseIds] = useState<number[]>([]);
   const [actionLoadingIds, setActionLoadingIds] = useState<
     Record<number, boolean>
   >({});
+  const [scrollTop, setScrollTop] = useState(0);
+  const [containerSize, setContainerSize] = useState({ height: 0, width: 0 });
+
+  const LIST_ROW_HEIGHT = 88;
+  const GRID_CARD_HEIGHT = 260;
+  const GRID_GAP = 12;
+  const OVERSCAN_ROWS = 4;
+  const LOAD_MORE_THRESHOLD_ITEMS = 8;
 
   useEffect(() => {
     const savedMode = localStorage.getItem("courseViewMode");
@@ -79,9 +85,9 @@ export default function CourseList({
     setPage(currentPage);
     pageRef.current = currentPage;
     isLoadingRef.current = false;
-    scrollGenerationRef.current = 0;
-    lastLoadScrollGenerationRef.current = 0;
-    lastScrollTopRef.current = null;
+    lastRequestedCourseCountRef.current = 0;
+    hasBootstrappedInitialLoadRef.current = false;
+    setScrollTop(0);
     setSelectedCourseIds([]);
   }, [initialCourses, currentPage]);
 
@@ -188,69 +194,83 @@ export default function CourseList({
 
   const effectiveViewMode: "list" | "grid" = isMobileViewport ? "grid" : viewMode;
 
-  const canScrollMore = useCallback(() => {
+  const updateContainerMetrics = useCallback(() => {
     const container = scrollContainerRef.current;
-    if (!container) return true;
-    return container.scrollHeight > container.clientHeight + 1;
+    if (!container) return;
+    setContainerSize((prev) => {
+      const next = {
+        height: container.clientHeight,
+        width: container.clientWidth,
+      };
+      return prev.height === next.height && prev.width === next.width ? prev : next;
+    });
   }, []);
 
-  const requestNextPage = useCallback((force = false) => {
-    if (
-      isLoadingRef.current ||
-      pageRef.current >= totalPages ||
-      (!force && scrollGenerationRef.current <= lastLoadScrollGenerationRef.current)
-    ) {
-      return;
-    }
-
-    if (!force) {
-      lastLoadScrollGenerationRef.current = scrollGenerationRef.current;
-    }
-    void loadMore();
-  }, [loadMore, totalPages]);
+  useEffect(() => {
+    updateContainerMetrics();
+    const handleResize = () => updateContainerMetrics();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [updateContainerMetrics]);
 
   const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
     const target = event.currentTarget;
-    if (lastScrollTopRef.current !== target.scrollTop) {
-      scrollGenerationRef.current += 1;
-      lastScrollTopRef.current = target.scrollTop;
-    }
+    setScrollTop(target.scrollTop);
+    setContainerSize((prev) => {
+      const next = { height: target.clientHeight, width: target.clientWidth };
+      return prev.height === next.height && prev.width === next.width ? prev : next;
+    });
+  }, []);
 
-    const remaining = target.scrollHeight - target.scrollTop - target.clientHeight;
-    if (remaining <= 320) {
-      requestNextPage();
-    }
-  }, [requestNextPage]);
+  const gridColumnCount = effectiveViewMode === "grid"
+    ? containerSize.width >= 1280
+      ? 3
+      : containerSize.width >= 768
+        ? 2
+        : 1
+    : 1;
+
+  const virtualListRowCount = courses.length;
+  const visibleListRows = containerSize.height > 0
+    ? Math.ceil(containerSize.height / LIST_ROW_HEIGHT) + OVERSCAN_ROWS * 2
+    : virtualListRowCount;
+  const virtualListStart = Math.max(0, Math.floor(scrollTop / LIST_ROW_HEIGHT) - OVERSCAN_ROWS);
+  const virtualListEnd = Math.min(virtualListRowCount, virtualListStart + visibleListRows);
+  const visibleListCourses = courses.slice(virtualListStart, virtualListEnd);
+  const listTopSpacerHeight = virtualListStart * LIST_ROW_HEIGHT;
+  const listBottomSpacerHeight = Math.max(0, (virtualListRowCount - virtualListEnd) * LIST_ROW_HEIGHT);
+
+  const virtualGridRowCount = Math.ceil(courses.length / gridColumnCount);
+  const gridRowHeight = GRID_CARD_HEIGHT + GRID_GAP;
+  const visibleGridRows = containerSize.height > 0
+    ? Math.ceil(containerSize.height / gridRowHeight) + OVERSCAN_ROWS * 2
+    : virtualGridRowCount;
+  const virtualGridStartRow = Math.max(0, Math.floor(scrollTop / gridRowHeight) - OVERSCAN_ROWS);
+  const virtualGridEndRow = Math.min(virtualGridRowCount, virtualGridStartRow + visibleGridRows);
+  const visibleGridCourses = courses.slice(virtualGridStartRow * gridColumnCount, virtualGridEndRow * gridColumnCount);
+  const gridTopSpacerHeight = virtualGridStartRow * gridRowHeight;
+  const gridBottomSpacerHeight = Math.max(0, (virtualGridRowCount - virtualGridEndRow) * gridRowHeight);
+
+  const visibleTailIndex = effectiveViewMode === "list"
+    ? virtualListEnd
+    : virtualGridEndRow * gridColumnCount;
 
   useEffect(() => {
-    if (page >= totalPages) return;
+    if (isLoadingRef.current || pageRef.current >= totalPages) return;
+    if (courses.length === 0) return;
+    if (visibleTailIndex < courses.length - LOAD_MORE_THRESHOLD_ITEMS) return;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const isIntersecting = entries[0]?.isIntersecting === true;
-        if (!isIntersecting) return;
-
-        if (
-          scrollGenerationRef.current === 0 &&
-          lastLoadScrollGenerationRef.current === 0 &&
-          !canScrollMore()
-        ) {
-          requestNextPage(true);
-        }
-      },
-      {
-        threshold: 0,
-        root: scrollContainerRef.current,
-        rootMargin: "0px 0px 320px 0px",
-      },
-    );
-
-    if (observerTarget.current) {
-      observer.observe(observerTarget.current);
+    const hasScrolled = scrollTop > 0;
+    if (!hasScrolled) {
+      if (hasBootstrappedInitialLoadRef.current) return;
+      hasBootstrappedInitialLoadRef.current = true;
     }
 
-    return () => observer.disconnect();
-  }, [canScrollMore, requestNextPage, page, totalPages, effectiveViewMode]);
+    if (lastRequestedCourseCountRef.current === courses.length) return;
+    lastRequestedCourseCountRef.current = courses.length;
+    void loadMore();
+  }, [courses.length, loadMore, scrollTop, totalPages, visibleTailIndex]);
+
   const refParams = searchParams.toString();
 
   const toggleSelectAll = (checked: boolean) => {
@@ -350,7 +370,12 @@ export default function CourseList({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {courses.map((course) => {
+              {listTopSpacerHeight > 0 ? (
+                <TableRow aria-hidden="true">
+                  <TableCell colSpan={6} style={{ height: listTopSpacerHeight, padding: 0 }} />
+                </TableRow>
+              ) : null}
+              {visibleListCourses.map((course) => {
                 const latestSemester = getLatestSemesterLabel(
                   course.semesters || [],
                 );
@@ -426,9 +451,14 @@ export default function CourseList({
                   </TableRow>
                 );
               })}
+              {listBottomSpacerHeight > 0 ? (
+                <TableRow aria-hidden="true">
+                  <TableCell colSpan={6} style={{ height: listBottomSpacerHeight, padding: 0 }} />
+                </TableRow>
+              ) : null}
             </TableBody>
           </Table>
-          <div ref={observerTarget} className="py-4 flex justify-center">
+          <div className="py-4 flex justify-center">
             {isLoading && (
               <Loader2 className="w-5 h-5 text-slate-500 animate-spin" />
             )}
@@ -444,8 +474,11 @@ export default function CourseList({
           onScroll={handleScroll}
           data-testid="course-scroll-container"
         >
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {courses.map((course) => (
+          <div
+            className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3"
+            style={{ paddingTop: gridTopSpacerHeight, paddingBottom: gridBottomSpacerHeight }}
+          >
+            {visibleGridCourses.map((course) => (
               <CourseCard
                 key={course.id}
                 course={course}
@@ -456,7 +489,7 @@ export default function CourseList({
               />
             ))}
           </div>
-          <div ref={observerTarget} className="py-4 flex justify-center">
+          <div className="py-4 flex justify-center">
             {isLoading && (
               <Loader2 className="w-5 h-5 text-slate-500 animate-spin" />
             )}

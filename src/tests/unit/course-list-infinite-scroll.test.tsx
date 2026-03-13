@@ -5,37 +5,6 @@ import CourseList from "@/components/home/CourseList";
 
 const searchParams = new URLSearchParams("");
 const fetchMock = vi.fn();
-const observerInstances: MockIntersectionObserver[] = [];
-
-class MockIntersectionObserver {
-  callback: IntersectionObserverCallback;
-  disconnected = false;
-
-  constructor(callback: IntersectionObserverCallback) {
-    this.callback = callback;
-    observerInstances.push(this);
-  }
-
-  observe() {}
-
-  disconnect() {
-    this.disconnected = true;
-  }
-
-  unobserve() {}
-
-  takeRecords() {
-    return [];
-  }
-
-  trigger(isIntersecting: boolean) {
-    if (this.disconnected) return;
-    this.callback(
-      [{ isIntersecting } as IntersectionObserverEntry],
-      this as unknown as IntersectionObserver,
-    );
-  }
-}
 
 vi.mock("next/navigation", () => ({
   useSearchParams: () => searchParams,
@@ -96,10 +65,8 @@ function stubScrollMetrics(element: HTMLElement, metrics: {
 
 describe("CourseList infinite scroll", () => {
   beforeEach(() => {
-    observerInstances.length = 0;
     fetchMock.mockReset();
     vi.stubGlobal("fetch", fetchMock);
-    vi.stubGlobal("IntersectionObserver", MockIntersectionObserver as unknown as typeof IntersectionObserver);
     Object.defineProperty(window, "innerWidth", {
       configurable: true,
       writable: true,
@@ -147,10 +114,6 @@ describe("CourseList infinite scroll", () => {
       />,
     );
 
-    await waitFor(() => {
-      expect(observerInstances.length).toBeGreaterThan(0);
-    });
-
     const scrollContainer = view.getAllByTestId("course-scroll-container")[0];
     stubScrollMetrics(scrollContainer, {
       scrollTop: 800,
@@ -160,8 +123,7 @@ describe("CourseList infinite scroll", () => {
 
     await act(async () => {
       fireEvent.scroll(scrollContainer);
-      observerInstances[0].trigger(true);
-      observerInstances[0].trigger(true);
+      fireEvent.scroll(scrollContainer);
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -242,10 +204,6 @@ describe("CourseList infinite scroll", () => {
       />,
     );
 
-    await waitFor(() => {
-      expect(observerInstances.length).toBeGreaterThan(0);
-    });
-
     const scrollContainer = view.getAllByTestId("course-scroll-container")[0];
     stubScrollMetrics(scrollContainer, {
       scrollTop: 800,
@@ -255,22 +213,11 @@ describe("CourseList infinite scroll", () => {
 
     await act(async () => {
       fireEvent.scroll(scrollContainer);
-      observerInstances[0].trigger(true);
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     await waitFor(() => {
       expect(view.getAllByText("Data Structures").length).toBeGreaterThan(0);
-    });
-
-    await act(async () => {
-      observerInstances[0].trigger(true);
-    });
-
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-
-    await act(async () => {
-      observerInstances[0].trigger(true);
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -324,14 +271,152 @@ describe("CourseList infinite scroll", () => {
     );
 
     await waitFor(() => {
-      expect(observerInstances.length).toBeGreaterThan(0);
-    });
-
-    await act(async () => {
-      observerInstances[0].trigger(true);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith("/api/courses?page=2&size=20&q=&sort=title&enrolled=false&universities=&levels=&semesters=");
+  });
+
+  test("does not keep auto-requesting more pages when the list remains non-scrollable after the bootstrap load", async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          items: [
+            {
+              id: 2,
+              title: "Data Structures",
+              courseCode: "CS-102",
+              university: "Test U",
+              url: "https://example.com/2",
+              description: "Second course",
+              popularity: 1,
+              isHidden: false,
+              fields: [],
+              semesters: ["Spring 2026"],
+            },
+          ],
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          items: [
+            {
+              id: 3,
+              title: "Databases",
+              courseCode: "CS-103",
+              university: "Test U",
+              url: "https://example.com/3",
+              description: "Third course",
+              popularity: 1,
+              isHidden: false,
+              fields: [],
+              semesters: ["Spring 2026"],
+            },
+          ],
+        }),
+      } as Response);
+
+    render(
+      <CourseList
+        initialCourses={[
+          {
+            id: 1,
+            title: "Algorithms",
+            courseCode: "CS-101",
+            university: "Test U",
+            url: "https://example.com/1",
+            description: "Intro course",
+            popularity: 1,
+            isHidden: false,
+            fields: [],
+            semesters: ["Spring 2026"],
+          },
+        ]}
+        totalPages={5}
+        currentPage={1}
+        perPage={20}
+        initialEnrolledIds={[]}
+        dict={{} as never}
+        filterUniversities={[]}
+        filterSemesters={[]}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("loads more in grid mode when the virtualized range nears the loaded tail", async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        items: [
+          {
+            id: 30,
+            title: "Distributed Systems",
+            courseCode: "CS-130",
+            university: "Test U",
+            url: "https://example.com/30",
+            description: "Grid next page",
+            popularity: 1,
+            isHidden: false,
+            fields: [],
+            semesters: ["Spring 2026"],
+          },
+        ],
+      }),
+    } as Response);
+
+    window.localStorage.setItem("courseViewMode", "grid");
+
+    const initialCourses = Array.from({ length: 29 }, (_, index) => ({
+      id: index + 1,
+      title: `Course ${index + 1}`,
+      courseCode: `CS-${index + 1}`,
+      university: "Test U",
+      url: `https://example.com/${index + 1}`,
+      description: "Grid course",
+      popularity: 1,
+      isHidden: false,
+      fields: [],
+      semesters: ["Spring 2026"],
+    }));
+
+    const view = render(
+      <CourseList
+        initialCourses={initialCourses}
+        totalPages={3}
+        currentPage={1}
+        perPage={20}
+        initialEnrolledIds={[]}
+        dict={{} as never}
+        filterUniversities={[]}
+        filterSemesters={[]}
+      />,
+    );
+
+    const scrollContainer = view.getAllByTestId("course-scroll-container")[0];
+    stubScrollMetrics(scrollContainer, {
+      scrollTop: 2600,
+      scrollHeight: 3200,
+      clientHeight: 600,
+    });
+
+    await act(async () => {
+      fireEvent.scroll(scrollContainer);
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith("/api/courses?page=2&size=20&q=&sort=title&enrolled=false&universities=&levels=&semesters=");
+
+    await waitFor(() => {
+      expect(view.getAllByText("Distributed Systems").length).toBeGreaterThan(0);
+    });
   });
 });
