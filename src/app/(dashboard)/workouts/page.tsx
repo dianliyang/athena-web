@@ -67,37 +67,24 @@ async function SidebarData({ dict
 
   const { data: workoutsData, error } = await supabase.
   from('workouts').
-  select('*');
+  select('id, source, category, category_en, booking_status, price_student, location, location_en, title, title_en, day_of_week, start_time, end_time, start_date, end_date, booking_url, url, semester, details');
 
   if (error) {
     console.error("[Supabase] Fetch sidebar workouts error:", error);
-    return <WorkoutSidebar categories={[]} statuses={[]} dict={dict} />;
+    return <WorkoutSidebar providers={[]} categories={[]} statuses={[]} dict={dict} />;
   }
 
   const workouts = (workoutsData || []).map((row: any) => mapWorkoutFromRow(row)); // eslint-disable-line @typescript-eslint/no-explicit-any
-  const visibleState = buildVisibleWorkoutCategoryState(workouts, [], "");
+  const visibleState = buildVisibleWorkoutCategoryState(workouts, [], "", "");
 
-  const categoryCounts: Record<string, number> = {};
-  visibleState.categoryGroups.forEach((group) => {
-    categoryCounts[group.category] = group.count;
-  });
-
-  const categories = Object.entries(categoryCounts).
-  map(([name, count]) => ({ name, count })).
-  sort((a, b) => b.count - a.count);
-
-  const statusCounts: Record<string, number> = {};
-  workouts
-    .filter((w) => w.bookingStatus !== "fully_booked" && w.bookingStatus !== "expired")
-    .forEach((w) => {
-    const name = w.bookingStatus;
-    if (name) statusCounts[name] = (statusCounts[name] || 0) + 1;
-  });
-  const statuses = Object.entries(statusCounts).
-  map(([name, count]) => ({ name, count })).
-  sort((a, b) => b.count - a.count);
-
-  return <WorkoutSidebar categories={categories} statuses={statuses} dict={dict} />;
+  return (
+    <WorkoutSidebar
+      providers={visibleState.providerGroups.map((group) => ({ name: group.provider, count: group.count }))}
+      categories={visibleState.categoryGroups.map((group) => ({ name: group.category, count: group.count }))}
+      statuses={visibleState.statusGroups.map((group) => ({ name: group.status, count: group.count }))}
+      dict={dict}
+    />
+  );
 }
 
 async function WorkoutListData({ params, dict
@@ -110,6 +97,7 @@ async function WorkoutListData({ params, dict
   const categories = (params.categories as string || "").split(",").filter(Boolean);
   const days = (params.days as string || "").split(",").filter(Boolean);
   const status = (params.status as string || "").split(",").filter(Boolean);
+  const selectedProvider = params.provider as string || "";
   const selectedCategory = params.category as string || "";
 
   const dbWorkouts = await fetchWorkouts(
@@ -118,6 +106,7 @@ async function WorkoutListData({ params, dict
     categories,
     days,
     status,
+    selectedProvider,
     selectedCategory,
     user?.id || null,
   );
@@ -139,6 +128,7 @@ sort: string,
 categories: string[],
 days: string[],
 status: string[],
+selectedProvider: string,
 selectedCategory: string,
 userId: string | null)
 {
@@ -162,6 +152,10 @@ userId: string | null)
 
   if (days.length > 0) {
     supabaseQuery = supabaseQuery.in('day_of_week', days);
+  }
+
+  if (selectedProvider) {
+    supabaseQuery = supabaseQuery.eq('source', selectedProvider);
   }
 
   // Never filter expired at DB level — we need all statuses to build category groups correctly.
@@ -196,11 +190,11 @@ userId: string | null)
     ...mapWorkoutFromRow(row),
     enrolled: enrolledIds.has(Number(row.id)),
   }));
-  const visibleState = buildVisibleWorkoutCategoryState(allItemsRaw, categories, selectedCategory);
+  const visibleState = buildVisibleWorkoutCategoryState(allItemsRaw, categories, selectedProvider, selectedCategory);
 
   return {
-    items: visibleState.items,
-    total: visibleState.items.length,
+    items: visibleState.allItems,
+    total: visibleState.allItems.length,
     categoryGroups: visibleState.categoryGroups,
     selectedCategory: visibleState.selectedCategory,
     enrolledIds: Array.from(enrolledIds),

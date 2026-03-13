@@ -1,12 +1,17 @@
 import React from "react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { Workout } from "@/types";
+
+const replaceMock = vi.fn();
+const pushMock = vi.fn();
+const refreshMock = vi.fn();
+let searchParamsValue = "";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/workouts",
-  useRouter: () => ({ replace: vi.fn(), refresh: vi.fn(), push: vi.fn() }),
-  useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ replace: replaceMock, refresh: refreshMock, push: pushMock }),
+  useSearchParams: () => new URLSearchParams(searchParamsValue),
 }));
 
 vi.mock("@/actions/courses", () => ({
@@ -66,6 +71,10 @@ describe("WorkoutList responsive behavior", () => {
   });
 
   beforeEach(() => {
+    replaceMock.mockReset();
+    pushMock.mockReset();
+    refreshMock.mockReset();
+    searchParamsValue = "category=Cardio";
     window.localStorage.setItem("workoutViewMode", "list");
     Object.defineProperty(window, "innerWidth", {
       configurable: true,
@@ -166,5 +175,63 @@ describe("WorkoutList responsive behavior", () => {
     expect(gridRoot.className).not.toContain("h-full");
     expect(gridContent.className).not.toContain("min-h-0");
     expect(gridContent.className).not.toContain("flex-1");
+  });
+
+  test("switches categories locally and shows provider badges beside the choices title", async () => {
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      writable: true,
+      value: 1280,
+    });
+
+    const replaceStateMock = vi.fn();
+    window.history.replaceState = replaceStateMock;
+
+    const { default: WorkoutList } = await import("@/components/workouts/WorkoutList");
+    const boxingWorkout: Workout = {
+      ...workout,
+      id: 2,
+      source: "Urban Apes",
+      category: "Boxing",
+      categoryEn: "Boxing",
+      title: "Evening Boxing",
+      titleEn: "Evening Boxing",
+    };
+
+    render(
+      <WorkoutList
+        initialWorkouts={[workout, boxingWorkout]}
+        initialEnrolledIds={[]}
+        dict={dict}
+        categoryGroups={[
+          {
+            category: "Boxing",
+            count: 1,
+            minStudentPrice: 10,
+            maxStudentPrice: 10,
+          },
+          {
+            category: "Cardio",
+            count: 1,
+            minStudentPrice: 10,
+            maxStudentPrice: 10,
+          },
+        ]}
+        selectedCategory="Cardio"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId("workout-list-header").at(-1)?.textContent).toContain("mode:list");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /boxing/i }));
+
+    expect(screen.getByText("Boxing choices")).toBeDefined();
+    expect(screen.getByText("Urban Apes")).toBeDefined();
+    expect(screen.getAllByText("Evening Boxing").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Campus Run")).toBeNull();
+    expect(replaceMock).not.toHaveBeenCalled();
+    expect(replaceStateMock).toHaveBeenCalled();
   });
 });

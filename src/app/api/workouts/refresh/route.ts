@@ -15,18 +15,35 @@ export async function POST(req: Request) {
 
     const body = await req.json().catch(() => ({}));
     const category = body?.category ? String(body.category) : undefined;
-    const source = body?.source === "urban-apes" ? "urban-apes" : "cau-sport";
+    const requestedSources: unknown[] = Array.isArray(body?.sources)
+      ? body.sources
+      : body?.source
+        ? [body.source]
+        : [];
+    const sources: Array<"cau-sport" | "urban-apes"> = Array.from(
+      new Set(
+        requestedSources.filter(
+          (value): value is "cau-sport" | "urban-apes" =>
+            value === "cau-sport" || value === "urban-apes",
+        ),
+      ),
+    );
+    const selectedSources: Array<"cau-sport" | "urban-apes"> =
+      sources.length > 0 ? sources : ["cau-sport"];
 
     jobId = await startScraperJob({
-      university: source,
+      university: selectedSources.join(","),
       trigger: "api",
       triggeredByUserId: user.id,
       forceUpdate: true,
       jobType: "workouts",
-      meta: { endpoint: "/api/workouts/refresh", category, source },
+      meta: { endpoint: "/api/workouts/refresh", category, sources: selectedSources },
     });
 
-    const workoutBatches = await retrieveWorkoutSourceBatches({ category, source });
+    const workoutBatches = await retrieveWorkoutSourceBatches({
+      category,
+      sources: selectedSources,
+    });
     const workouts = workoutBatches.flatMap((batch) => batch.workouts);
 
     const supabase = createAdminClient();

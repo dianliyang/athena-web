@@ -48,4 +48,17 @@ describe("retrieveWorkoutSourceBatches", () => {
     expect(urbanRetrieveWorkouts).toHaveBeenCalledWith(undefined);
     expect(cauRetrieveWorkouts).not.toHaveBeenCalled();
   });
+
+  test("multi-source refresh returns CAU and Urban Apes batches together", async () => {
+    const { retrieveWorkoutSourceBatches } = await import("@/lib/scrapers/workout-sources");
+
+    const batches = await retrieveWorkoutSourceBatches({ sources: ["cau-sport", "urban-apes"] });
+
+    expect(batches.map((batch) => batch.source)).toEqual([
+      "CAU Kiel Sportzentrum",
+      "Urban Apes",
+    ]);
+    expect(cauRetrieveWorkouts).toHaveBeenCalledWith(undefined, undefined);
+    expect(urbanRetrieveWorkouts).toHaveBeenCalledWith(undefined);
+  });
 });

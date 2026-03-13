@@ -37,6 +37,8 @@ describe("WorkoutListHeader responsive behavior", () => {
   });
 
   test("shows a persistent mobile search input and uses the same sort trigger treatment as courses", async () => {
+    const refreshList = vi.fn(async () => {});
+
     render(
       <WorkoutListHeader
         viewMode="list"
@@ -44,7 +46,7 @@ describe("WorkoutListHeader responsive behavior", () => {
         dict={{} as never}
         isRefreshing={false}
         refreshingCategory={undefined}
-        refreshList={vi.fn(async () => {})}
+        refreshList={refreshList}
       />,
     );
 
@@ -62,6 +64,12 @@ describe("WorkoutListHeader responsive behavior", () => {
     expect(within(trailing).getByRole("button", { name: /sort/i })).toBeDefined();
     expect(within(trailing).queryByRole("combobox", { name: /sort/i })).toBeNull();
     expect(within(trailing).getByLabelText(/filter/i)).toBeDefined();
+
+    fireEvent.click(within(trailing).getByLabelText(/refresh all workout categories/i));
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /urban apes/i }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /refresh selected/i }));
+
+    expect(refreshList).toHaveBeenCalledWith({ sources: ["cau-sport", "urban-apes"] });
   });
 
   test("uses the same compact clear icon sizing as courses", async () => {

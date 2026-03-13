@@ -14,8 +14,11 @@ import {
 } from "lucide-react";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -41,8 +44,10 @@ interface WorkoutListHeaderProps {
   dict: Dictionary["dashboard"]["workouts"];
   isRefreshing: boolean;
   refreshingCategory: string | null | undefined;
-  refreshList: (category?: string) => Promise<void>;
+  refreshList: (options?: { sources?: Array<"cau-sport" | "urban-apes"> }) => Promise<void>;
 }
+
+const DEFAULT_REFRESH_SOURCES: Array<"cau-sport" | "urban-apes"> = ["cau-sport"];
 
 export default function WorkoutListHeader({
   viewMode,
@@ -59,6 +64,10 @@ export default function WorkoutListHeader({
   const lastPushedQuery = useRef(searchParams.get("q") || "");
   const isComposing = useRef(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const [isRefreshMenuOpen, setIsRefreshMenuOpen] = useState(false);
+  const [refreshSources, setRefreshSources] = useState<Array<"cau-sport" | "urban-apes">>(
+    DEFAULT_REFRESH_SOURCES,
+  );
 
   useEffect(() => {
     const updateViewport = () => setIsMobileViewport(window.innerWidth < 768);
@@ -66,6 +75,22 @@ export default function WorkoutListHeader({
     window.addEventListener("resize", updateViewport);
     return () => window.removeEventListener("resize", updateViewport);
   }, []);
+
+  const toggleRefreshSource = (source: "cau-sport" | "urban-apes") => {
+    setRefreshSources((current) => {
+      if (current.includes(source)) {
+        const next = current.filter((item) => item !== source);
+        return next.length > 0 ? next : DEFAULT_REFRESH_SOURCES;
+      }
+
+      return [...current, source];
+    });
+  };
+
+  const runRefresh = async () => {
+    setIsRefreshMenuOpen(false);
+    await refreshList({ sources: refreshSources });
+  };
 
   const handleSortChange = (value: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -230,21 +255,53 @@ export default function WorkoutListHeader({
           ) : null}
 
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              onClick={() => refreshList()}
-              disabled={isRefreshing}
-              className={isMobileViewport ? "size-9 p-0" : "flex-1 sm:flex-none"}
-              title="Refresh all workout categories"
-              aria-label="Refresh all workout categories"
+            <DropdownMenu
+              open={isRefreshMenuOpen}
+              onOpenChange={(open) => {
+                setIsRefreshMenuOpen(open);
+                if (!open) setRefreshSources(DEFAULT_REFRESH_SOURCES);
+              }}
             >
-              <RefreshCw
-                className={`h-3.5 w-3.5 ${refreshingCategory === null ? "animate-spin" : ""}`}
-              />
-              <span className={isMobileViewport ? "sr-only" : ""}>
-                {isRefreshing && refreshingCategory === null ? "Refreshing..." : "Refresh All"}
-              </span>
-            </Button>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={() => setIsRefreshMenuOpen((current) => !current)}
+                  disabled={isRefreshing}
+                  className={isMobileViewport ? "size-9 p-0" : "flex-1 sm:flex-none"}
+                  title="Refresh all workout categories"
+                  aria-label="Refresh all workout categories"
+                >
+                  <RefreshCw
+                    className={`h-3.5 w-3.5 ${refreshingCategory === null ? "animate-spin" : ""}`}
+                  />
+                  <span className={isMobileViewport ? "sr-only" : ""}>
+                    {isRefreshing && refreshingCategory === null ? "Refreshing..." : "Refresh All"}
+                  </span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Providers</DropdownMenuLabel>
+                <DropdownMenuCheckboxItem
+                  checked={refreshSources.includes("cau-sport")}
+                  onSelect={(event) => event.preventDefault()}
+                  onCheckedChange={() => toggleRefreshSource("cau-sport")}
+                >
+                  CAU
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={refreshSources.includes("urban-apes")}
+                  onSelect={(event) => event.preventDefault()}
+                  onCheckedChange={() => toggleRefreshSource("urban-apes")}
+                >
+                  Urban Apes
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => void runRefresh()}>
+                  Refresh selected
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button
               variant="outline"
               onClick={openFilters}

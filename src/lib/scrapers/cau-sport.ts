@@ -134,6 +134,7 @@ const DE_EN: Record<string, string> = {
   "Kraul Anfänger": "Front Crawl Beginner",
   "Kraul Fortgeschrittene": "Front Crawl Advanced",
   "Rollstuhlbasketball": "Wheelchair Basketball",
+  "Klettertreff": "Climbing Meetup",
   "Uniliga": "Uni League",
   "norddeutsche Hochschulliga": "North German University League",
   "norddeutsche Hochschulliga Sichtungstraining": "North German University League Tryout",
@@ -185,26 +186,46 @@ const DE_EN: Record<string, string> = {
   "Tennishalle Suchsdorf": "Tennis Hall Suchsdorf",
   "SH flach Bahn": "Pool Shallow Lane",
   "SH tief Bahn": "Pool Deep Lane",
+  "Januar": "January",
+  "Februar": "February",
+  "März": "March",
+  "April": "April",
+  "Mai": "May",
+  "Juni": "June",
+  "Juli": "July",
+  "August": "August",
+  "September": "September",
+  "Oktober": "October",
+  "November": "November",
+  "Dezember": "December",
 };
 
 // Cache sorted keys for translateDE so they aren't recomputed on every call
 const DE_EN_SORTED_KEYS = Object.keys(DE_EN).sort((a, b) => b.length - a.length);
+const DE_EN_TRANSLATION_CACHE = new Map<string, string>();
+const DE_EN_REGEX = new RegExp(
+  DE_EN_SORTED_KEYS
+    .map((key) => key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("|"),
+  "g",
+);
 
 /**
  * Translate a German string to English using the DE_EN map.
  * Exact matches are returned immediately; otherwise performs substring replacement
  * in longest-match-first order to avoid partial overwrites.
  */
-function translateDE(text: string): string {
+export function translateDE(text: string): string {
   if (!text) return text;
-  if (DE_EN[text]) return DE_EN[text];
-  let result = text;
-  for (const key of DE_EN_SORTED_KEYS) {
-    if (result.includes(key)) {
-      result = result.replaceAll(key, DE_EN[key]);
-    }
-  }
-  return result;
+  const cached = DE_EN_TRANSLATION_CACHE.get(text);
+  if (cached) return cached;
+
+  const translated = DE_EN[text]
+    ? DE_EN[text]
+    : text.replace(DE_EN_REGEX, (match) => DE_EN[match] || match);
+
+  DE_EN_TRANSLATION_CACHE.set(text, translated);
+  return translated;
 }
 
 const BOOKING_STATUS_MAP: Record<string, string> = {

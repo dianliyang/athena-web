@@ -13,6 +13,7 @@ interface FilterOption {
 }
 
 interface WorkoutSidebarProps {
+  providers: FilterOption[];
   categories: FilterOption[];
   statuses: FilterOption[];
   dict: Dictionary["dashboard"]["workouts"];
@@ -22,6 +23,7 @@ const DAY_OPTIONS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const INITIAL_CATEGORY_LIMIT = 8;
 
 export default function WorkoutSidebar({
+  providers,
   categories,
   statuses,
   dict,
@@ -31,6 +33,7 @@ export default function WorkoutSidebar({
   const [isExpanded, setIsExpanded] = useState(false);
   const filtersOpen = searchParams.get("filters") === "open";
 
+  const selectedProvider = searchParams.get("provider") || "";
   const selectedCategories =
     searchParams.get("categories")?.split(",").filter(Boolean) || [];
   const selectedDays =
@@ -46,6 +49,14 @@ export default function WorkoutSidebar({
     router.push(`?${params.toString()}`, { scroll: false });
   };
 
+  const updateSingleParam = (key: string, value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value) params.set(key, value);
+    else params.delete(key);
+    params.set("page", "1");
+    router.push(`?${params.toString()}`, { scroll: false });
+  };
+
   const handleToggle = (list: string[], item: string) => {
     return list.includes(item)
       ? list.filter((i) => i !== item)
@@ -56,7 +67,7 @@ export default function WorkoutSidebar({
     ? categories
     : categories.slice(0, INITIAL_CATEGORY_LIMIT);
   const totalFilters =
-    selectedCategories.length + selectedDays.length + selectedStatuses.length;
+    (selectedProvider ? 1 : 0) + selectedCategories.length + selectedDays.length + selectedStatuses.length;
 
   const closeDrawer = () => {
     const params = new URLSearchParams(searchParams.toString());
@@ -95,6 +106,43 @@ export default function WorkoutSidebar({
                 Filters
               </h3>
               <span className="text-[12px] text-slate-400">{totalFilters}</span>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-[12px] font-semibold uppercase tracking-wide text-slate-500 mb-3">
+              Provider
+            </h3>
+            <div className="grid grid-cols-1 gap-2.5">
+              {providers.map((provider) => (
+                <label
+                  key={provider.name}
+                  className="flex items-center justify-between group cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      checked={selectedProvider === provider.name}
+                      onCheckedChange={() =>
+                        updateSingleParam(
+                          "provider",
+                          selectedProvider === provider.name ? "" : provider.name,
+                        )
+                      }
+                    />
+
+                    <span
+                      className={`text-[13px] font-medium tracking-tight transition-colors ${selectedProvider === provider.name ? "text-slate-900" : "text-slate-600 group-hover:text-slate-900"}`}
+                    >
+                      {provider.name}
+                    </span>
+                  </div>
+                  <span
+                    className={`text-[12px] font-medium transition-colors ${selectedProvider === provider.name ? "text-brand-blue" : "text-gray-300"}`}
+                  >
+                    {provider.count}
+                  </span>
+                </label>
+              ))}
             </div>
           </div>
 

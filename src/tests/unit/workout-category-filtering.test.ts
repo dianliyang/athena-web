@@ -40,7 +40,7 @@ describe("buildVisibleWorkoutCategoryState", () => {
       createWorkout({ id: 3, category: "Yoga", categoryEn: "Yoga", bookingStatus: "available", title: "Yoga", titleEn: "Yoga" }),
     ];
 
-    const state = buildVisibleWorkoutCategoryState(items, [], "");
+    const state = buildVisibleWorkoutCategoryState(items, [], "", "");
 
     expect(state.categoryGroups.map((group) => group.category)).toEqual(["Yoga"]);
     expect(state.selectedCategory).toBe("Yoga");
@@ -72,7 +72,7 @@ describe("buildVisibleWorkoutCategoryState", () => {
       } as unknown) as Partial<Workout>),
     ];
 
-    const state = buildVisibleWorkoutCategoryState(items, [], "Swimming Public Pool");
+    const state = buildVisibleWorkoutCategoryState(items, [], "", "Swimming Public Pool");
 
     expect(state.categoryGroups.map((group) => group.category)).toEqual(["Swimming Public Pool"]);
     expect(state.selectedCategory).toBe("Swimming Public Pool");
@@ -89,7 +89,7 @@ describe("buildVisibleWorkoutCategoryState", () => {
       createWorkout({ id: 2, category: "Yoga", categoryEn: "Yoga", bookingStatus: "available", title: "Yoga", titleEn: "Yoga" }),
     ];
 
-    const state = buildVisibleWorkoutCategoryState(items, [], "Swimming");
+    const state = buildVisibleWorkoutCategoryState(items, [], "", "Swimming");
 
     expect(state.categoryGroups.map((group) => group.category)).toEqual(["Swimming", "Yoga"]);
     expect(state.selectedCategory).toBe("Swimming");
@@ -103,11 +103,43 @@ describe("buildVisibleWorkoutCategoryState", () => {
       createWorkout({ id: 2, category: "Running", categoryEn: "Running", bookingStatus: "see_text", title: "Run", titleEn: "Run" }),
     ];
 
-    const state = buildVisibleWorkoutCategoryState(items, [], "Swimming");
+    const state = buildVisibleWorkoutCategoryState(items, [], "", "Swimming");
 
     expect(state.categoryGroups.map((group) => group.category)).toEqual(["Running"]);
     expect(state.selectedCategory).toBe("Running");
     expect(state.items).toHaveLength(1);
     expect(state.items[0].categoryEn).toBe("Running");
+  });
+
+  test("limits visible categories to the selected provider while keeping provider counts available", () => {
+    const items: Workout[] = [
+      createWorkout({
+        id: 1,
+        source: "CAU Kiel Sportzentrum",
+        category: "Swimming",
+        categoryEn: "Swimming",
+        title: "Pool",
+        titleEn: "Pool",
+      }),
+      createWorkout({
+        id: 2,
+        source: "Urban Apes",
+        category: "Bouldering",
+        categoryEn: "Bouldering",
+        title: "urban apes Kiel",
+        titleEn: "urban apes Kiel",
+      }),
+    ];
+
+    const state = buildVisibleWorkoutCategoryState(items, [], "Urban Apes", "");
+
+    expect(state.providerGroups).toEqual([
+      { provider: "CAU Kiel Sportzentrum", count: 1 },
+      { provider: "Urban Apes", count: 1 },
+    ]);
+    expect(state.categoryGroups.map((group) => group.category)).toEqual(["Bouldering"]);
+    expect(state.selectedProvider).toBe("Urban Apes");
+    expect(state.items).toHaveLength(1);
+    expect(state.items[0].source).toBe("Urban Apes");
   });
 });

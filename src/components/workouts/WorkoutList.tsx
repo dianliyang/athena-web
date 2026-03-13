@@ -36,6 +36,8 @@ interface WorkoutListProps {
   selectedCategory: string;
 }
 
+type WorkoutRefreshSource = "cau-sport" | "urban-apes";
+
 const statusStyle: Record<string, string> = {
   available: "bg-emerald-50 text-emerald-700 border-emerald-100",
   fully_booked: "bg-rose-50 text-rose-700 border-rose-100",
@@ -172,6 +174,7 @@ export default function WorkoutList({
   const [expandedGridCategory, setExpandedGridCategory] = useState<string | null>(
     selectedCategory || null,
   );
+  const [activeCategory, setActiveCategory] = useState(selectedCategory);
   const [enrolledIds, setEnrolledIds] = useState<number[]>(initialEnrolledIds);
   const [pendingIds, setPendingIds] = useState<Record<number, boolean>>({});
   const [isMobileViewport, setIsMobileViewport] = useState(false);
@@ -188,6 +191,17 @@ export default function WorkoutList({
   }, []);
 
   const workouts: Workout[] = initialWorkouts;
+  const workoutsByCategory = new Map<string, Workout[]>();
+  for (const workout of workouts) {
+    const category = workout.categoryEn || workout.category || "Other";
+    const items = workoutsByCategory.get(category);
+    if (items) items.push(workout);
+    else workoutsByCategory.set(category, [workout]);
+  }
+  const activeCategoryResolved = workoutsByCategory.has(activeCategory)
+    ? activeCategory
+    : selectedCategory;
+  const activeItems = workoutsByCategory.get(activeCategoryResolved) || [];
   const effectiveViewMode: "list" | "grid" = isMobileViewport ? "grid" : viewMode;
   const isListMode = effectiveViewMode === "list";
 
@@ -226,10 +240,48 @@ export default function WorkoutList({
     }
   };
 
-  const selectedGroup = {
-    category: selectedCategory,
-    items: workouts,
+  const refreshSources = async (sources: WorkoutRefreshSource[]) => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    setRefreshingCategory(null);
+    try {
+      const res = await fetch("/api/workouts/refresh", {
+        method: "POST",
+        body: JSON.stringify({ sources }),
+        headers: { "Content-Type": "application/json" },
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(body?.error || "Failed to refresh workouts");
+      }
+      const count = typeof body?.count === "number" ? body.count : null;
+      showToast({
+        message:
+          count !== null
+            ? `Refresh complete: ${count} items synced`
+            : "Refresh complete",
+        type: "success",
+      });
+      router.refresh();
+    } catch (error) {
+      console.error("[WorkoutList] Refresh failed:", error);
+      showToast({
+        message: error instanceof Error ? error.message : "Refresh failed",
+        type: "error",
+      });
+    } finally {
+      setIsRefreshing(false);
+      setRefreshingCategory(undefined);
+    }
   };
+
+  const selectedGroup = {
+    category: activeCategoryResolved,
+    items: activeItems,
+  };
+  const selectedProviders = Array.from(
+    new Set(selectedGroup.items.map((item) => item.source).filter(Boolean)),
+  );
 
   const formatPrice = (value: number | null) =>
     value == null ? "-" : Number(value).toFixed(2);
@@ -245,10 +297,11 @@ export default function WorkoutList({
   };
 
   const setCategoryOnServer = (category: string) => {
-    if (category === selectedCategory) return;
+    if (category === activeCategoryResolved) return;
+    setActiveCategory(category);
     const params = new URLSearchParams(searchParams.toString());
     params.set("category", category);
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    window.history.replaceState(window.history.state, "", `${pathname}?${params.toString()}`);
   };
 
   useEffect(() => {
@@ -256,12 +309,17 @@ export default function WorkoutList({
   }, [initialEnrolledIds]);
 
   useEffect(() => {
+    setActiveCategory(selectedCategory);
+    setExpandedGridCategory(selectedCategory || null);
+  }, [selectedCategory]);
+
+  useEffect(() => {
     if (!searchParams.get("category") && selectedCategory) {
       const params = new URLSearchParams(searchParams.toString());
       params.set("category", selectedCategory);
-      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+      window.history.replaceState(window.history.state, "", `${pathname}?${params.toString()}`);
     }
-  }, [searchParams, selectedCategory, router, pathname]);
+  }, [searchParams, selectedCategory, pathname]);
 
   const handleToggleEnroll = async (workoutId: number) => {
     if (pendingIds[workoutId]) return;
@@ -297,7 +355,7 @@ export default function WorkoutList({
         dict={dict}
         isRefreshing={isRefreshing}
         refreshingCategory={refreshingCategory}
-        refreshList={refreshList}
+        refreshList={(options) => refreshSources(options?.sources ?? ["cau-sport"])}
       />
 
       <div
@@ -309,7 +367,7 @@ export default function WorkoutList({
             <Card className="hidden h-full min-h-0 overflow-hidden md:grid md:grid-cols-[360px_minmax(0,1fr)] py-0 gap-0">
               <div className="flex h-full min-h-0 flex-col border-r">
                   <div className="flex h-12 items-center justify-between border-b px-3">
-                    <span className="text-sm font-bold tracking-tight text-foreground uppercase">
+                    <span className="text-sm font-bold tracking-tight text-foreground">
                       {dict?.sidebar_categories || "Category"}
                     </span>
                     <Badge variant="secondary" className="font-bold">{categoryGroups.length}</Badge>
@@ -317,7 +375,7 @@ export default function WorkoutList({
 
                   <div className="min-h-0 flex-1 overflow-y-auto p-2">
                     {categoryGroups.map((group, index) => {
-                      const active = selectedCategory === group.category;
+                      const active = activeCategoryResolved === group.category;
                       const priceRange =
                         group.minStudentPrice == null
                           ? "-"
@@ -355,25 +413,32 @@ export default function WorkoutList({
                 </div>
               <div className="flex h-full min-h-0 flex-col">
                   <div className="flex h-12 items-center justify-between border-b px-4">
-                    <p className="truncate text-sm font-bold tracking-tight text-foreground uppercase">
-                      {selectedGroup ? `${selectedGroup.category} choices` : "Choices"}
-                    </p>
+                    <div className="flex min-w-0 items-center gap-2">
+                      <p className="truncate text-sm font-bold tracking-tight text-foreground">
+                        {selectedGroup ? `${selectedGroup.category} choices` : "Choices"}
+                      </p>
+                      {selectedProviders.map((provider) => (
+                        <Badge key={provider} variant="secondary" className="shrink-0">
+                          {provider}
+                        </Badge>
+                      ))}
+                    </div>
                     <div className="flex items-center gap-2">
-                      {selectedCategory && selectedCategory !== "Semester Fee" && (
+                      {activeCategoryResolved && activeCategoryResolved !== "Semester Fee" && (
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => refreshList(selectedCategory)}
+                          onClick={() => refreshList(activeCategoryResolved)}
                           disabled={isRefreshing}
-                          title={`Refresh ${selectedCategory}`}
+                          title={`Refresh ${activeCategoryResolved}`}
                         >
                           <RefreshCw
-                            className={`mr-1.5 h-3.5 w-3.5 ${refreshingCategory === selectedCategory ? "animate-spin" : ""}`}
+                            className={`mr-1.5 h-3.5 w-3.5 ${refreshingCategory === activeCategoryResolved ? "animate-spin" : ""}`}
                           />
                           Refresh
                         </Button>
                       )}
-                      {selectedActionHref && selectedCategory !== "Semester Fee" ? (
+                      {selectedActionHref && activeCategoryResolved !== "Semester Fee" ? (
                         <Button
                           variant="outline"
                           size="sm"
@@ -401,7 +466,7 @@ export default function WorkoutList({
                       <div className="divide-y">
                         {selectedGroup.items.map((w) => {
                           const title = w.titleEn || w.title;
-                          const isSemesterFeeChoice = selectedCategory === "Semester Fee";
+                          const isSemesterFeeChoice = activeCategoryResolved === "Semester Fee";
                           const statusClass =
                             w.bookingStatus && statusStyle[w.bookingStatus]
                               ? statusStyle[w.bookingStatus]
@@ -514,7 +579,7 @@ export default function WorkoutList({
             </Card>
 
             <div className="space-y-2 md:hidden">
-              {workouts.map((workout, idx) => (
+              {selectedGroup.items.map((workout, idx) => (
                 <WorkoutCard
                   key={workout.id}
                   workout={{ ...workout, enrolled: enrolledIds.includes(workout.id) }}
@@ -539,8 +604,8 @@ export default function WorkoutList({
                       : `€${formatPrice(group.minStudentPrice)} ~ €${formatPrice(group.maxStudentPrice)}`;
                 const expanded =
                   expandedGridCategory === group.category &&
-                  selectedCategory === group.category;
-                const visibleChoices = expanded ? workouts : [];
+                  activeCategoryResolved === group.category;
+                const visibleChoices = expanded ? workoutsByCategory.get(group.category) || [] : [];
 
                 const categoryCard = (
                   <Card
@@ -552,7 +617,7 @@ export default function WorkoutList({
                         return;
                       }
                       setExpandedGridCategory(group.category);
-                      if (selectedCategory !== group.category) {
+                      if (activeCategoryResolved !== group.category) {
                         setCategoryOnServer(group.category);
                       }
                     }}
