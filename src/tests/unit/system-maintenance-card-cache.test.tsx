@@ -112,6 +112,7 @@ describe("SystemMaintenanceCard cache behavior", () => {
     const mitToggle = screen.getByRole("button", { name: "MIT" });
     expect(mitToggle.className).toContain("h-20");
     expect(mitToggle.className).toContain("w-full");
+    expect(screen.queryByRole("button", { name: "CAU Sport" })).toBeNull();
 
     const stanfordLogo = screen.getByAltText("Stanford");
     expect(stanfordLogo.getAttribute("src")).toBe("/stanford-text.png");

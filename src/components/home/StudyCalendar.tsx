@@ -36,6 +36,7 @@ import {
   getWeekCalendarCardContentLayout,
   getCurrentTimeIndicatorLayout,
   getRoutineChildContainerClassName,
+  getRoutineTreeBranchClassName,
   getWeekCalendarCardDetailLevel,
   getWeekCalendarDayHeaderClassNames,
   getWeekCalendarHeaderTypography,
@@ -653,7 +654,7 @@ export default function StudyCalendar({ courses, scheduleRows, studyPlans = [], 
                           <CardContent className="p-3">
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0 flex-1 space-y-1">
-                                <p className="line-clamp-1 text-[13px] font-bold text-foreground leading-tight">{event.title}</p>
+                                <p className="line-clamp-1 text-[13px] font-semibold text-foreground leading-tight">{event.title}</p>
                                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground/80 font-medium">
                                   <span className="shrink-0 uppercase">{event.courseCode}</span>
                                   <span className="shrink-0 text-muted-foreground/30">•</span>
@@ -758,55 +759,60 @@ export default function StudyCalendar({ courses, scheduleRows, studyPlans = [], 
                     </Popover>
 
                     {children.length > 0 ? (
-                      <div className={cn("-mt-1", getRoutineChildContainerClassName())}>
+                      <div
+                        className={cn("-mt-1", getRoutineChildContainerClassName())}
+                        data-testid="calendar-routine-tree"
+                      >
                         {children.map((child) => (
-                          <Card
-                            key={child.key}
-                            size="small"
-                            className={cn(
-                              "transition-all border-border/40 bg-muted/20 hover:bg-muted/30 cursor-pointer",
-                              child.isCompleted && "opacity-60 grayscale-[0.4]"
-                            )}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              toggleEventCompletion(child);
-                            }}
-                          >
-                            <CardContent className="p-2.5">
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="min-w-0 flex-1 space-y-1">
-                                  <p className="line-clamp-1 text-[12px] font-semibold text-foreground leading-tight">{child.title}</p>
-                                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-muted-foreground/80 font-medium">
-                                    <span className="shrink-0">{getEventDurationLabel(child)}</span>
-                                    {child.kind && (
-                                      <>
-                                        <span className="shrink-0 text-muted-foreground/30">•</span>
-                                        <Badge variant="secondary" className="h-4 px-1 text-[9px] font-bold uppercase leading-none tracking-tight">
-                                          {child.kind}
-                                        </Badge>
-                                      </>
+                          <div key={child.key} className="relative" data-testid="routine-tree-child">
+                            <span aria-hidden className={getRoutineTreeBranchClassName()} data-testid="routine-tree-branch" />
+                            <Card
+                              size="small"
+                              className={cn(
+                                "transition-all border-border/40 bg-muted/20 hover:bg-muted/30 cursor-pointer",
+                                child.isCompleted && "opacity-60 grayscale-[0.4]"
+                              )}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                toggleEventCompletion(child);
+                              }}
+                            >
+                              <CardContent className="p-2.5">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="min-w-0 flex-1 space-y-1">
+                                    <p className="line-clamp-1 text-[12px] font-semibold text-foreground leading-tight">{child.title}</p>
+                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-muted-foreground/80 font-medium">
+                                      <span className="shrink-0">{getEventDurationLabel(child)}</span>
+                                      {child.kind && (
+                                        <>
+                                          <span className="shrink-0 text-muted-foreground/30">•</span>
+                                          <Badge variant="secondary" className="h-4 px-1 text-[9px] font-bold uppercase leading-none tracking-tight">
+                                            {child.kind}
+                                          </Badge>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div
+                                    className={cn(
+                                      "mt-0.5 h-4.5 w-4.5 rounded-sm border transition-all flex items-center justify-center shrink-0",
+                                      child.isCompleted
+                                        ? "bg-primary border-primary text-primary-foreground"
+                                        : "border-muted-foreground/20 bg-background"
                                     )}
+                                  >
+                                    {pendingEventKeys[child.key] ? (
+                                      <Loader2 className="h-2.5 w-2.5 animate-spin text-muted-foreground" />
+                                    ) : child.isCompleted ? (
+                                      <svg className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="4">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                      </svg>
+                                    ) : null}
                                   </div>
                                 </div>
-                                <div
-                                  className={cn(
-                                    "mt-0.5 h-4.5 w-4.5 rounded-sm border transition-all flex items-center justify-center shrink-0",
-                                    child.isCompleted
-                                      ? "bg-primary border-primary text-primary-foreground"
-                                      : "border-muted-foreground/20 bg-background"
-                                  )}
-                                >
-                                  {pendingEventKeys[child.key] ? (
-                                    <Loader2 className="h-2.5 w-2.5 animate-spin text-muted-foreground" />
-                                  ) : child.isCompleted ? (
-                                    <svg className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="4">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                    </svg>
-                                  ) : null}
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
+                              </CardContent>
+                            </Card>
+                          </div>
                         ))}
                       </div>
                     ) : null}

@@ -5,7 +5,7 @@ import { ChevronRight, Loader2, Coffee } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { OverviewRoutineItem } from "@/lib/overview-routine";
-import { getRoutineChildContainerClassName } from "@/lib/routine-layout";
+import { getRoutineChildContainerClassName, getRoutineTreeBranchClassName } from "@/lib/routine-layout";
 import { buildTodayRoutineGroups } from "@/lib/week-calendar";
 import Link from "next/link";
 
@@ -103,20 +103,28 @@ export default function OverviewRoutineList({
       </div>
     );
 
-    if (item.courseId) {
-      return (
-        <Link
-          key={item.key}
-          href={`/courses/${item.courseId}`}
-          prefetch={false}
-          className={`block ${child ? "py-0.5" : "py-1"} hover:bg-muted/5 transition-colors`}
-        >
-          {content}
-        </Link>
-      );
+    const renderedContent = item.courseId ? (
+      <Link
+        href={`/courses/${item.courseId}`}
+        prefetch={false}
+        className={`block ${child ? "py-0.5" : "py-1"} hover:bg-muted/5 transition-colors`}
+      >
+        {content}
+      </Link>
+    ) : (
+      <div className={child ? "py-0.5" : "py-1"}>{content}</div>
+    );
+
+    if (!child) {
+      return <div key={item.key}>{renderedContent}</div>;
     }
 
-    return <div key={item.key} className={child ? "py-0.5" : "py-1"}>{content}</div>;
+    return (
+      <div key={item.key} className="relative" data-testid="routine-tree-child">
+        <span aria-hidden className={getRoutineTreeBranchClassName()} data-testid="routine-tree-branch" />
+        {renderedContent}
+      </div>
+    );
   };
 
   const handleAction = async (item: OverviewRoutineItem) => {
@@ -197,7 +205,7 @@ export default function OverviewRoutineList({
         <div key={parent.key} className="space-y-1">
           {renderItem(parent)}
           {children.length > 0 ? (
-            <div className={getRoutineChildContainerClassName()}>
+            <div className={getRoutineChildContainerClassName()} data-testid="overview-routine-tree">
               {children.map((child) => renderItem(child, true))}
             </div>
           ) : null}

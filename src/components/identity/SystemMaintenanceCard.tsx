@@ -31,6 +31,8 @@ const UNIVERSITY_LOGO_PATHS: Record<string, string> = {
   "cau-sport": "/cau-text.png",
 };
 
+const HIDDEN_SELECTOR_UNIVERSITY_IDS = new Set(["cau-sport"]);
+
 export default function SystemMaintenanceCard() {
   const [isPending, startTransition] = useTransition();
   const [selectedUnis, setSelectedUnis] = useState<string[]>(["mit"]);
@@ -251,7 +253,7 @@ export default function SystemMaintenanceCard() {
             <section className="space-y-2">
               <h4 className="text-sm font-semibold">Target Institutions</h4>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {UNIVERSITIES.map((uni) => (
+                {UNIVERSITIES.filter((uni) => !HIDDEN_SELECTOR_UNIVERSITY_IDS.has(uni.id)).map((uni) => (
                   <Toggle
                     key={uni.id}
                     variant="outline"
@@ -260,7 +262,7 @@ export default function SystemMaintenanceCard() {
                     disabled={isPending}
                     aria-label={uni.name}
                     title={uni.name}
-                    className="h-20 w-full rounded-xl px-3 py-3 data-[state=on]:bg-transparent data-[state=on]:text-foreground data-[state=on]:border-black data-[state=on]:border-2"
+                    className="h-20 w-full rounded-xl px-0 py-0 data-[state=on]:bg-transparent data-[state=on]:text-foreground data-[state=on]:border-black data-[state=on]:border-2"
                   >
                     <span className="flex h-full w-full items-center justify-center rounded-lg bg-muted/20">
                       <Image

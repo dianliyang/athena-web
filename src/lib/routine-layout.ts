@@ -1,5 +1,9 @@
 export function getRoutineChildContainerClassName() {
-  return "ml-5 border-l border-border/60 pl-4 space-y-2";
+  return "ml-5 border-l border-border/70 pl-4 space-y-2";
+}
+
+export function getRoutineTreeBranchClassName() {
+  return "pointer-events-none absolute left-[-17px] top-4 h-px w-3 bg-border/70";
 }
 
 export function getCalendarRootCardClassName() {

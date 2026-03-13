@@ -16,4 +16,14 @@ describe("StudyCalendar mobile event overlay", () => {
     expect(source).toContain("DrawerContent");
     expect(source).toContain("PopoverContent");
   });
+
+  test("uses semibold typography for today's routine event card titles", () => {
+    const source = fs.readFileSync(
+      path.join(process.cwd(), "src/components/home/StudyCalendar.tsx"),
+      "utf8",
+    );
+
+    expect(source).toContain('className="line-clamp-1 text-[13px] font-semibold text-foreground leading-tight"');
+    expect(source).not.toContain('className="line-clamp-1 text-[13px] font-bold text-foreground leading-tight"');
+  });
 });
