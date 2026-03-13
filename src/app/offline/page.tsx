@@ -16,6 +16,7 @@ export default function OfflinePage() {
           alt="Athena"
           width={64}
           height={64}
+          unoptimized
           className="mx-auto mb-8"
         />
 

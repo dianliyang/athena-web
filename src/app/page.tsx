@@ -240,7 +240,7 @@ export default function Home() {
 
       <nav className="relative z-50 mx-auto flex w-full max-w-[1200px] items-center justify-between px-6 py-6">
         <div className="flex items-center gap-3 text-2xl tracking-tight text-stone-900" style={{ fontFamily: "var(--font-landing-serif)" }}>
-          <Image src={logoUrl} alt="Athena logo" width={24} height={24} />
+          <Image src={logoUrl} alt="Athena logo" width={24} height={24} unoptimized />
           Athena
         </div>
 
@@ -626,7 +626,7 @@ export default function Home() {
         <div className="mx-auto flex max-w-[1200px] flex-col items-start justify-between gap-10 px-6 py-12 md:flex-row">
           <div>
             <div className="mb-4 flex items-center gap-3 text-xl tracking-tight text-stone-900" style={{ fontFamily: "var(--font-landing-serif)" }}>
-              <Image src={logoUrl} alt="Athena logo" width={20} height={20} />
+              <Image src={logoUrl} alt="Athena logo" width={20} height={20} unoptimized />
               Athena
             </div>
             <div className="max-w-xs text-[10px] uppercase tracking-widest text-stone-400" style={{ fontFamily: "var(--font-landing-mono)" }}>

@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
     root: process.cwd(),
   },
   images: {
+    unoptimized: true,
     dangerouslyAllowLocalIP: true,
     dangerouslyAllowSVG: true,
     contentDispositionType: "inline",

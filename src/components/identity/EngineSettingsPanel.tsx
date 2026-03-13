@@ -243,6 +243,7 @@ export default function EngineSettingsPanel({
                 className={providerSummaryIconClass(provider)}
                 width={20}
                 height={20}
+                unoptimized
               />
               <span className="text-xs">Active Provider</span>
             </div>
@@ -300,6 +301,7 @@ export default function EngineSettingsPanel({
                       className={providerIconClass(p as AIProvider)}
                       width={120}
                       height={24}
+                      unoptimized
                     />
                   </Toggle>
                 ))}

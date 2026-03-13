@@ -168,7 +168,7 @@ export default function LeftRail({ labels }: LeftRailProps) {
           className={`flex h-10 items-center gap-3 px-2 ${collapsed ? "hidden" : ""}`}
           title="Athena"
         >
-          <Image src={logoUrl} alt="Athena" width={28} height={28} />
+          <Image src={logoUrl} alt="Athena" width={28} height={28} unoptimized />
           {!collapsed && <span className="font-brand text-lg leading-none">Athena</span>}
         </Link>
         <SidebarTrigger className={collapsed ? "mx-auto" : ""} />

@@ -104,6 +104,7 @@ export default memo(function UniversityIcon({ name, size = 40, className = "" }:
         alt={`${name} logo`}
         width={size}
         height={size}
+        unoptimized
         className="object-contain w-full h-full"
         sizes={`${size}px`}
         onLoad={handleLoad}

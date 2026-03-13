@@ -53,7 +53,7 @@ export default async function LoginPage({ searchParams }: PageProps) {
           className="flex items-center gap-3 text-2xl tracking-tight text-stone-900"
           style={{ fontFamily: "var(--font-landing-serif)" }}
         >
-          <Image src={getPublicAssetUrl("athena.svg")} alt="Athena logo" width={24} height={24} />
+          <Image src={getPublicAssetUrl("athena.svg")} alt="Athena logo" width={24} height={24} unoptimized />
           Athena
         </Link>
 

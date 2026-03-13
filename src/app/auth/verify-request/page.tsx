@@ -21,6 +21,7 @@ export default async function VerifyRequestPage() {
               alt="Athena"
               width={48}
               height={48}
+              unoptimized
               className="w-12 h-12 brightness-200" />
             
             <div className="flex flex-col -space-y-1.5">
@@ -63,6 +64,7 @@ export default async function VerifyRequestPage() {
               alt="Athena"
               width={64}
               height={64}
+              unoptimized
               className="w-16 h-16" />
             
           </div>

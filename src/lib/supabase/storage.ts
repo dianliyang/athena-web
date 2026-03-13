@@ -17,9 +17,10 @@ const KNOWN_LOGOS: Record<string, string> = {
  * Returns the base URL for public assets in the storage bucket.
  */
 export function getStorageBaseUrl(): string {
-  const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  // User uploaded to "public" bucket, folder "/logos"
-  return baseUrl ? `${baseUrl}/storage/v1/object/public/public/logos` : '';
+  const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, '');
+  // User says "public bucket /logos", which usually means the bucket name is 'logos'
+  // and it has public access.
+  return baseUrl ? `${baseUrl}/storage/v1/object/public/logos` : '';
 }
 
 /**

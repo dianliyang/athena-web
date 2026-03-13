@@ -25,6 +25,7 @@ export default async function Navbar({ dict }: {dict: Dictionary['navbar'];}) {
                   alt="Athena"
                   fill
                   priority
+                  unoptimized
                   sizes="32px"
                   className="object-contain" />
                 
