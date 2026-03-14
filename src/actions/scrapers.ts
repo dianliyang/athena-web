@@ -13,6 +13,7 @@ import { partitionStaleWorkoutIds } from "@/lib/workout-refresh";
 import { revalidatePath } from "next/cache";
 import { completeScraperJob, failScraperJob, startScraperJob } from "@/lib/scrapers/scraper-jobs";
 import { retrieveWorkoutSourceBatches } from "@/lib/scrapers/workout-sources";
+import { listSemestersForYear } from "@/lib/scrapers/year-expansion";
 
 function isCauProjectSeminarWorkshop(
   item: { title?: string; details?: Record<string, unknown> },
@@ -213,20 +214,12 @@ export async function runManualScraperAction({
     return `${uni}:${input}`;
   };
 
-  const semesterListForYear = (uni: string, targetYear: number): string[] => {
-    const yy = String(targetYear).slice(-2);
-    if (uni === "cau" || uni === "cau-sport") {
-      return [`wi${yy}`, `sp${yy}`];
-    }
-    return [`wi${yy}`, `sp${yy}`, `su${yy}`, `fa${yy}`];
-  };
-
   if (!semester && !year) {
     return { success: false, error: "Either semester or year is required" };
   }
 
   if (year && !semester) {
-    const rawSemesters = semesterListForYear(university, year);
+    const rawSemesters = listSemestersForYear(university, year);
     const deduped = new Map<string, string>();
     for (const sem of rawSemesters) {
       deduped.set(normalizeSemesterKey(university, sem), sem);
