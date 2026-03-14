@@ -15,7 +15,7 @@ describe("CAU saveCourses latest semester refresh", () => {
     process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-key";
   });
 
-  test("updates latest_semester for existing CAU rows during non-force schedule refresh", async () => {
+  test("updates latest_semester and credit for existing CAU rows during non-force schedule refresh", async () => {
     const updateMock = vi.fn().mockReturnValue({
       eq: vi.fn().mockResolvedValue({ error: null }),
     });
@@ -30,7 +30,7 @@ describe("CAU saveCourses latest semester refresh", () => {
         if (table === "courses") {
           return {
             select: vi.fn((query: string) => {
-              if (query === "id, course_code, details") {
+              if (query === "id, course_code, details, credit, latest_semester") {
                 return {
                   eq: vi.fn(() => ({
                     in: vi.fn().mockResolvedValue({
@@ -38,6 +38,8 @@ describe("CAU saveCourses latest semester refresh", () => {
                         {
                           id: 42,
                           course_code: "infMobRob-01a",
+                          credit: null,
+                          latest_semester: { term: "Winter", year: 2026 },
                           details: { schedule: { Lecture: ["old"] } },
                         },
                       ],
@@ -119,6 +121,7 @@ describe("CAU saveCourses latest semester refresh", () => {
       university: "CAU Kiel",
       courseCode: "infMobRob-01a",
       title: "Mobile Robotics",
+      credit: 8,
       semesters: [{ term: "Winter", year: 2025 }],
       details: {
         schedule: { Lecture: ["Wednesday 10:15-11:45"] },
@@ -141,7 +144,9 @@ describe("CAU saveCourses latest semester refresh", () => {
     expect(updateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         latest_semester: { term: "Winter", year: 2025 },
+        credit: 8,
       }),
     );
   });
+
 });

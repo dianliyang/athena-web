@@ -10,6 +10,7 @@ import { getDictionary, Dictionary } from "@/lib/dictionary";
 import { getDashboardPageHeaderClassName } from "@/lib/dashboard-layout";
 import { calculateAttendance } from "@/lib/attendance";
 import { groupRoadmapCoursesByPlan } from "@/lib/roadmap-groups";
+import { partitionRoadmapItemsByStatus } from "@/lib/roadmap-status";
 import { ExternalLink, Ghost } from "lucide-react";
 import CourseIntelSyncWindow from "@/components/home/CourseIntelSyncWindow";
 import { Button } from "@/components/ui/button";
@@ -255,13 +256,20 @@ async function StudyPlanContent({
     };
   });
 
-  const inProgress = enrolledWithAttendance.filter((c) => c.status === 'in_progress');
-  const inProgressProjectsSeminars = enrolledProjectsSeminars.filter((item) => item.status === 'in_progress');
+  const {
+    inProgress,
+    completed: completedCourses,
+  } = partitionRoadmapItemsByStatus(enrolledWithAttendance);
+  const {
+    inProgress: inProgressProjectsSeminars,
+    completed: completedProjectsSeminars,
+  } = partitionRoadmapItemsByStatus(enrolledProjectsSeminars);
   
   const { active: activeCourses, planning: planningCourses } =
     groupRoadmapCoursesByPlan(inProgress, plans, todayIso);
   const hasActiveItems = activeCourses.length > 0 || inProgressProjectsSeminars.length > 0;
   const hasPlanningItems = planningCourses.length > 0;
+  const hasCompletedItems = completedCourses.length > 0 || completedProjectsSeminars.length > 0;
 
   return (
     <div className="min-h-full w-full flex flex-col gap-2 pb-4">
@@ -320,6 +328,35 @@ async function StudyPlanContent({
         ) : null}
       </section>
 
+      <section>
+        <div className="mb-5 space-y-2 py-2">
+          <h2 className="text-lg font-semibold tracking-tight text-[#1f1f1f]">
+            Completed
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Finished courses and project work, grouped at the bottom.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {completedCourses.map(({ id, progress, ...course }) => (
+            <ActiveCourseTrack
+              key={`completed-course-${id}`}
+              course={{ ...course, id }}
+              initialProgress={100}
+              plan={null}
+            />
+          ))}
+          {completedProjectsSeminars.map((item) => (
+            <ActiveProjectSeminarTrack key={`completed-project-seminar-${item.id}`} item={item} />
+          ))}
+        </div>
+        {!hasCompletedItems ? (
+          <p className="text-sm text-muted-foreground mt-4">
+            No completed items yet.
+          </p>
+        ) : null}
+      </section>
+
       {enrolledCourses.length === 0 && enrolledProjectsSeminars.length === 0 &&
       <Card>
           <CardContent className="flex flex-col items-center justify-center gap-2 py-7 text-center">
@@ -339,6 +376,17 @@ async function StudyPlanContent({
 }
 
 function ActiveProjectSeminarTrack({ item }: {item: EnrolledProjectSeminar;}) {
+  const statusLabel =
+    item.status === "completed"
+      ? "Completed"
+      : item.status === "pending"
+        ? "Pending"
+        : "In Progress";
+  const statusProgress =
+    item.status === "completed"
+      ? 100
+      : Math.max(0, Math.min(100, item.progress || 50));
+
   return (
     <Card className="h-full flex flex-col border-[#efefef] hover:border-[#dfdfdf] transition-all duration-200 shadow-sm hover:shadow-md overflow-hidden bg-white text-[#1f1f1f]">
       <CardHeader className="p-3 pb-2">
@@ -377,10 +425,10 @@ function ActiveProjectSeminarTrack({ item }: {item: EnrolledProjectSeminar;}) {
         <div className="flex-1 flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
             <span className="text-[9px] uppercase font-black tracking-widest text-stone-400">Status</span>
-            <span className="text-[10px] font-bold text-stone-900">In Progress</span>
+            <span className="text-[10px] font-bold text-stone-900">{statusLabel}</span>
           </div>
           <div className="h-1 w-full bg-stone-100 rounded-full overflow-hidden">
-            <div className="h-full w-1/2 bg-[#1f1f1f] rounded-full" />
+            <div className="h-full bg-[#1f1f1f] rounded-full" style={{ width: `${statusProgress}%` }} />
           </div>
         </div>
         

@@ -2,17 +2,16 @@ import { describe, expect, test } from "vitest";
 import { buildCourseDetailCalendar } from "@/lib/course-detail-calendar";
 
 describe("buildCourseDetailCalendar", () => {
-  test("does not include recurring generated study plan sessions when there are no scheduled tasks", () => {
+  test("expands recurring study plan sessions into calendar events across the saved range", () => {
     const result = buildCourseDetailCalendar({
-      courseTitle: "Fundamentals of Programming",
       assignments: [],
       scheduleItems: [],
       studyPlans: [
         {
           id: 10,
-          startDate: "2026-03-05",
-          endDate: "2026-03-05",
-          daysOfWeek: [4],
+          startDate: "2025-10-19",
+          endDate: "2026-02-08",
+          daysOfWeek: [1],
           startTime: "09:00",
           endTime: "11:00",
           location: "Library",
@@ -21,13 +20,34 @@ describe("buildCourseDetailCalendar", () => {
       ],
     });
 
-    expect(result.range).toBeNull();
-    expect(result.eventsByDate.get("2026-03-05")).toBeUndefined();
+    expect(result.range).toEqual({
+      startIso: "2025-10-20",
+      endIso: "2026-02-02",
+    });
+    expect(result.eventsByDate.get("2025-10-20")).toEqual([
+      {
+        label: "Self-Study",
+        meta: "self-study · 09:00-11:00 · Library",
+        kind: "self-study",
+        badgeLabel: "self-study",
+        timeLabel: "09:00-11:00",
+        isCompleted: false,
+      },
+    ]);
+    expect(result.eventsByDate.get("2026-02-02")).toEqual([
+      {
+        label: "Self-Study",
+        meta: "self-study · 09:00-11:00 · Library",
+        kind: "self-study",
+        badgeLabel: "self-study",
+        timeLabel: "09:00-11:00",
+        isCompleted: false,
+      },
+    ]);
   });
 
   test("keeps scheduled task duration and infers a concrete kind from the task text", () => {
     const result = buildCourseDetailCalendar({
-      courseTitle: "Fundamentals of Programming",
       assignments: [],
       scheduleItems: [
         {
@@ -55,7 +75,6 @@ describe("buildCourseDetailCalendar", () => {
 
   test("uses inferred lecture kind when the explicit kind is only a generic task", () => {
     const result = buildCourseDetailCalendar({
-      courseTitle: "Parallel Computing",
       assignments: [],
       scheduleItems: [
         {
@@ -83,7 +102,6 @@ describe("buildCourseDetailCalendar", () => {
 
   test("marks scheduled tasks completed only when the date exists in completion logs", () => {
     const result = buildCourseDetailCalendar({
-      courseTitle: "Fundamentals of Programming",
       assignments: [],
       scheduleItems: [
         {

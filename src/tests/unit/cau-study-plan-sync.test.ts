@@ -160,6 +160,42 @@ describe("buildCauStudyPlanRows", () => {
       },
     ]);
   });
+
+  test("accepts single-digit hour values from UnivIS schedule entries", () => {
+    const course: Course = {
+      university: "CAU Kiel",
+      courseCode: "infIntCry-01a",
+      title: "Introduction to Cryptography",
+      details: {
+        scheduleEntries: [
+          {
+            kind: "Lecture",
+            dayOfWeek: 3,
+            startTime: "8:15",
+            endTime: "9:45",
+            startDate: "2025-10-19",
+            endDate: "2026-02-08",
+            location: "LMS11a",
+          },
+        ],
+      },
+    };
+
+    expect(buildCauStudyPlanRows({ userId: "user-1", courseId: 42, course })).toEqual([
+      {
+        user_id: "user-1",
+        course_id: 42,
+        start_date: "2025-10-19",
+        end_date: "2026-02-08",
+        days_of_week: [3],
+        start_time: "08:15:00",
+        end_time: "09:45:00",
+        location: "LMS11a",
+        kind: "Lecture",
+        timezone: "Europe/Berlin",
+      },
+    ]);
+  });
 });
 
 describe("syncCauStudyPlansForCourses", () => {

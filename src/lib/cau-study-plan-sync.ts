@@ -17,6 +17,10 @@ function normalizeTime(value: unknown): string | null {
   const trimmed = value.trim();
   if (/^\d{2}:\d{2}:\d{2}$/.test(trimmed)) return trimmed;
   if (/^\d{2}:\d{2}$/.test(trimmed)) return `${trimmed}:00`;
+  const singleDigitHourMatch = trimmed.match(/^(\d):(\d{2})$/);
+  if (singleDigitHourMatch) {
+    return `0${singleDigitHourMatch[1]}:${singleDigitHourMatch[2]}:00`;
+  }
   return null;
 }
 

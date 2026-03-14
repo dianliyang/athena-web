@@ -120,6 +120,55 @@ describe("CourseDetailContent tabs", () => {
     expect(screen.getAllByText("Course Facts").length).toBeGreaterThan(0);
   });
 
+  test("prefers the top-level category in Course Facts", async () => {
+    const { default: CourseDetailContent } = await import("@/components/courses/CourseDetailContent");
+    mockSearchParams = new URLSearchParams();
+
+    render(
+      <CourseDetailContent
+        course={{
+          ...baseCourse,
+          category: "Compulsory elective modules in Computer Science",
+          details: {
+            ...baseCourse.details,
+          },
+        }}
+        isEnrolled={false}
+        descriptionEmptyText="No description"
+        availableTopics={[]}
+        availableSemesters={[]}
+        studyPlans={[]}
+      />,
+    );
+
+    expect(screen.getByText("Compulsory elective")).toBeDefined();
+    expect(screen.queryByText("Workload")).toBeNull();
+    expect(screen.queryByText("Level")).toBeNull();
+  });
+
+  test("renders prerequisites with the same readable body styling as description text", async () => {
+    const { default: CourseDetailContent } = await import("@/components/courses/CourseDetailContent");
+    mockSearchParams = new URLSearchParams();
+
+    render(
+      <CourseDetailContent
+        course={{
+          ...baseCourse,
+          prerequisites: "Linear algebra\nProbability basics",
+        }}
+        isEnrolled={false}
+        descriptionEmptyText="No description"
+        availableTopics={[]}
+        availableSemesters={[]}
+        studyPlans={[]}
+      />,
+    );
+
+    const text = screen.getByText((content) => content.includes("Linear algebra") && content.includes("Probability basics"));
+    expect(text.className).toContain("text-[#555]");
+    expect(text.className).toContain("whitespace-pre-wrap");
+  });
+
   test("renders structured description sections with source badges", async () => {
     const { default: CourseDetailContent } = await import("@/components/courses/CourseDetailContent");
     mockSearchParams = new URLSearchParams();
@@ -201,7 +250,7 @@ describe("CourseDetailContent tabs", () => {
     expect(sideTokens).toContain("lg:overflow-y-auto");
   });
 
-  test("does not render the schedule calendar for generated study plans alone", async () => {
+  test("renders the schedule calendar for saved study plans alone", async () => {
     const { default: CourseDetailContent } = await import("@/components/courses/CourseDetailContent");
     mockSearchParams = new URLSearchParams();
     render(
@@ -227,7 +276,8 @@ describe("CourseDetailContent tabs", () => {
       />,
     );
 
-    expect(screen.queryByText("Schedule Calendar")).toBeNull();
+    expect(screen.getAllByText("Schedule Calendar").length).toBeGreaterThan(0);
+    expect(screen.getByText("2026-03-03 - 2026-03-31")).toBeDefined();
   });
 
   test("renders the schedule calendar when scheduled tasks exist", async () => {
@@ -253,9 +303,9 @@ describe("CourseDetailContent tabs", () => {
       />,
     );
 
-    expect(screen.getByText("Schedule Calendar")).toBeDefined();
+    expect(screen.getAllByText("Schedule Calendar").length).toBeGreaterThan(0);
     expect(screen.getByText("2026-03-10 - 2026-03-10")).toBeDefined();
-    expect(screen.getByText("Day Details")).toBeDefined();
+    expect(screen.getAllByText("Day Details").length).toBeGreaterThan(0);
   });
 
   test("course detail calendar day details show task duration and inferred kind badge", async () => {

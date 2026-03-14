@@ -98,16 +98,63 @@ function normalizeCalendarKind(
 export function buildCourseDetailCalendar({
   assignments,
   scheduleItems,
+  studyPlans = [],
   completionByDate = new Map<string, boolean>(),
   scheduleCompletion = new Map<number, boolean>(),
   assignmentCompletion = new Map<number, boolean>(),
 }: {
   assignments: CourseDetailCalendarAssignment[];
   scheduleItems: CourseDetailCalendarScheduleItem[];
+  studyPlans?: CourseDetailCalendarStudyPlan[];
   completionByDate?: Map<string, boolean>;
   scheduleCompletion?: Map<number, boolean>;
   assignmentCompletion?: Map<number, boolean>;
 }): CourseDetailCalendarResult {
+  const studyPlanRows = studyPlans.flatMap((plan) => {
+    const start = parseIsoDate(plan.startDate);
+    const end = parseIsoDate(plan.endDate);
+    const daySet = new Set(
+      (plan.daysOfWeek || []).filter((day): day is number => Number.isInteger(day) && day >= 0 && day <= 6),
+    );
+
+    if (!start || !end || daySet.size === 0 || start > end) {
+      return [];
+    }
+
+    const kind = normalizeCalendarKind(String(plan.kind || "study"), [plan.kind || "Study Plan"]);
+    const timeRange =
+      plan.startTime && plan.endTime
+        ? `${plan.startTime.slice(0, 5)}-${plan.endTime.slice(0, 5)}`
+        : null;
+    const meta = [kind, timeRange, plan.location || null].filter(Boolean).join(" · ") || "Study Plan";
+    const label = String(plan.kind || "Study Plan").trim() || "Study Plan";
+    const rows: Array<{
+      dateIso: string;
+      label: string;
+      meta: string;
+      kind: string;
+      badgeLabel: string;
+      timeLabel: string | null;
+      isCompleted: boolean;
+    }> = [];
+
+    for (let cursor = new Date(start.getTime()); cursor <= end; cursor = addDaysUtc(cursor, 1)) {
+      if (!daySet.has(cursor.getUTCDay())) continue;
+      const dateIso = toIsoDateUtc(cursor);
+      rows.push({
+        dateIso,
+        label,
+        meta,
+        kind,
+        badgeLabel: kind,
+        timeLabel: timeRange,
+        isCompleted: completionByDate.get(dateIso) ?? false,
+      });
+    }
+
+    return rows;
+  });
+
   const scheduleRows = scheduleItems
     .map((item) => {
       const parsedDate = parseIsoDate(item.date);
@@ -152,7 +199,7 @@ export function buildCourseDetailCalendar({
     })
     .filter((row): row is { dateIso: string; label: string; meta: string; kind: string; badgeLabel: string; timeLabel: null; isCompleted: boolean } => row !== null);
 
-  const rawRows = [...scheduleRows, ...deadlineRows];
+  const rawRows = [...studyPlanRows, ...scheduleRows, ...deadlineRows];
   if (rawRows.length === 0) {
     return {
       range: null,

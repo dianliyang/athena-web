@@ -7,7 +7,7 @@ import {
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
 import { toast } from "sonner";
-import { Copy, BookOpen, GraduationCap, MapPin, Layers } from "lucide-react";
+import { Copy, BookOpen, Layers } from "lucide-react";
 import UniversityIcon from "@/components/common/UniversityIcon";
 import { getCourseCodeBreakdown } from "@/lib/course-code-breakdown";
 
@@ -85,24 +85,6 @@ export default function CourseCodeHoverCard({
               </p>
             </div>
           )}
-
-          <div className="grid grid-cols-2 gap-2 pt-1">
-            <div className="rounded-md bg-muted/40 p-2">
-              <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground">
-                <GraduationCap className="h-2.5 w-2.5" />
-                <span>Level</span>
-              </div>
-              <p className="mt-0.5 text-xs font-semibold uppercase">Regular</p>
-            </div>
-            <div className="rounded-md bg-muted/40 p-2">
-              <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground">
-                <MapPin className="h-2.5 w-2.5" />
-                <span>Status</span>
-              </div>
-              <p className="mt-0.5 text-xs font-semibold uppercase text-emerald-600">Active</p>
-            </div>
-          </div>
-
           {breakdown.length > 0 && (
             <div className="space-y-2 border-t pt-3">
               <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">

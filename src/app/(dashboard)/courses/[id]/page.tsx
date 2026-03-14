@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { createClient, mapCourseFromRow, getUser } from "@/lib/supabase/server";
 import { getLanguage } from "@/actions/language";
 import { getDictionary, Dictionary } from "@/lib/dictionary";
+import { formatCourseTermLabels } from "@/lib/course-detail-facts";
 import { Course } from "@/types";
 import CourseDetailContent from "@/components/courses/CourseDetailContent";
 
@@ -53,6 +54,7 @@ async function CourseDetailData({ id, dict }: {id: string;dict: Dictionary['dash
   select(
     `
       id, university, course_code, title, units, credit, url, description, details, instructors, prerequisites, resources, cross_listed_courses, department, corequisites, level, difficulty, popularity, workload, is_hidden, is_internal, created_at,
+      latest_semester,
       fields:course_fields(fields(name)),
       semesters:course_semesters(semesters(term, year))
     `
@@ -148,9 +150,10 @@ async function CourseDetailData({ id, dict }: {id: string;dict: Dictionary['dash
   const row = data as Record<string, unknown>;
   const course = mapCourseFromRow(row);
   const fieldNames = (row.fields as {fields: {name: string;};}[] | null)?.map((f) => f.fields.name) || [];
-  const semesterNames =
-  (row.semesters as {semesters: {term: string;year: number;};}[] | null)?.map((s) => `${s.semesters.term} ${s.semesters.year}`) ||
-  [];
+  const semesterNames = formatCourseTermLabels(
+    (row.semesters as {semesters: {term: string;year: number;};}[] | null) || [],
+    (row.latest_semester as { term?: string; year?: number } | null) || null,
+  );
 
   const fullCourse = {
     ...course,

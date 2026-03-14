@@ -290,6 +290,18 @@ export class SupabaseDatabase {
     );
 
     const supabase = createAdminClient();
+    const stableStringify = (value: unknown): string => {
+      if (Array.isArray(value)) {
+        return `[${value.map((item) => stableStringify(item)).join(",")}]`;
+      }
+      if (value && typeof value === "object") {
+        const entries = Object.entries(value as Record<string, unknown>)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([k, v]) => `${JSON.stringify(k)}:${stableStringify(v)}`);
+        return `{${entries.join(",")}}`;
+      }
+      return JSON.stringify(value);
+    };
 
     // CAU special handling:
     // Without force update, existing CAU rows only refresh details.schedule.
@@ -297,7 +309,7 @@ export class SupabaseDatabase {
       const courseCodes = coursesForUpsert.map((c) => c.courseCode);
       const { data: existingRows, error: existingFetchError } = await supabase
         .from("courses")
-        .select("id, course_code, details")
+        .select("id, course_code, details, credit, latest_semester")
         .eq("university", university)
         .in("course_code", courseCodes);
 
@@ -321,30 +333,53 @@ export class SupabaseDatabase {
           typeof existing.details === "string"
             ? (JSON.parse(existing.details || "{}") as Record<string, unknown>)
             : ((existing.details as Record<string, unknown> | null) || {});
-
-        const nextSchedule =
+        const nextDetails =
           course.details && typeof course.details === "object"
-            ? ((course.details as Record<string, unknown>).schedule as Record<string, unknown> | undefined)
-            : undefined;
+            ? (course.details as Record<string, unknown>)
+            : {};
+
+        const nextSchedule = nextDetails.schedule as Record<string, unknown> | undefined;
         const nextScheduleEntries =
-          course.details && typeof course.details === "object" && Array.isArray((course.details as Record<string, unknown>).scheduleEntries)
-            ? ((course.details as Record<string, unknown>).scheduleEntries as unknown[])
+          Array.isArray(nextDetails.scheduleEntries)
+            ? (nextDetails.scheduleEntries as unknown[])
             : undefined;
+        const latestSemester =
+          Array.isArray(course.semesters) && course.semesters[0]
+            ? { term: course.semesters[0].term, year: course.semesters[0].year }
+            : undefined;
+        const currentLatestSemester =
+          existing.latest_semester &&
+          typeof existing.latest_semester === "object" &&
+          !Array.isArray(existing.latest_semester)
+            ? (existing.latest_semester as Record<string, unknown>)
+            : undefined;
+        const latestSemesterChanged =
+          latestSemester !== undefined &&
+          stableStringify(currentLatestSemester || null) !== stableStringify(latestSemester);
+        const creditChanged =
+          typeof course.credit === "number" &&
+          course.credit !== existing.credit;
 
-        if (!nextSchedule && !nextScheduleEntries) continue;
+        if (!nextSchedule && !nextScheduleEntries) {
+          if (!latestSemesterChanged && !creditChanged) {
+            continue;
+          }
 
-        const stableStringify = (value: unknown): string => {
-          if (Array.isArray(value)) {
-            return `[${value.map((item) => stableStringify(item)).join(",")}]`;
+          const { error: updateCourseMetadataError } = await supabase
+            .from("courses")
+            .update({
+              ...(typeof course.credit === "number" ? { credit: course.credit } : {}),
+              ...(latestSemester ? { latest_semester: latestSemester as Json } : {}),
+            })
+            .eq("id", existing.id);
+
+          if (updateCourseMetadataError) {
+            console.error(`[Supabase] Failed to refresh CAU metadata for ${course.courseCode}:`, updateCourseMetadataError);
+            throw updateCourseMetadataError;
           }
-          if (value && typeof value === "object") {
-            const entries = Object.entries(value as Record<string, unknown>)
-              .sort(([a], [b]) => a.localeCompare(b))
-              .map(([k, v]) => `${JSON.stringify(k)}:${stableStringify(v)}`);
-            return `{${entries.join(",")}}`;
-          }
-          return JSON.stringify(value);
-        };
+
+          continue;
+        }
 
         const currentSchedule =
           existingDetails && typeof existingDetails === "object"
@@ -355,10 +390,11 @@ export class SupabaseDatabase {
             ? ((existingDetails as Record<string, unknown>).scheduleEntries as unknown[] | undefined)
             : undefined;
 
-        if (
-          stableStringify(currentSchedule || {}) === stableStringify(nextSchedule || {}) &&
-          stableStringify(currentScheduleEntries || []) === stableStringify(nextScheduleEntries || [])
-        ) {
+        const scheduleChanged =
+          stableStringify(currentSchedule || {}) !== stableStringify(nextSchedule || {}) ||
+          stableStringify(currentScheduleEntries || []) !== stableStringify(nextScheduleEntries || []);
+
+        if (!scheduleChanged && !latestSemesterChanged && !creditChanged) {
           continue;
         }
 
@@ -367,14 +403,10 @@ export class SupabaseDatabase {
           ...(nextSchedule ? { schedule: nextSchedule } : {}),
           ...(nextScheduleEntries ? { scheduleEntries: nextScheduleEntries } : {}),
         };
-        const latestSemester =
-          Array.isArray(course.semesters) && course.semesters[0]
-            ? { term: course.semesters[0].term, year: course.semesters[0].year }
-            : undefined;
-
         const { error: updateScheduleError } = await supabase
           .from("courses")
           .update({
+            ...(typeof course.credit === "number" ? { credit: course.credit } : {}),
             details: mergedDetails as Json,
             ...(latestSemester ? { latest_semester: latestSemester as Json } : {}),
           })

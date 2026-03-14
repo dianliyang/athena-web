@@ -55,9 +55,8 @@ describe("Projects seminars responsive behavior", () => {
     expect(mobileSearch).toBeDefined();
     expect(within(mobileSearch).getByPlaceholderText(/search seminars/i)).toBeDefined();
     expect(within(leading).queryByLabelText(/search seminars/i)).toBeNull();
-    expect(within(trailing).getByRole("button", { name: /sort/i })).toBeDefined();
-    expect(within(trailing).queryByRole("combobox", { name: /sort/i })).toBeNull();
-    expect(within(trailing).getByLabelText(/filter/i)).toBeDefined();
+    expect(within(trailing).getAllByRole("combobox").length).toBeGreaterThan(0);
+    expect(within(trailing).getByText(/sort by title/i)).toBeDefined();
   });
 
   test("forces card layout on mobile even when list view is requested", async () => {

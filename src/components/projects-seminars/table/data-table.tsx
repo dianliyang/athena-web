@@ -31,7 +31,7 @@ export function DataTable<TData, TValue>({ columns, data }: DataTableProps<TData
 
   return (
     <div className="min-w-[760px]">
-    <Table>
+    <Table className="table-fixed">
       <TableHeader>
         {table.getHeaderGroups().map((headerGroup) =>
         <TableRow key={headerGroup.id}>

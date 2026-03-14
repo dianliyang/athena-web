@@ -18,6 +18,6 @@ describe("dashboard list alignment", () => {
       "utf8",
     );
 
-    expect(source).toContain('className="flex min-h-10 flex-col justify-center"');
+    expect(source).toContain('className="flex min-h-10 min-w-0 max-w-full flex-col justify-center overflow-hidden"');
   });
 });

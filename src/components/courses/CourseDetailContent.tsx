@@ -558,13 +558,15 @@ export default function CourseDetailContent({
       .filter((key) => groups.has(key))
       .map((key) => ({ value: key, items: groups.get(key) || [] }));
   };
-  const estimatedWorkload = unitInfo.estimate?.details || "-";
+  const estimatedWorkload = unitInfo.estimate?.details?.trim() || "";
   const codeBreakdown = useMemo(
     () => getCourseCodeBreakdown(course.university, course.courseCode),
     [course.university, course.courseCode],
   );
   const categoryRaw =
-    typeof course.details?.category === "string" ? course.details.category : "";
+    typeof course.category === "string" && course.category.trim().length > 0
+      ? course.category
+      : (typeof course.details?.category === "string" ? course.details.category : "");
   const categoryLabel =
     categoryRaw === "Compulsory elective modules in Computer Science"
       ? "Compulsory elective"
@@ -655,6 +657,7 @@ export default function CourseDetailContent({
     return buildCourseDetailCalendar({
       assignments,
       scheduleItems,
+      studyPlans: editablePlans,
       completionByDate,
       scheduleCompletion,
       assignmentCompletion,
@@ -662,6 +665,7 @@ export default function CourseDetailContent({
   }, [
     assignments,
     completionByDate,
+    editablePlans,
     scheduleItems,
     scheduleCompletion,
     assignmentCompletion,
@@ -1580,7 +1584,7 @@ export default function CourseDetailContent({
                     <span className="text-xs font-medium text-[#777] block mb-2">
                       Required Knowledge
                     </span>
-                    <p className="text-sm text-[#444] leading-relaxed">
+                    <p className="text-sm text-[#555] leading-relaxed whitespace-pre-wrap">
                       {course.prerequisites}
                     </p>
                   </div>
@@ -1590,7 +1594,7 @@ export default function CourseDetailContent({
                     <span className="text-xs font-medium text-[#777] block mb-2">
                       Corequisites
                     </span>
-                    <p className="text-sm text-[#444] leading-relaxed">
+                    <p className="text-sm text-[#555] leading-relaxed whitespace-pre-wrap">
                       {course.corequisites}
                     </p>
                   </div>
@@ -2028,18 +2032,14 @@ export default function CourseDetailContent({
                     {course.units || "-"}
                   </dd>
                 </div>
-                <div className="flex justify-between py-0.5">
-                  <dt className="text-[#666] shrink-0">Workload</dt>
-                  <dd className="font-medium text-[#222] text-right pl-4 break-words">
-                    {estimatedWorkload}
-                  </dd>
-                </div>
-                <div className="flex justify-between py-0.5">
-                  <dt className="text-[#666] shrink-0">Level</dt>
-                  <dd className="font-medium text-[#222] capitalize text-right pl-4 break-words">
-                    {course.level || "-"}
-                  </dd>
-                </div>
+                {estimatedWorkload && (
+                  <div className="flex justify-between py-0.5">
+                    <dt className="text-[#666] shrink-0">Workload</dt>
+                    <dd className="font-medium text-[#222] text-right pl-4 break-words">
+                      {estimatedWorkload}
+                    </dd>
+                  </div>
+                )}
                 <div className="flex justify-between py-0.5">
                   <dt className="text-[#666] shrink-0">Department</dt>
                   <dd className="font-medium text-[#222] text-right pl-4 break-words">
