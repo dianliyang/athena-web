@@ -38,6 +38,42 @@ export function defaultImportedCourseInternalValue(item: ScrapedCourse): boolean
   return item.isInternal || false;
 }
 
+export function dedupeScrapedCoursesByCode(items: ScrapedCourse[]): ScrapedCourse[] {
+  const deduped = new Map<string, ScrapedCourse>();
+
+  for (const item of items) {
+    const key = `${formatUniversityName(item.university)}::${item.courseCode}`;
+    const existing = deduped.get(key);
+    if (!existing) {
+      deduped.set(key, item);
+      continue;
+    }
+
+    const existingSemesters = Array.isArray(existing.semesters) ? existing.semesters : [];
+    const incomingSemesters = Array.isArray(item.semesters) ? item.semesters : [];
+    const mergedSemesters = Array.from(
+      new Map(
+        [...existingSemesters, ...incomingSemesters].map((semester) => [
+          `${semester.term}-${semester.year}`,
+          semester,
+        ]),
+      ).values(),
+    );
+
+    const existingResources = Array.isArray(existing.resources) ? existing.resources : [];
+    const incomingResources = Array.isArray(item.resources) ? item.resources : [];
+
+    deduped.set(key, {
+      ...existing,
+      ...item,
+      semesters: mergedSemesters.length > 0 ? mergedSemesters : undefined,
+      resources: Array.from(new Set([...existingResources, ...incomingResources])),
+    });
+  }
+
+  return Array.from(deduped.values());
+}
+
 export async function getBaseUrl() {
   const envUrl = process.env.NEXT_PUBLIC_APP_URL;
   if (envUrl) {
@@ -240,8 +276,9 @@ export class SupabaseDatabase {
     if (courses.length === 0) return;
     const { forceUpdate = false } = options;
 
-    const university = formatUniversityName(courses[0].university);
-    let coursesForUpsert = courses.filter((course) => !isCauProjectSeminarCourse(course));
+    const dedupedCourses = dedupeScrapedCoursesByCode(courses);
+    const university = formatUniversityName(dedupedCourses[0].university);
+    let coursesForUpsert = dedupedCourses.filter((course) => !isCauProjectSeminarCourse(course));
     if (coursesForUpsert.length === 0) {
       console.log(`[Supabase] No ${university} course rows eligible for course upsert.`);
       return;
@@ -574,10 +611,16 @@ export class SupabaseDatabase {
           });
         });
 
-        if (semesterLinks.length > 0) {
+        const dedupedSemesterLinks = Array.from(
+          new Map(
+            semesterLinks.map((link) => [`${link.course_id}-${link.semester_id}`, link]),
+          ).values(),
+        );
+
+        if (dedupedSemesterLinks.length > 0) {
            const { error: linkError } = await supabase
              .from('course_semesters')
-             .upsert(semesterLinks, { onConflict: 'course_id, semester_id' });
+             .upsert(dedupedSemesterLinks, { onConflict: 'course_id, semester_id' });
            
            if (linkError) {
              console.error(`[Supabase] Error linking course semesters:`, linkError);
@@ -676,11 +719,12 @@ export class SupabaseDatabase {
   async saveProjectsSeminars(items: ScrapedCourse[]): Promise<void> {
     if (items.length === 0) return;
 
-    const university = formatUniversityName(items[0].university);
-    console.log(`[Supabase] Saving ${items.length} projects/seminars for ${university}...`);
+    const dedupedItems = dedupeScrapedCoursesByCode(items);
+    const university = formatUniversityName(dedupedItems[0].university);
+    console.log(`[Supabase] Saving ${dedupedItems.length} projects/seminars for ${university}...`);
 
     const supabase = createAdminClient();
-    const courseCodes = Array.from(new Set(items.map((item) => item.courseCode).filter(Boolean)));
+    const courseCodes = Array.from(new Set(dedupedItems.map((item) => item.courseCode).filter(Boolean)));
     const { data: existingRows } = await supabase
       .from("projects_seminars")
       .select("course_code, department, prerequisites, contents, schedule, related_links")
@@ -690,7 +734,7 @@ export class SupabaseDatabase {
       (existingRows || []).map((row) => [row.course_code, row]),
     );
 
-    const toUpsert = items.map((c) => {
+    const toUpsert = dedupedItems.map((c) => {
       const rawDetails =
         c.details && typeof c.details === "object"
           ? (c.details as Record<string, unknown>)

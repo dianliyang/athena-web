@@ -1,6 +1,10 @@
 import { describe, expect, test } from "vitest";
 import type { Course } from "@/lib/scrapers/types";
-import { defaultImportedCourseInternalValue, isCauProjectSeminarCourse } from "@/lib/supabase/server";
+import {
+  dedupeScrapedCoursesByCode,
+  defaultImportedCourseInternalValue,
+  isCauProjectSeminarCourse,
+} from "@/lib/supabase/server";
 
 describe("CAU course persistence rules", () => {
   test("defaults imported CAU courses to internal", () => {
@@ -54,5 +58,35 @@ describe("CAU course persistence rules", () => {
     expect(isCauProjectSeminarCourse(seminar)).toBe(true);
     expect(isCauProjectSeminarCourse(project)).toBe(true);
     expect(isCauProjectSeminarCourse(lecture)).toBe(false);
+  });
+
+  test("deduplicates scraped rows by university and course code before upsert", () => {
+    const first: Course = {
+      university: "CAU Kiel",
+      courseCode: "Inf-EntEinSys",
+      title: "Embedded Real-Time Systems",
+      semesters: [{ term: "Winter", year: 2025 }],
+      resources: ["https://example.com/one"],
+    };
+
+    const second: Course = {
+      university: "CAU Kiel",
+      courseCode: "Inf-EntEinSys",
+      title: "Embedded Real-Time Systems",
+      semesters: [{ term: "Spring", year: 2026 }],
+      resources: ["https://example.com/two"],
+    };
+
+    const deduped = dedupeScrapedCoursesByCode([first, second]);
+
+    expect(deduped).toHaveLength(1);
+    expect(deduped[0].semesters).toEqual([
+      { term: "Winter", year: 2025 },
+      { term: "Spring", year: 2026 },
+    ]);
+    expect(deduped[0].resources).toEqual([
+      "https://example.com/one",
+      "https://example.com/two",
+    ]);
   });
 });
