@@ -106,8 +106,13 @@ export class CAU extends BaseScraper {
   getSemesterParam(): string {
     if (!this.semester) return "2025w";
     const input = this.semester.toLowerCase();
-    const yearNum = parseInt(input.replace(/\D/g, "")) || 25;
-    const year = 2000 + yearNum;
+    const yearDigits = input.replace(/\D/g, "");
+    let year = 2025;
+    if (yearDigits.length >= 4) {
+      year = Number(yearDigits.slice(-4));
+    } else if (yearDigits.length >= 2) {
+      year = 2000 + Number(yearDigits.slice(-2));
+    }
     if (input.includes('wi') || input.includes('winter') || input.includes('fa') || input.includes('fall')) return `${year}w`;
     if (input.includes('sp') || input.includes('spring') || input.includes('su') || input.includes('summer')) return `${year}s`;
     return `${year}w`;
@@ -115,8 +120,9 @@ export class CAU extends BaseScraper {
 
   async links(): Promise<string[]> {
     const sem = this.getSemesterParam();
-    // Use form-based URL for CS master program lectures (full listing)
-    return [`https://univis.uni-kiel.de/form?__s=2&dsc=anew/tlecture&showhow=long&anonymous=1&lang=en&sem=${sem}&tdir=techn/infora/master&tlecture_all=1`];
+    return [
+      `https://univis.uni-kiel.de/form?__s=2&dsc=anew/tlecture&marked=__ALL&anonymous=1&lang=en&ref=tlecture&sem=${sem}&tdir=techn/infora/master&tlecture_all=1`,
+    ];
   }
 
   private extractNavigationToken(html: string): string | null {
