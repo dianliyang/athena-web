@@ -28,6 +28,8 @@ type XmlLectureRecord = {
   number: string | null;
   importParentId: string | null;
   parentLectureKey: string | null;
+  startdate: string | null;
+  enddate: string | null;
   name: string;
   short: string;
   titleEn: string | null;
@@ -94,6 +96,18 @@ type DescriptionSection = {
   text: string;
   sourceId: string;
   sourceLabel: string;
+};
+
+type CauScheduleEntry = {
+  kind: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  startDate: string;
+  endDate: string;
+  location: string;
+  repeat: string | null;
+  exclude: string | null;
 };
 
 const CAU_DEPARTMENT_TRANSLATIONS: Record<string, string> = {
@@ -276,6 +290,8 @@ export class CAU extends BaseScraper {
         number: readText(lecture, "number"),
         importParentId: readText(lecture, "import_parent_id"),
         parentLectureKey: lecture.find("parent-lv > UnivISRef[type='Lecture']").first().attr("key")?.trim() || null,
+        startdate: readText(lecture, "startdate"),
+        enddate: readText(lecture, "enddate"),
         name: readText(lecture, "name") || "",
         short: readText(lecture, "short") || "",
         titleEn: readText(lecture, "title_en"),
@@ -458,6 +474,78 @@ export class CAU extends BaseScraper {
     return parts.length > 0 ? parts.join("\n\n") : undefined;
   }
 
+  private repeatToDayOfWeek(repeat: string | null): number | null {
+    const match = repeat?.match(/(?:^|\s)(\d)(?:\s|$)/);
+    if (!match) return null;
+    const code = Number(match[1]);
+    if (code >= 1 && code <= 6) return code;
+    if (code === 7) return 0;
+    return null;
+  }
+
+  private formatDayOfWeek(dayOfWeek: number): string {
+    const labels = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    return labels[dayOfWeek] || "Unknown";
+  }
+
+  private resolveLectureLocation(
+    roomKeys: string[],
+    resolvedRefs?: { roomMap: Map<string, string> },
+  ): string {
+    const label = roomKeys
+      .map((key) => resolvedRefs?.roomMap.get(key) || key)
+      .find((value) => typeof value === "string" && value.trim().length > 0);
+    return label || "TBD";
+  }
+
+  private buildScheduleEntries(
+    lecture: XmlLectureRecord,
+    resolvedRefs?: { roomMap: Map<string, string> },
+  ): CauScheduleEntry[] {
+    const kind = this.normalizeCourseType(lecture.type);
+    const defaultLocation = this.resolveLectureLocation(lecture.roomKeys, resolvedRefs);
+
+    return lecture.terms.flatMap((term) => {
+      const dayOfWeek = this.repeatToDayOfWeek(term.repeat);
+      const startTime = term.starttime?.trim() || "";
+      const endTime = term.endtime?.trim() || "";
+      const startDate = term.startdate || lecture.startdate || "";
+      const endDate = term.enddate || lecture.enddate || startDate;
+      if (dayOfWeek === null || !startTime || !endTime || !startDate || !endDate) {
+        return [];
+      }
+
+      const location = term.roomKeys.length > 0
+        ? this.resolveLectureLocation(term.roomKeys, resolvedRefs)
+        : defaultLocation;
+
+      return [{
+        kind,
+        dayOfWeek,
+        startTime,
+        endTime,
+        startDate,
+        endDate,
+        location,
+        repeat: term.repeat,
+        exclude: term.exclude,
+      }];
+    });
+  }
+
+  private buildScheduleLines(entries: CauScheduleEntry[]): Record<string, string[]> {
+    const schedule = new Map<string, string[]>();
+
+    for (const entry of entries) {
+      const current = schedule.get(entry.kind) || [];
+      const line = `${this.formatDayOfWeek(entry.dayOfWeek)} ${entry.startTime}-${entry.endTime} in ${entry.location}`;
+      if (!current.includes(line)) current.push(line);
+      schedule.set(entry.kind, current);
+    }
+
+    return Object.fromEntries(schedule.entries());
+  }
+
   private decodeModulDbFragment(raw: string | null): { text: string | null; urls: string[] } {
     const source = raw?.trim();
     if (!source) return { text: null, urls: [] };
@@ -594,6 +682,7 @@ export class CAU extends BaseScraper {
         this.buildLectureResourceUrl(lecture.key),
       ].filter((value): value is string => Boolean(value))),
     );
+    const scheduleEntries = this.buildScheduleEntries(lecture, resolvedRefs);
     return {
       university: "CAU Kiel",
       courseCode: lecture.short,
@@ -625,6 +714,10 @@ export class CAU extends BaseScraper {
           },
         ],
         unitsBreakdown: lecture.sws ? [{ type: lecture.type, sws: ownWorkload }] : [],
+        ...(scheduleEntries.length > 0 ? {
+          schedule: this.buildScheduleLines(scheduleEntries),
+          scheduleEntries,
+        } : {}),
       },
     };
   }
@@ -806,6 +899,22 @@ export class CAU extends BaseScraper {
       const sws = record.sws ? Number(record.sws) || 0 : 0;
       if (sws > 0) breakdown.push({ type: record.type, sws });
       details.unitsBreakdown = breakdown;
+      const existingScheduleEntries = Array.isArray(details.scheduleEntries)
+        ? [...details.scheduleEntries as CauScheduleEntry[]]
+        : [];
+      const nextScheduleEntries = this.buildScheduleEntries(record, resolvedRefs);
+      const mergedScheduleEntries = Array.from(
+        new Map(
+          [...existingScheduleEntries, ...nextScheduleEntries].map((entry) => [
+            `${entry.kind}|${entry.dayOfWeek}|${entry.startTime}|${entry.endTime}|${entry.startDate}|${entry.endDate}|${entry.location}`,
+            entry,
+          ]),
+        ).values(),
+      );
+      if (mergedScheduleEntries.length > 0) {
+        details.scheduleEntries = mergedScheduleEntries;
+        details.schedule = this.buildScheduleLines(mergedScheduleEntries);
+      }
       parentCourse.details = details;
       parentCourse.units = this.formatUnitsBreakdown(breakdown) || parentCourse.units;
       const totalWorkload = breakdown.reduce((sum, entry) => sum + entry.sws, 0);

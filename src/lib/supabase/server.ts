@@ -6,6 +6,7 @@ import { Course as ScrapedCourse } from "../scrapers/types";
 import type { WorkoutCourse } from "../scrapers/cau-sport";
 import type { Course as AppCourse, Workout } from "@/types";
 import { Database, Json } from "./database.types";
+import { resolveSingletonUserId, syncCauStudyPlansForCourses } from "../cau-study-plan-sync";
 
 const CAU_PROJECT_SEMINAR_CATEGORIES = new Set([
   "Seminar",
@@ -279,6 +280,7 @@ export class SupabaseDatabase {
     const dedupedCourses = dedupeScrapedCoursesByCode(courses);
     const university = formatUniversityName(dedupedCourses[0].university);
     let coursesForUpsert = dedupedCourses.filter((course) => !isCauProjectSeminarCourse(course));
+    let existingCoursesToRefresh: ScrapedCourse[] = [];
     if (coursesForUpsert.length === 0) {
       console.log(`[Supabase] No ${university} course rows eligible for course upsert.`);
       return;
@@ -308,10 +310,10 @@ export class SupabaseDatabase {
         (existingRows || []).map((row) => [row.course_code, row]),
       );
 
-      const existingCourses = coursesForUpsert.filter((c) => existingByCode.has(c.courseCode));
+      existingCoursesToRefresh = coursesForUpsert.filter((c) => existingByCode.has(c.courseCode));
       coursesForUpsert = coursesForUpsert.filter((c) => !existingByCode.has(c.courseCode));
 
-      for (const course of existingCourses) {
+      for (const course of existingCoursesToRefresh) {
         const existing = existingByCode.get(course.courseCode);
         if (!existing) continue;
 
@@ -324,8 +326,12 @@ export class SupabaseDatabase {
           course.details && typeof course.details === "object"
             ? ((course.details as Record<string, unknown>).schedule as Record<string, unknown> | undefined)
             : undefined;
+        const nextScheduleEntries =
+          course.details && typeof course.details === "object" && Array.isArray((course.details as Record<string, unknown>).scheduleEntries)
+            ? ((course.details as Record<string, unknown>).scheduleEntries as unknown[])
+            : undefined;
 
-        if (!nextSchedule) continue;
+        if (!nextSchedule && !nextScheduleEntries) continue;
 
         const stableStringify = (value: unknown): string => {
           if (Array.isArray(value)) {
@@ -344,14 +350,22 @@ export class SupabaseDatabase {
           existingDetails && typeof existingDetails === "object"
             ? ((existingDetails as Record<string, unknown>).schedule as Record<string, unknown> | undefined)
             : undefined;
+        const currentScheduleEntries =
+          existingDetails && typeof existingDetails === "object"
+            ? ((existingDetails as Record<string, unknown>).scheduleEntries as unknown[] | undefined)
+            : undefined;
 
-        if (stableStringify(currentSchedule || {}) === stableStringify(nextSchedule || {})) {
+        if (
+          stableStringify(currentSchedule || {}) === stableStringify(nextSchedule || {}) &&
+          stableStringify(currentScheduleEntries || []) === stableStringify(nextScheduleEntries || [])
+        ) {
           continue;
         }
 
         const mergedDetails = {
           ...existingDetails,
-          schedule: nextSchedule,
+          ...(nextSchedule ? { schedule: nextSchedule } : {}),
+          ...(nextScheduleEntries ? { scheduleEntries: nextScheduleEntries } : {}),
         };
 
         const { error: updateScheduleError } = await supabase
@@ -396,160 +410,180 @@ export class SupabaseDatabase {
       });
     }
 
-    if (coursesForUpsert.length === 0) {
+    const coursesForRelations = dedupeScrapedCoursesByCode([
+      ...existingCoursesToRefresh,
+      ...coursesForUpsert,
+    ]);
+
+    if (coursesForUpsert.length === 0 && coursesForRelations.length === 0) {
       console.log(`[Supabase] No new ${university} courses to upsert.`);
       return;
     }
 
-    const upsertCourseCodes = coursesForUpsert.map((c) => c.courseCode);
-    const { data: existingCourseRows } = await supabase
-      .from("courses")
-      .select("course_code, description, resources, details")
-      .eq("university", university)
-      .in("course_code", upsertCourseCodes);
-    const existingCourseByCode = new Map(
-      (existingCourseRows || []).map((row) => [row.course_code, row]),
-    );
+    if (coursesForUpsert.length > 0) {
+      const upsertCourseCodes = coursesForUpsert.map((c) => c.courseCode);
+      const { data: existingCourseRows } = await supabase
+        .from("courses")
+        .select("course_code, description, resources, details")
+        .eq("university", university)
+        .in("course_code", upsertCourseCodes);
+      const existingCourseByCode = new Map(
+        (existingCourseRows || []).map((row) => [row.course_code, row]),
+      );
 
-    // Separate courses into those that need full update and those that are partially scraped
-    const toUpsert = coursesForUpsert.map((c) => {
-      const existing = existingCourseByCode.get(c.courseCode);
-      const existingDetails =
-        typeof existing?.details === "string"
-          ? (JSON.parse(existing.details || "{}") as Record<string, unknown>)
-          : ((existing?.details as Record<string, unknown> | null) || {});
-      const rawDescription = c.description || existing?.description || "";
-      const { cleanText: cleanedDescription, links: extractedLinks } = extractContentLinks(rawDescription);
-      const detailsRelatedLinks =
-        c.details && typeof c.details === "object" && Array.isArray((c.details as Record<string, unknown>).resources)
-          ? ((c.details as Record<string, unknown>).resources as unknown[])
-              .filter((value): value is string => typeof value === "string")
+      // Separate courses into those that need full update and those that are partially scraped
+      const toUpsert = coursesForUpsert.map((c) => {
+        const existing = existingCourseByCode.get(c.courseCode);
+        const existingDetails =
+          typeof existing?.details === "string"
+            ? (JSON.parse(existing.details || "{}") as Record<string, unknown>)
+            : ((existing?.details as Record<string, unknown> | null) || {});
+        const rawDescription = c.description || existing?.description || "";
+        const { cleanText: cleanedDescription, links: extractedLinks } = extractContentLinks(rawDescription);
+        const detailsRelatedLinks =
+          c.details && typeof c.details === "object" && Array.isArray((c.details as Record<string, unknown>).resources)
+            ? ((c.details as Record<string, unknown>).resources as unknown[])
+                .filter((value): value is string => typeof value === "string")
+                .map((value) => normalizeExternalUrl(value))
+                .filter(Boolean)
+            : [];
+        const incomingTopLevelLinks = Array.isArray(c.resources)
+          ? c.resources
+              .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
               .map((value) => normalizeExternalUrl(value))
               .filter(Boolean)
           : [];
-      const existingRelatedLinks = Array.isArray(existing?.resources)
-        ? existing.resources.filter((value): value is string => typeof value === "string" && value.trim().length > 0)
-        : [];
-      const mergedRelatedLinks = Array.from(new Set([...existingRelatedLinks, ...detailsRelatedLinks, ...extractedLinks]));
+        const existingRelatedLinks = Array.isArray(existing?.resources)
+          ? existing.resources.filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+          : [];
+        const mergedRelatedLinks = Array.from(
+          new Set([
+            ...existingRelatedLinks,
+            ...incomingTopLevelLinks,
+            ...detailsRelatedLinks,
+            ...extractedLinks,
+          ]),
+        );
 
-      const payload: {
-        university: string;
-        course_code: string;
-        title: string;
-        units?: string;
-        credit?: number;
-        url?: string;
-        department?: string;
-        corequisites?: string;
-        level?: string;
-        difficulty?: number;
-        popularity: number;
-        workload?: number;
-        subdomain?: string;
-        resources?: string[];
-        category?: string;
-        is_hidden?: boolean;
-        is_internal?: boolean;
-        description?: string;
-        details?: Json;
-        latest_semester?: Json;
-        instructors?: string[];
-        prerequisites?: string;
-      } = {
-        university: university,
-        course_code: c.courseCode,
-        title: c.title,
-        units: c.units,
-        credit: c.credit,
-        url: c.url,
-        department: c.department,
-        corequisites: c.corequisites,
-        level: c.level,
-        difficulty: c.difficulty,
-        popularity: c.popularity || 0,
-        workload: c.workload,
-        subdomain: c.subdomain,
-        resources: Array.isArray(c.resources) ? c.resources : [],
-        category: c.category,
-        // Never overwrite user-managed fields on force update;
-        // only set them on initial insert (new courses have no existing row).
-        ...(forceUpdate ? {} : {
-          is_hidden: c.isHidden || false,
-          is_internal: defaultImportedCourseInternalValue(c),
-        }),
-      };
+        const payload: {
+          university: string;
+          course_code: string;
+          title: string;
+          units?: string;
+          credit?: number;
+          url?: string;
+          department?: string;
+          corequisites?: string;
+          level?: string;
+          difficulty?: number;
+          popularity: number;
+          workload?: number;
+          subdomain?: string;
+          resources?: string[];
+          category?: string;
+          is_hidden?: boolean;
+          is_internal?: boolean;
+          description?: string;
+          details?: Json;
+          latest_semester?: Json;
+          instructors?: string[];
+          prerequisites?: string;
+        } = {
+          university: university,
+          course_code: c.courseCode,
+          title: c.title,
+          units: c.units,
+          credit: c.credit,
+          url: c.url,
+          department: c.department,
+          corequisites: c.corequisites,
+          level: c.level,
+          difficulty: c.difficulty,
+          popularity: c.popularity || 0,
+          workload: c.workload,
+          subdomain: c.subdomain,
+          resources: Array.isArray(c.resources) ? c.resources : [],
+          category: c.category,
+          // Never overwrite user-managed fields on force update;
+          // only set them on initial insert (new courses have no existing row).
+          ...(forceUpdate ? {} : {
+            is_hidden: c.isHidden || false,
+            is_internal: defaultImportedCourseInternalValue(c),
+          }),
+        };
 
-      if (mergedRelatedLinks.length > 0) {
-        payload.resources = mergedRelatedLinks;
-      }
-
-      // Extract instructors from details into top-level column
-      if (Array.isArray(c.instructors) && c.instructors.length > 0) {
-        payload.instructors = c.instructors;
-      } else {
-        const detailsInstructors = (c.details as Record<string, unknown>)?.instructors;
-        if (Array.isArray(detailsInstructors) && detailsInstructors.length > 0) {
-          payload.instructors = detailsInstructors as string[];
+        if (mergedRelatedLinks.length > 0) {
+          payload.resources = mergedRelatedLinks;
         }
-      }
 
-      if (typeof c.prerequisites === "string" && c.prerequisites.trim().length > 0) {
-        payload.prerequisites = c.prerequisites.trim();
-      }
-
-      // For force update, always apply incoming description/details/latest semester.
-      // Otherwise keep the previous partial-scrape protection.
-      if (forceUpdate || !c.details?.is_partially_scraped) {
-        payload.description = cleanedDescription || c.description;
-        payload.details = c.details as Json;
-        if (c.semesters && c.semesters.length > 0) {
-          payload.latest_semester = { term: c.semesters[0].term, year: c.semesters[0].year };
+        // Extract instructors from details into top-level column
+        if (Array.isArray(c.instructors) && c.instructors.length > 0) {
+          payload.instructors = c.instructors;
+        } else {
+          const detailsInstructors = (c.details as Record<string, unknown>)?.instructors;
+          if (Array.isArray(detailsInstructors) && detailsInstructors.length > 0) {
+            payload.instructors = detailsInstructors as string[];
+          }
         }
-      } else {
-        const incomingDescription = cleanedDescription || c.description || "";
-        const existingHasDescription = (existing?.description || "").trim().length > 0;
-        if (incomingDescription && !existingHasDescription) {
-          payload.description = incomingDescription;
+
+        if (typeof c.prerequisites === "string" && c.prerequisites.trim().length > 0) {
+          payload.prerequisites = c.prerequisites.trim();
         }
-        if (
-          c.details &&
-          typeof c.details === "object" &&
-          (
-            Array.isArray((c.details as Record<string, unknown>).variant_code_links) ||
-            Array.isArray((c.details as Record<string, unknown>).cmu_code_links)
-          )
-        ) {
-          const incomingDetails = (c.details as Record<string, unknown>) || {};
-          const incomingVariantLinks = Array.isArray(incomingDetails.variant_code_links)
-            ? incomingDetails.variant_code_links
-            : incomingDetails.cmu_code_links;
-          payload.details = {
-            ...existingDetails,
-            ...incomingDetails,
-            ...(incomingVariantLinks ? { variant_code_links: incomingVariantLinks } : {}),
-          } as Json;
+
+        // For force update, always apply incoming description/details/latest semester.
+        // Otherwise keep the previous partial-scrape protection.
+        if (forceUpdate || !c.details?.is_partially_scraped) {
+          payload.description = cleanedDescription || c.description;
+          payload.details = c.details as Json;
+          if (c.semesters && c.semesters.length > 0) {
+            payload.latest_semester = { term: c.semesters[0].term, year: c.semesters[0].year };
+          }
+        } else {
+          const incomingDescription = cleanedDescription || c.description || "";
+          const existingHasDescription = (existing?.description || "").trim().length > 0;
+          if (incomingDescription && !existingHasDescription) {
+            payload.description = incomingDescription;
+          }
+          if (
+            c.details &&
+            typeof c.details === "object" &&
+            (
+              Array.isArray((c.details as Record<string, unknown>).variant_code_links) ||
+              Array.isArray((c.details as Record<string, unknown>).cmu_code_links)
+            )
+          ) {
+            const incomingDetails = (c.details as Record<string, unknown>) || {};
+            const incomingVariantLinks = Array.isArray(incomingDetails.variant_code_links)
+              ? incomingDetails.variant_code_links
+              : incomingDetails.cmu_code_links;
+            payload.details = {
+              ...existingDetails,
+              ...incomingDetails,
+              ...(incomingVariantLinks ? { variant_code_links: incomingVariantLinks } : {}),
+            } as Json;
+          }
         }
+
+        return payload;
+      });
+
+      // 1. Upsert Courses
+      const { error } = await supabase
+        .from("courses")
+        .upsert(toUpsert, { onConflict: 'university,course_code' });
+        
+      if (error) {
+        console.error(
+          `[Supabase] Error saving courses for ${university}:`,
+          error
+        );
+        throw error;
       }
-
-      return payload;
-    });
-
-    // 1. Upsert Courses
-    const { error } = await supabase
-      .from("courses")
-      .upsert(toUpsert, { onConflict: 'university,course_code' });
-      
-    if (error) {
-      console.error(
-        `[Supabase] Error saving courses for ${university}:`,
-        error
-      );
-      throw error;
     }
 
     // 2. Fetch IDs for ALL courses in this batch (both new and existing)
     // We need to match based on university and course_code.
-    const courseCodes = coursesForUpsert.map(c => c.courseCode);
+    const courseCodes = coursesForRelations.map(c => c.courseCode);
     const { data: allCourses, error: fetchError } = await supabase
       .from("courses")
       .select("id, course_code")
@@ -561,9 +595,13 @@ export class SupabaseDatabase {
       // Continue? If we can't get IDs, we can't link semesters.
       return; 
     }
+    const courseCodeToId = new Map<string, number>();
+    (allCourses || []).forEach(c => {
+      courseCodeToId.set(c.course_code, c.id);
+    });
 
     // Handle Semesters
-    const coursesWithSemesters = coursesForUpsert.filter(c => c.semesters && c.semesters.length > 0);
+    const coursesWithSemesters = coursesForRelations.filter(c => c.semesters && c.semesters.length > 0);
     if (coursesWithSemesters.length > 0 && allCourses) {
       // 1. Collect all unique semesters
       const uniqueSemesters = new Map<string, { term: string, year: number }>();
@@ -592,11 +630,6 @@ export class SupabaseDatabase {
         });
 
         // 4. Create course_semesters links
-        const courseCodeToId = new Map<string, number>();
-        allCourses.forEach(c => {
-          courseCodeToId.set(c.course_code, c.id);
-        });
-
         const semesterLinks: { course_id: number, semester_id: number }[] = [];
         
         coursesWithSemesters.forEach(c => {
@@ -627,6 +660,21 @@ export class SupabaseDatabase {
            }
         }
       }
+    }
+
+    if (university === "CAU Kiel" && courseCodeToId.size > 0) {
+      const userId = await resolveSingletonUserId(supabase as any); // eslint-disable-line @typescript-eslint/no-explicit-any
+      if (!userId) {
+        console.warn("[Supabase] Skipping CAU study-plan sync because a single target user could not be resolved.");
+        return;
+      }
+
+      await syncCauStudyPlansForCourses({
+        supabase: supabase as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+        userId,
+        courses: coursesForRelations,
+        courseCodeToId,
+      });
     }
   }
 
@@ -760,10 +808,23 @@ export class SupabaseDatabase {
               .map((value) => normalizeExternalUrl(value))
               .filter(Boolean)
           : [];
+      const incomingTopLevelLinks = Array.isArray(c.resources)
+        ? c.resources
+            .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+            .map((value) => normalizeExternalUrl(value))
+            .filter(Boolean)
+        : [];
       const existingLinks = Array.isArray(existing?.related_links)
         ? existing.related_links.filter((v): v is string => typeof v === "string" && v.trim().length > 0)
         : [];
-      const mergedRelatedLinks = Array.from(new Set([...existingLinks, ...detailsRelatedLinks, ...extractedLinks]));
+      const mergedRelatedLinks = Array.from(
+        new Set([
+          ...existingLinks,
+          ...incomingTopLevelLinks,
+          ...detailsRelatedLinks,
+          ...extractedLinks,
+        ]),
+      );
 
       return {
         university: university,

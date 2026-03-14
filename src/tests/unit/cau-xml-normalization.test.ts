@@ -43,7 +43,14 @@ describe("CAU XML normalization", () => {
       }),
     );
     expect(course?.details).not.toHaveProperty("locations");
-    expect(course?.details).not.toHaveProperty("schedule");
+    expect(course?.details).toEqual(
+      expect.objectContaining({
+        schedule: {
+          Lecture: ["Thursday 12:15-13:45 in CAP3 - Hörsaal 1, Christian-Albrechts-Platz 3"],
+          Exercise: ["Monday 12:15-13:45 in CAP3 - Hörsaal 1, Christian-Albrechts-Platz 3"],
+        },
+      }),
+    );
     expect(course?.details).not.toHaveProperty("auxiliarySchedules");
   });
 
@@ -101,5 +108,29 @@ describe("CAU XML normalization", () => {
     expect(course?.resources).toContain(
       "https://univis.uni-kiel.de/form?dsc=anew/lecture_view&lvs=techn/infor/inform/echtze/infent&anonymous=1&lang=en&sem=2025w&tdir=techn/infora/master",
     );
+  });
+
+  test("projects XML term data into course schedule details for downstream plan sync", async () => {
+    const xml = readFileSync("src/tests/fixtures/cau/data.xml", "utf8");
+    const scraper = new CAU();
+
+    const courses = await scraper.parseXmlCoursesForTests(xml);
+    const course = courses.find((entry) => entry.courseCode === "infEOR-01a");
+
+    expect(course?.details).toMatchObject({
+      schedule: {
+        Lecture: [expect.stringContaining("Thursday 12:15-13:45")],
+      },
+      scheduleEntries: expect.arrayContaining([
+        expect.objectContaining({
+          kind: "Lecture",
+          dayOfWeek: 4,
+          startTime: "12:15",
+          endTime: "13:45",
+          startDate: "2026-04-12",
+          endDate: "2026-07-12",
+        }),
+      ]),
+    });
   });
 });
