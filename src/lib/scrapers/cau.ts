@@ -2,6 +2,7 @@ import * as cheerio from "cheerio";
 import type { AnyNode } from "domhandler";
 import { BaseScraper } from "./BaseScraper";
 import { Course } from "./types";
+import * as cauBlobCache from "./cau-blob-cache";
 
 type XmlExportParams = {
   token: string;
@@ -134,6 +135,7 @@ const CAU_DEPARTMENT_TRANSLATIONS: Record<string, string> = {
 
 export class CAU extends BaseScraper {
   private modulDbCache = new Map<string, Promise<ModulDbModule | null>>();
+  forceUpdate = false;
 
   constructor() {
     super("cau");
@@ -870,6 +872,48 @@ export class CAU extends BaseScraper {
     return this.mergeModulDbIntoCourse(course, this.parseModulDbXml(xml));
   }
 
+  private isValidUnivisXmlPayload(xml: string): boolean {
+    if (!xml || !xml.includes("<Lecture")) return false;
+    try {
+      this.parseXmlLectures(xml);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private async resolveSemesterXml(link: string): Promise<{ page: string; xml: string }> {
+    const cacheKey = cauBlobCache.semesterXmlKey(this.getSemesterParam());
+
+    if (!this.forceUpdate) {
+      const cachedXml = await cauBlobCache.readCachedText(cacheKey);
+      if (cachedXml) {
+        if (this.isValidUnivisXmlPayload(cachedXml)) {
+          return { page: "", xml: cachedXml };
+        }
+        console.warn(`[${this.name}] Cached semester XML was invalid. Refetching fresh export.`);
+      }
+    }
+
+    const page = await this.fetchPage(link);
+    if (!page) return { page: "", xml: "" };
+
+    try {
+      const params = this.extractXmlExportParams(page);
+      const xml = await this.fetchXmlExport(params);
+      if (this.isValidUnivisXmlPayload(xml)) {
+        await cauBlobCache.writeCachedText(cacheKey, xml, {
+          contentType: "application/xml; charset=utf-8",
+        });
+        return { page, xml };
+      }
+    } catch {
+      // Fall back to the legacy HTML parser until the XML path fully covers every case.
+    }
+
+    return { page, xml: "" };
+  }
+
   private async fetchModulDbModule(courseCode: string): Promise<ModulDbModule | null> {
     const normalizedCode = courseCode.trim();
     if (!normalizedCode) return null;
@@ -878,11 +922,26 @@ export class CAU extends BaseScraper {
     }
 
     const request = (async () => {
+      const cacheKey = cauBlobCache.modulDbXmlKey(normalizedCode);
+      if (!this.forceUpdate) {
+        const cachedXml = await cauBlobCache.readCachedText(cacheKey);
+        if (cachedXml) {
+          const cachedModule = this.parseModulDbXml(cachedXml);
+          if (cachedModule) return cachedModule;
+          console.warn(`[${this.name}] Cached ModulDB XML for ${normalizedCode} was invalid. Refetching fresh payload.`);
+        }
+      }
+
       try {
         const response = await fetch(this.buildModulDbXmlUrl(normalizedCode));
         if (!response.ok) return null;
         const xml = await response.text();
-        return this.parseModulDbXml(xml);
+        const parsed = this.parseModulDbXml(xml);
+        if (!parsed) return null;
+        await cauBlobCache.writeCachedText(cacheKey, xml, {
+          contentType: "application/xml; charset=utf-8",
+        });
+        return parsed;
       } catch {
         return null;
       }
@@ -1281,25 +1340,21 @@ export class CAU extends BaseScraper {
     console.log(`[${this.name}] Scraping English courses from ${links.length} departments...`);
     const xmlItems: Course[] = [];
     const htmlItems: Course[] = [];
-    for (const link of links) {
+    const [primaryLink, ...fallbackLinks] = links;
+
+    if (primaryLink) {
+      const { page, xml } = await this.resolveSemesterXml(primaryLink);
+      if (xml) {
+        xmlItems.push(...await this.normalizeXmlCourses(xml));
+      } else if (page) {
+        htmlItems.push(...await this.parser(page, new Set()));
+      }
+    }
+
+    for (const link of fallbackLinks) {
       const page = await this.fetchPage(link);
       if (!page) continue;
-
-      try {
-        const params = this.extractXmlExportParams(page);
-        const xml = await this.fetchXmlExport(params);
-        if (xml) {
-          xmlItems.push(...await this.normalizeXmlCourses(xml));
-          continue;
-        }
-      } catch {
-        // Fall back to the legacy HTML parser until the XML path fully covers every case.
-      }
-
-      if (page) {
-        const batch = await this.parser(page, new Set());
-        htmlItems.push(...batch);
-      }
+      htmlItems.push(...await this.parser(page, new Set()));
     }
     const merged = xmlItems.length > 0 && htmlItems.length === 0
       ? xmlItems

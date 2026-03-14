@@ -109,6 +109,10 @@ export async function runManualScraperAction({
       else if (university === 'ucb') scraper = new UCB();
       else if (university === "cau") scraper = new CAU();
 
+      if (scraper instanceof CAU) {
+        scraper.forceUpdate = forceUpdate;
+      }
+
       if (!scraper) throw new Error(`University "${university}" not found.`);
       const jobId = await startScraperJob({
         university: scraper.name,
