@@ -1,5 +1,5 @@
 import React from "react";
-import { describe, expect, test, vi } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import CourseDetailHeader from "@/components/courses/CourseDetailHeader";
 
@@ -17,6 +17,13 @@ vi.mock("@/components/common/AppToastProvider", () => ({
   }),
 }));
 
+const fetchMock = vi.fn(async () => ({
+  ok: false,
+  json: async () => ({}),
+}));
+
+vi.stubGlobal("fetch", fetchMock);
+
 const baseCourse = {
   id: 1,
   title: "Advanced Systems",
@@ -32,6 +39,10 @@ const baseCourse = {
 };
 
 describe("CourseDetailHeader", () => {
+  beforeEach(() => {
+    fetchMock.mockClear();
+  });
+
   test("renders university and course code with the same plain meta style", () => {
     render(<CourseDetailHeader course={baseCourse} />);
 
@@ -59,5 +70,26 @@ describe("CourseDetailHeader", () => {
     expect(screen.getByText("Auto")).toBeDefined();
     expect(screen.getByText("Existing")).toBeDefined();
     expect(screen.getByText("Fresh")).toBeDefined();
+  });
+
+  test("renders course data source badges from details metadata", () => {
+    render(
+      <CourseDetailHeader
+        course={{
+          ...baseCourse,
+          details: {
+            dataSources: [
+              { id: "univis", label: "UnivIS" },
+              { id: "moduldb", label: "ModulDB" },
+            ],
+          },
+        }}
+      />,
+    );
+
+    const sources = screen.getByTestId("course-data-sources");
+    expect(sources.textContent).toContain("Sources");
+    expect(sources.textContent).toContain("UnivIS");
+    expect(sources.textContent).toContain("ModulDB");
   });
 });

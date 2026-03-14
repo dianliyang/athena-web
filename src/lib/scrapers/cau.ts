@@ -1,4 +1,5 @@
 import * as cheerio from "cheerio";
+import type { AnyNode } from "domhandler";
 import { BaseScraper } from "./BaseScraper";
 import { Course } from "./types";
 
@@ -59,7 +60,45 @@ type ResolvedPerson = {
   office: string | null;
 };
 
+type ModulDbUnitEntry = {
+  type: string;
+  sws: number;
+};
+
+type ModulDbModule = {
+  moduleCode: string;
+  title: string | null;
+  responsible: string | null;
+  ects: number | null;
+  workloadText: string | null;
+  teachingLanguage: string | null;
+  description: string | null;
+  learningGoals: string | null;
+  contents: string | null;
+  prerequisites: string | null;
+  assessment: string | null;
+  teachingMethods: string | null;
+  applicability: string | null;
+  notes: string | null;
+  literature: string | null;
+  categories: string[];
+  resourceUrls: string[];
+  unitsBreakdown: ModulDbUnitEntry[];
+  semesters: Array<{ term: string; year: number }>;
+  pageUrl: string;
+};
+
+type DescriptionSection = {
+  key: string;
+  label: string;
+  text: string;
+  sourceId: string;
+  sourceLabel: string;
+};
+
 export class CAU extends BaseScraper {
+  private modulDbCache = new Map<string, Promise<ModulDbModule | null>>();
+
   constructor() {
     super("cau");
   }
@@ -158,11 +197,11 @@ export class CAU extends BaseScraper {
 
   private parseXmlLectures(xml: string): XmlLectureRecord[] {
     const $ = cheerio.load(xml, { xmlMode: true });
-    const readText = (element: cheerio.Cheerio<any>, selector: string): string | null => {
+    const readText = (element: cheerio.Cheerio<AnyNode>, selector: string): string | null => {
       const value = element.children(selector).first().text().trim();
       return value || null;
     };
-    const readRefKeys = (element: cheerio.Cheerio<any>, selector: string, type?: string): string[] => {
+    const readRefKeys = (element: cheerio.Cheerio<AnyNode>, selector: string, type?: string): string[] => {
       const refs = element.find(selector).toArray()
         .map((node) => {
           const refType = node.attribs?.type?.trim();
@@ -172,7 +211,7 @@ export class CAU extends BaseScraper {
         .filter((value): value is string => Boolean(value));
       return Array.from(new Set(refs));
     };
-    const readUrls = (element: cheerio.Cheerio<any>, selector: string): string[] => {
+    const readUrls = (element: cheerio.Cheerio<AnyNode>, selector: string): string[] => {
       return Array.from(new Set(
         element.children(selector).toArray()
           .map((node) => cheerio.load(node, { xmlMode: true }).root().text().trim())
@@ -382,6 +421,113 @@ export class CAU extends BaseScraper {
     return parts.length > 0 ? parts.join("\n\n") : undefined;
   }
 
+  private decodeModulDbFragment(raw: string | null): { text: string | null; urls: string[] } {
+    const source = raw?.trim();
+    if (!source) return { text: null, urls: [] };
+    const $ = cheerio.load(source);
+    const hrefs = $("a[href]")
+      .map((_, node) => $(node).attr("href")?.trim() || "")
+      .get()
+      .filter(Boolean);
+    const text = $.root().text().replace(/\s+/g, " ").trim() || null;
+    const textUrls = text?.match(/https?:\/\/[^\s<>"')]+/g) || [];
+    return {
+      text,
+      urls: Array.from(new Set([...hrefs, ...textUrls])),
+    };
+  }
+
+  private parseModulDbUnits(raw: string | null): ModulDbUnitEntry[] {
+    if (!raw) return [];
+    const normalized = raw.replace(/\s+/g, " ").trim();
+    const entries = Array.from(normalized.matchAll(/(\d+)\s*([A-Za-zÜü]+)/g))
+      .map((match) => {
+        const sws = Number(match[1]) || 0;
+        const token = match[2].toUpperCase().replace("Ü", "UE");
+        if (sws <= 0) return null;
+        if (token === "V") return { type: "V", sws };
+        if (token === "UE") return { type: "UE", sws };
+        if (token === "S") return { type: "S", sws };
+        if (token === "P") return { type: "P", sws };
+        if (token === "PUE") return { type: "PUE", sws };
+        return { type: token, sws };
+      })
+      .filter((value): value is ModulDbUnitEntry => Boolean(value));
+
+    return entries;
+  }
+
+  private buildModulDbPageUrl(moduleCode: string): string {
+    return `https://moduldb.informatik.uni-kiel.de/show.cgi?mod=${encodeURIComponent(moduleCode)}`;
+  }
+
+  private buildModulDbXmlUrl(moduleCode: string): string {
+    return `https://moduldb.informatik.uni-kiel.de/show.cgi?xml=${encodeURIComponent(moduleCode)}`;
+  }
+
+  private parseModulDbXml(xml: string): ModulDbModule | null {
+    const $ = cheerio.load(xml, { xmlMode: true });
+    const root = $("modul").first();
+    if (root.length === 0) return null;
+
+    const moduleCode = root.children("modulcode").first().text().trim();
+    if (!moduleCode) return null;
+
+    const summary = this.decodeModulDbFragment(root.children("kurzfassung").first().text());
+    const learningGoals = this.decodeModulDbFragment(root.children("lernziele").first().text());
+    const contents = this.decodeModulDbFragment(root.children("lehrinhalte").first().text());
+    const prerequisites = this.decodeModulDbFragment(root.children("voraussetzungen").first().text());
+    const assessment = this.decodeModulDbFragment(root.children("pruefungsleistung").first().text());
+    const teachingMethods = this.decodeModulDbFragment(root.children("lehrmethoden").first().text());
+    const applicability = this.decodeModulDbFragment(root.children("verwendbarkeit").first().text());
+    const literature = this.decodeModulDbFragment(root.children("literatur").first().text());
+    const references = this.decodeModulDbFragment(root.children("verweise").first().text());
+    const notes = this.decodeModulDbFragment(root.children("kommentar").first().text());
+    const unitsBreakdown = this.parseModulDbUnits(root.find("durchfuehrung > praesenz").first().text().trim() || null);
+    const semesters = root.find("durchfuehrung > veranstaltung > semester").map((_, node) => {
+      const raw = $(node).text().trim();
+      return this.normalizeModulDbSemester(raw);
+    }).get().filter((value): value is { term: string; year: number } => Boolean(value));
+
+    return {
+      moduleCode,
+      title: root.find("modulname > englisch").first().text().trim() || root.find("modulname > deutsch").first().text().trim() || null,
+      responsible: root.children("verantwortlich").first().text().trim() || null,
+      ects: Number(root.children("ectspunkte").first().text().trim()) || null,
+      workloadText: root.children("workload").first().text().replace(/\s+/g, " ").trim() || null,
+      teachingLanguage: root.children("lehrsprache").first().text().replace(/\s+/g, " ").trim() || null,
+      description: summary.text,
+      learningGoals: learningGoals.text,
+      contents: contents.text,
+      prerequisites: prerequisites.text,
+      assessment: assessment.text,
+      teachingMethods: teachingMethods.text,
+      applicability: applicability.text,
+      notes: notes.text,
+      literature: literature.text,
+      categories: root.find("kategorien > kategorie").map((_, node) => $(node).text().replace(/\s+/g, " ").trim()).get().filter(Boolean),
+      resourceUrls: Array.from(new Set([
+        this.buildModulDbPageUrl(moduleCode),
+        ...summary.urls,
+        ...learningGoals.urls,
+        ...contents.urls,
+        ...literature.urls,
+        ...references.urls,
+        ...assessment.urls,
+        ...teachingMethods.urls,
+        ...applicability.urls,
+        ...notes.urls,
+      ])),
+      unitsBreakdown,
+      semesters,
+      pageUrl: this.buildModulDbPageUrl(moduleCode),
+    };
+  }
+
+  parseModulDbXmlForTests(xml: string): ModulDbModule | null {
+    return this.parseModulDbXml(xml);
+  }
+
   private toSemesterInfo(): { term: string; year: number } {
     const semParam = this.getSemesterParam();
     return {
@@ -434,6 +580,13 @@ export class CAU extends BaseScraper {
         classificationKeys: lecture.classificationKeys,
         literature: lecture.literature,
         organizational: lecture.organizational,
+        dataSources: [
+          {
+            id: "univis",
+            label: "UnivIS",
+            coverage: ["catalog", "schedule", "instructors"],
+          },
+        ],
         unitsBreakdown: lecture.sws ? [{ type: lecture.type, sws: ownWorkload }] : [],
       },
     };
@@ -445,6 +598,143 @@ export class CAU extends BaseScraper {
       .filter((entry) => entry.sws > 0)
       .map((entry) => `${entry.type} ${entry.sws}`)
       .join(" ");
+  }
+
+  private normalizeModulDbSemester(raw: string): { term: string; year: number } | null {
+    const value = raw.trim();
+    if (!value) return null;
+    const springMatch = value.match(/^SS(\d{2})$/i);
+    if (springMatch) {
+      return { term: "Spring", year: 2000 + Number(springMatch[1]) };
+    }
+    const winterMatch = value.match(/^WS(\d{2})\/\d{2}$/i);
+    if (winterMatch) {
+      return { term: "Winter", year: 2000 + Number(winterMatch[1]) };
+    }
+    return null;
+  }
+
+  private mergeSemesterHistory(
+    current: Array<{ term: string; year: number }> | undefined,
+    incoming: Array<{ term: string; year: number }>,
+  ): Array<{ term: string; year: number }> {
+    const merged = new Map<string, { term: string; year: number }>();
+    for (const semester of [...(current || []), ...incoming]) {
+      merged.set(`${semester.term}-${semester.year}`, semester);
+    }
+    return Array.from(merged.values()).sort((left, right) => {
+      if (left.year !== right.year) return right.year - left.year;
+      if (left.term === right.term) return 0;
+      return left.term === "Winter" ? -1 : 1;
+    });
+  }
+
+  private buildDescriptionSections(modul: ModulDbModule): DescriptionSection[] {
+    const candidates: Array<{ key: string; label: string; text: string | null }> = [
+      { key: "summary", label: "Summary", text: modul.description },
+      { key: "learning_goals", label: "Learning goals", text: modul.learningGoals },
+      { key: "contents", label: "Contents", text: modul.contents },
+      { key: "assessment", label: "Assessment", text: modul.assessment },
+      { key: "teaching_methods", label: "Teaching methods", text: modul.teachingMethods },
+      { key: "applicability", label: "Applicability", text: modul.applicability },
+      { key: "notes", label: "Notes", text: modul.notes },
+    ];
+
+    return candidates
+      .filter((section) => section.text && section.text.trim().length > 0)
+      .map((section) => ({
+        key: section.key,
+        label: section.label,
+        text: section.text!.trim(),
+        sourceId: "moduldb",
+        sourceLabel: "ModulDB",
+      }));
+  }
+
+  private appendDataSource(details: Record<string, unknown>, source: { id: string; label: string; coverage: string[] }): void {
+    const current = Array.isArray(details.dataSources) ? details.dataSources as Array<Record<string, unknown>> : [];
+    const withoutExisting = current.filter((entry) => entry?.id !== source.id);
+    details.dataSources = [...withoutExisting, source];
+  }
+
+  private mergeModulDbIntoCourse(course: Course, modul: ModulDbModule | null): Course {
+    if (!modul) return course;
+
+    const details = { ...((course.details as Record<string, unknown> | undefined) || {}) };
+    const next: Course = {
+      ...course,
+      credit: course.credit ?? modul.ects ?? undefined,
+      description: course.description || undefined,
+      prerequisites: modul.prerequisites || course.prerequisites,
+      instructors: course.instructors && course.instructors.length > 0
+        ? course.instructors
+        : (modul.responsible ? [modul.responsible] : undefined),
+      resources: Array.from(new Set([...(course.resources || []), ...modul.resourceUrls])),
+      semesters: this.mergeSemesterHistory(course.semesters, modul.semesters),
+    };
+
+    if (modul.unitsBreakdown.length > 0) {
+      details.unitsBreakdown = modul.unitsBreakdown;
+      next.units = this.formatUnitsBreakdown(modul.unitsBreakdown) || next.units;
+      const totalWorkload = modul.unitsBreakdown.reduce((sum, entry) => sum + entry.sws, 0);
+      next.workload = totalWorkload || next.workload;
+    }
+
+    if (!next.title && modul.title) next.title = modul.title;
+    if (!next.credit && modul.ects) next.credit = modul.ects;
+
+    details.modulDbWorkloadText = modul.workloadText;
+    details.descriptionSections = this.buildDescriptionSections(modul);
+    details.modulDbLearningGoals = modul.learningGoals;
+    details.modulDbContents = modul.contents;
+    details.modulDbAssessment = modul.assessment;
+    details.modulDbTeachingMethods = modul.teachingMethods;
+    details.modulDbApplicability = modul.applicability;
+    details.modulDbNotes = modul.notes;
+    details.modulDbLiterature = modul.literature;
+    this.appendDataSource(details, {
+      id: "moduldb",
+      label: "ModulDB",
+      coverage: ["module", "prerequisites", "workload"],
+    });
+    next.details = details;
+    return next;
+  }
+
+  enrichCourseWithModulDbForTests(course: Course, xml: string): Course {
+    return this.mergeModulDbIntoCourse(course, this.parseModulDbXml(xml));
+  }
+
+  private async fetchModulDbModule(courseCode: string): Promise<ModulDbModule | null> {
+    const normalizedCode = courseCode.trim();
+    if (!normalizedCode) return null;
+    if (this.modulDbCache.has(normalizedCode)) {
+      return this.modulDbCache.get(normalizedCode)!;
+    }
+
+    const request = (async () => {
+      try {
+        const response = await fetch(this.buildModulDbXmlUrl(normalizedCode));
+        if (!response.ok) return null;
+        const xml = await response.text();
+        return this.parseModulDbXml(xml);
+      } catch {
+        return null;
+      }
+    })();
+
+    this.modulDbCache.set(normalizedCode, request);
+    return request;
+  }
+
+  private async enrichCoursesWithModulDb(courses: Course[]): Promise<Course[]> {
+    return Promise.all(
+      courses.map(async (course) => {
+        if (!course.courseCode?.trim()) return course;
+        const modul = await this.fetchModulDbModule(course.courseCode);
+        return this.mergeModulDbIntoCourse(course, modul);
+      }),
+    );
   }
 
   private mergeLectureChildren(
@@ -832,6 +1122,7 @@ export class CAU extends BaseScraper {
     const merged = xmlItems.length > 0 && htmlItems.length === 0
       ? xmlItems
       : [...xmlItems, ...this.mergeCourses(htmlItems)];
+    const enriched = await this.enrichCoursesWithModulDb(merged);
     const projectTableCategories = new Set([
       "Seminar",
       "Advanced Project",
@@ -861,7 +1152,7 @@ export class CAU extends BaseScraper {
       courseDepartmentStatus = await this.db.getCourseDepartmentStatus("CAU Kiel");
     }
 
-    const missingDepartmentItems = merged.filter((item) => {
+    const missingDepartmentItems = enriched.filter((item) => {
       const detailsDepartment =
         item.details && typeof item.details === "object"
           ? ((item.details as Record<string, unknown>).department as string | undefined)
@@ -893,8 +1184,8 @@ export class CAU extends BaseScraper {
       );
     }
 
-    console.log(`[${this.name}] Found ${merged.length} English academic items after merging.`);
-    return merged;
+    console.log(`[${this.name}] Found ${enriched.length} English academic items after merging.`);
+    return enriched;
   }
 
   private mergeCourses(items: Course[]): Course[] {

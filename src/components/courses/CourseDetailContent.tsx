@@ -45,6 +45,7 @@ import { Separator } from "@/components/ui/separator";
 import { Toggle } from "@/components/ui/toggle";
 import { Input } from "@/components/ui/input";
 import { Field, FieldLabel } from "@/components/ui/field";
+import { readCourseDescriptionSections } from "@/lib/course-data-sources";
 import { getUniversityUnitInfo } from "@/lib/university-units";
 import { getCourseCodeBreakdown } from "@/lib/course-code-breakdown";
 import { Button } from "@/components/ui/button";
@@ -396,6 +397,15 @@ export default function CourseDetailContent({
   scheduleItems = [],
   studyLogs = [],
 }: CourseDetailContentProps) {
+  const descriptionSections = readCourseDescriptionSections(course.details);
+  const descriptionSourceLabels = Array.from(
+    new Set(
+      [
+        course.description ? "UnivIS" : null,
+        ...descriptionSections.map((section) => section.sourceLabel || null),
+      ].filter((value): value is string => Boolean(value)),
+    ),
+  );
   const [enrolled, setEnrolled] = useState(isEnrolled);
   const [isEnrolling, setIsEnrolling] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -1053,12 +1063,38 @@ export default function CourseDetailContent({
 
           {!isEditing ? (
             <section className="py-2">
-              <h2 className="mb-2 text-lg font-semibold text-[#1f1f1f]">
-                Description
-              </h2>
-              {course.description ? (
-                <div className="prose prose-sm prose-gray max-w-none prose-p:text-[#555] prose-p:leading-7">
-                  <p>{course.description}</p>
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <h2 className="text-lg font-semibold text-[#1f1f1f]">
+                  Description
+                </h2>
+                {descriptionSourceLabels.map((label) => (
+                  <Badge key={label} variant="outline" className="bg-white/80 text-[#4a4a4a]">
+                    {label}
+                  </Badge>
+                ))}
+              </div>
+              {course.description || descriptionSections.length > 0 ? (
+                <div className="space-y-4">
+                  {course.description ? (
+                    <div className="prose prose-sm prose-gray max-w-none prose-p:text-[#555] prose-p:leading-7">
+                      <p>{course.description}</p>
+                    </div>
+                  ) : null}
+                  {descriptionSections.map((section) => (
+                    <div key={section.key} className="space-y-1.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-sm font-medium text-[#333]">{section.label}</h3>
+                        {section.sourceLabel ? (
+                          <Badge variant="outline" className="bg-white/80 text-[#4a4a4a]">
+                            {section.sourceLabel}
+                          </Badge>
+                        ) : null}
+                      </div>
+                      <div className="prose prose-sm prose-gray max-w-none prose-p:text-[#555] prose-p:leading-7">
+                        <p>{section.text}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : (
                 <p className="text-gray-500 italic">{descriptionEmptyText}</p>

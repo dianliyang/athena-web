@@ -33,6 +33,13 @@ describe("CAU XML normalization", () => {
         normalizedType: "Lecture",
         internalId: "22632461",
         internalNumber: "080034",
+        dataSources: [
+          {
+            id: "univis",
+            label: "UnivIS",
+            coverage: ["catalog", "schedule", "instructors"],
+          },
+        ],
       }),
     );
     expect(course?.details).not.toHaveProperty("locations");

@@ -29,6 +29,18 @@ export interface Course {
     resources?: string[];
     crossListedCourses?: string;
     instructors?: string[];
+    dataSources?: Array<{
+      id: string;
+      label: string;
+      coverage?: string[];
+    }>;
+    descriptionSections?: Array<{
+      key: string;
+      label: string;
+      text: string;
+      sourceId?: string;
+      sourceLabel?: string;
+    }>;
     schedule?: Record<string, string[]>;
     internalId?: string;
     [key: string]: unknown;

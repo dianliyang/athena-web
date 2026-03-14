@@ -1,0 +1,34 @@
+<?xml version="1.0" standalone="yes"?>
+<modul>
+  <modulcode>Inf-EntEinSys</modulcode>
+  <modulname>
+    <deutsch>Embedded Real-Time Systems</deutsch>
+    <englisch>Embedded Real-Time Systems</englisch>
+  </modulname>
+  <verantwortlich>Prof. Dr. Reinhard von Hanxleden</verantwortlich>
+  <ectspunkte>8</ectspunkte>
+  <workload>60 h lectures, 30 h exercises, 150 h self studies</workload>
+  <lehrsprache>Englisch</lehrsprache>
+  <kurzfassung>&#10;&lt;p&gt;&#10;A cell phone that transmits voice signals correctly, but with too much delay, is unsatisfactory.&#10;&lt;/p&gt;&#10;</kurzfassung>
+  <lernziele>&#10;&lt;p&gt;&#10;Students understand the fundamentals of embedded/real-time systems.&#10;&lt;/p&gt;&#10;</lernziele>
+  <lehrinhalte>&#10;&lt;p&gt;&#10;&lt;ul&gt;&lt;li&gt;Model-based design&lt;/li&gt;&lt;li&gt;Concurrency and scheduling&lt;/li&gt;&lt;/ul&gt;&#10;&lt;/p&gt;&#10;</lehrinhalte>
+  <voraussetzungen>&#10;&lt;p&gt;&#10;Mathematical knowledge, programming experience, firm knowledge in C and Java.&#10;&lt;/p&gt;&#10;</voraussetzungen>
+  <pruefungsleistung>&#10;&lt;p&gt;&#10;The grade is determined by a final written exam.&#10;&lt;/p&gt;&#10;</pruefungsleistung>
+  <lehrmethoden>&#10;&lt;p&gt;&#10;Lectures, weekly exercises, software development.&#10;&lt;/p&gt;&#10;</lehrmethoden>
+  <verwendbarkeit>&#10;&lt;p&gt;&#10;This module can be used for M.Sc. Informatik.&#10;&lt;/p&gt;&#10;</verwendbarkeit>
+  <literatur>&#10;&lt;p&gt;&#10;E.A. Lee, S.A. Seshia: &lt;a href=&quot;https://ptolemy.berkeley.edu/books/leeseshia/&quot;&gt;Open Access&lt;/a&gt;&#10;&lt;/p&gt;&#10;</literatur>
+  <verweise>&#10;&lt;p&gt;&#10;http://www.rtsys.informatik.uni-kiel.de/en/teaching/overview&#10;&lt;/p&gt;&#10;</verweise>
+  <kommentar>&#10;&lt;p&gt;&#10;The primary script for class is the Lee/Seshia book.&#10;&lt;/p&gt;&#10;</kommentar>
+  <kategorien>
+    <kategorie key="MScI2125_MSc-Inf-WP">Wahlpflicht Informatik (MSc-Inf-WP) (MSc Inf (21/25))</kategorie>
+  </kategorien>
+  <durchfuehrung>
+    <praesenz>4V 2&#220; 0P&#220; 0P 0S</praesenz>
+    <dauer>1</dauer>
+    <turnus>unregelm&#228;&#223;ig</turnus>
+    <veranstaltung>
+      <semester>SS26</semester>
+      <dozent>Prof. Dr. Reinhard von Hanxleden</dozent>
+    </veranstaltung>
+  </durchfuehrung>
+</modul>

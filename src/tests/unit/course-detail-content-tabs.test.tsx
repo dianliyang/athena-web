@@ -156,6 +156,49 @@ describe("CourseDetailContent tabs", () => {
     expect(screen.getAllByText("Course Facts").length).toBeGreaterThan(0);
   });
 
+  test("renders structured description sections with source badges", async () => {
+    const { default: CourseDetailContent } = await import("@/components/courses/CourseDetailContent");
+    mockSearchParams = new URLSearchParams();
+
+    render(
+      <CourseDetailContent
+        course={{
+          ...baseCourse,
+          description: "",
+          details: {
+            descriptionSections: [
+              {
+                key: "summary",
+                label: "Summary",
+                text: "Module summary from ModulDB.",
+                sourceId: "moduldb",
+                sourceLabel: "ModulDB",
+              },
+              {
+                key: "assessment",
+                label: "Assessment",
+                text: "Final written exam.",
+                sourceId: "moduldb",
+                sourceLabel: "ModulDB",
+              },
+            ],
+          },
+        }}
+        isEnrolled={false}
+        descriptionEmptyText="No description"
+        availableTopics={[]}
+        availableSemesters={[]}
+        studyPlans={[]}
+      />,
+    );
+
+    expect(screen.getByText("Summary")).toBeDefined();
+    expect(screen.getByText("Module summary from ModulDB.")).toBeDefined();
+    expect(screen.getByText("Assessment")).toBeDefined();
+    expect(screen.getByText("Final written exam.")).toBeDefined();
+    expect(screen.getAllByText("ModulDB").length).toBeGreaterThan(0);
+  });
+
   test("uses page-level scrolling on mobile instead of independent column scroll regions", async () => {
     const { default: CourseDetailContent } = await import("@/components/courses/CourseDetailContent");
     mockSearchParams = new URLSearchParams();

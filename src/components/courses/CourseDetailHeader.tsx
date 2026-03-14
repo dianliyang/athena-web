@@ -11,6 +11,7 @@ import { PenSquare, Loader2, Trash2, ArrowUpRight, Sparkles, Plus, X, ChevronDow
 import { trackAiUsage } from "@/lib/ai/usage";
 import { useAppToast } from "@/components/common/AppToastProvider";
 import { type CodeBreakdownItem } from "@/lib/course-code-breakdown";
+import { readCourseDataSources } from "@/lib/course-data-sources";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import {
   DropdownMenu,
@@ -103,6 +104,7 @@ export default function CourseDetailHeader({
   const previousJobRef = useRef<{id: number;status: string;} | null>(null);
   const searchQuery = `${course.university || ""} ${course.courseCode || ""} ${course.title || ""}`.trim();
   const searchHref = `https://www.google.com/search?q=${encodeURIComponent(searchQuery)}`;
+  const dataSources = readCourseDataSources(course.details);
 
   useEffect(() => {
     try {
@@ -460,6 +462,19 @@ export default function CourseDetailHeader({
           {course.fields.map((field) =>
         <Badge key={field} variant="outline">
               {field}
+            </Badge>
+        )}
+        </div>
+      }
+
+      {dataSources.length > 0 &&
+      <div className="mt-3 flex flex-wrap items-center gap-1.5" data-testid="course-data-sources">
+          <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-[#8a8a8a]">
+            Sources
+          </span>
+          {dataSources.map((source) =>
+        <Badge key={source.id} variant="outline" className="bg-white/80 text-[#4a4a4a]">
+              {source.label}
             </Badge>
         )}
         </div>
