@@ -128,6 +128,13 @@ userId?: string | null)
 {
   const supabase = await createClient();
   const usesLocalSort = sort === "credit" || sort === "semester";
+  const parsedSemesterFilters = semesters
+    .map((value) => {
+      const match = value.trim().match(/^([A-Za-z]+)\s+(\d{4})$/);
+      if (!match) return null;
+      return { term: match[1], year: Number(match[2]) };
+    })
+    .filter((value): value is { term: string; year: number } => value !== null);
 
   const modernSelectString = `
     id, university, course_code, title, units, credit, url, details, instructors, prerequisites, resources, cross_listed_courses, department, corequisites, level, difficulty, popularity, workload, subdomain, is_hidden, is_internal, created_at, latest_semester,
@@ -145,10 +152,6 @@ userId?: string | null)
     if (enrolledOnly) {
       s += `, user_courses!inner(user_id, status)`;
     }
-    if (semesters.length > 0) {
-      // We need to filter by semesters via course_semesters relationship
-      s += `, course_semesters!inner(semesters!inner(term, year))`;
-    }
     return supabase.
     from('courses').
     select(s, { count: 'exact' }).
@@ -160,10 +163,40 @@ userId?: string | null)
   // Parallelize hidden course and field filter queries
   const needsHiddenFilter = !enrolledOnly && !!userId;
 
-  const [hiddenResult] = await Promise.all([
+  const [hiddenResult, filteredCourseIds] = await Promise.all([
   needsHiddenFilter ?
   supabase.from('user_courses').select('course_id').eq('user_id', userId!).eq('status', 'hidden') :
-  Promise.resolve({ data: null })]
+  Promise.resolve({ data: null }),
+  parsedSemesterFilters.length > 0 ? (async () => {
+    const semesterLookup = await supabase
+      .from("semesters")
+      .select("id, term, year")
+      .or(
+        parsedSemesterFilters
+          .map(({ term, year }) => `and(term.eq.${term},year.eq.${year})`)
+          .join(","),
+      );
+    if (semesterLookup.error) {
+      throw semesterLookup.error;
+    }
+
+    const semesterIds = (semesterLookup.data || []).map((row) => row.id);
+    if (semesterIds.length === 0) {
+      return [] as number[];
+    }
+
+    const courseLookup = await supabase
+      .from("course_semesters")
+      .select("course_id")
+      .in("semester_id", semesterIds);
+    if (courseLookup.error) {
+      throw courseLookup.error;
+    }
+
+    return Array.from(
+      new Set((courseLookup.data || []).map((row) => Number(row.course_id))),
+    );
+  })() : Promise.resolve<number[] | null>(null)]
   );
 
   if (enrolledOnly) {
@@ -177,19 +210,11 @@ userId?: string | null)
     }
   }
 
-  if (semesters.length > 0) {
-    // We filter the main query to include ONLY courses that have at least ONE matching semester
-    if (semesters.length === 1) {
-      const [term, year] = semesters[0].split(' ');
-      supabaseQuery = supabaseQuery.eq('course_semesters.semesters.term', term);
-      supabaseQuery = supabaseQuery.eq('course_semesters.semesters.year', parseInt(year));
-    } else {
-      // Filter by term/year using .in if multiple selected.
-      const terms = semesters.map((s) => s.split(' ')[0]);
-      const years = semesters.map((s) => parseInt(s.split(' ')[1]));
-      supabaseQuery = supabaseQuery.in('course_semesters.semesters.term', terms);
-      supabaseQuery = supabaseQuery.in('course_semesters.semesters.year', years);
+  if (parsedSemesterFilters.length > 0) {
+    if (!filteredCourseIds || filteredCourseIds.length === 0) {
+      return { items: [], total: 0, pages: 0 };
     }
+    supabaseQuery = supabaseQuery.in("id", filteredCourseIds);
   }
 
   if (query) {
@@ -234,6 +259,12 @@ userId?: string | null)
       if (hiddenIds.length > 0) {
         fallbackQuery = fallbackQuery.not('id', 'in', `(${hiddenIds.join(',')})`);
       }
+    }
+    if (parsedSemesterFilters.length > 0) {
+      if (!filteredCourseIds || filteredCourseIds.length === 0) {
+        return { items: [], total: 0, pages: 0 };
+      }
+      fallbackQuery = fallbackQuery.in("id", filteredCourseIds);
     }
 
     if (query) {
