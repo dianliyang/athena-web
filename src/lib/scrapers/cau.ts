@@ -629,14 +629,27 @@ export class CAU extends BaseScraper {
     incoming: Array<{ term: string; year: number }>,
   ): Array<{ term: string; year: number }> {
     const merged = new Map<string, { term: string; year: number }>();
+    const preferred = current?.[0];
     for (const semester of [...(current || []), ...incoming]) {
       merged.set(`${semester.term}-${semester.year}`, semester);
     }
-    return Array.from(merged.values()).sort((left, right) => {
+    const ordered = Array.from(merged.values()).sort((left, right) => {
       if (left.year !== right.year) return right.year - left.year;
       if (left.term === right.term) return 0;
       return left.term === "Winter" ? -1 : 1;
     });
+    if (!preferred) return ordered;
+
+    const preferredKey = `${preferred.term}-${preferred.year}`;
+    const preferredSemester = merged.get(preferredKey);
+    if (!preferredSemester) return ordered;
+
+    return [
+      preferredSemester,
+      ...ordered.filter(
+        (semester) => `${semester.term}-${semester.year}` !== preferredKey,
+      ),
+    ];
   }
 
   private buildDescriptionSections(modul: ModulDbModule): DescriptionSection[] {
@@ -690,7 +703,6 @@ export class CAU extends BaseScraper {
       next.workload = totalWorkload || next.workload;
     }
 
-    if (!next.title && modul.title) next.title = modul.title;
     if (!next.credit && modul.ects) next.credit = modul.ects;
 
     details.modulDbWorkloadText = modul.workloadText;

@@ -12,6 +12,8 @@ describe("CAU ModulDB merge", () => {
     const baseCourse = courses.find((entry) => entry.courseCode === "Inf-EntEinSys");
     const enriched = scraper.enrichCourseWithModulDbForTests(baseCourse!, modulDbXml);
 
+    expect(baseCourse?.title).toBe("Embedded Real-Time Systems");
+    expect(enriched.title).toBe("Embedded Real-Time Systems");
     expect(enriched.units).toBe("V 4 UE 2");
     expect(enriched.workload).toBe(6);
     expect(enriched.prerequisites).toBe("Mathematical knowledge, programming experience, firm knowledge in C and Java.");
@@ -22,6 +24,7 @@ describe("CAU ModulDB merge", () => {
         { term: "Winter", year: 2025 },
       ]),
     );
+    expect(enriched.semesters?.[0]).toEqual({ term: "Winter", year: 2025 });
     expect(enriched.resources).toEqual(
       expect.arrayContaining([
         "https://moduldb.informatik.uni-kiel.de/show.cgi?mod=Inf-EntEinSys",
