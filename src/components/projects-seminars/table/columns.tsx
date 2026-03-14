@@ -72,13 +72,17 @@ export const projectSeminarColumns: ColumnDef<ProjectSeminarTableRow>[] = [
     accessorKey: "title",
     header: "S&P",
     cell: ({ row }) => (
-      <div className="flex min-h-10 flex-col justify-center">
-        <h3 className="text-[14px] font-medium text-[#222] truncate">
-          <Link href={`/projects-seminars/${row.original.id}`} className="hover:text-black transition-colors">
+      <div className="flex min-h-10 min-w-0 max-w-full flex-col justify-center">
+        <h3 className="min-w-0 max-w-full text-[14px] font-medium text-[#222]">
+          <Link
+            href={`/projects-seminars/${row.original.id}`}
+            className="block truncate hover:text-black transition-colors"
+            title={row.original.title}
+          >
             {row.original.title}
           </Link>
         </h3>
-        <p className="text-[12px] text-[#717171] mt-0.5">
+        <p className="mt-0.5 truncate text-[12px] text-[#717171]">
           {row.original.courseCode} · {row.original.university}
         </p>
       </div>
